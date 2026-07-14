@@ -53,6 +53,39 @@ export const MCU_STATS_QUERY = gql`
 // Mutations, not queries: Apollo re-executes queries on a re-render, and a
 // phantom re-fire reboots the device, powers it off, or launches a second
 // concurrent update (same hazard the node format move fixed).
+export const MCU_TIMEZONE_QUERY = gql`
+  ${ERROR_FRAGMENT}
+  query MCU_TIMEZONE {
+    Mcu {
+      timezone {
+        result {
+          timezone
+          available
+        }
+        error {
+          ...ErrorFragment
+        }
+      }
+    }
+  }
+`;
+
+export const MCU_SET_TIMEZONE_MUTATION = gql`
+  ${ERROR_FRAGMENT}
+  mutation MCU_SET_TIMEZONE($input: McuSetTimezoneInput!) {
+    Mcu {
+      setTimezone(input: $input) {
+        result {
+          timezone
+        }
+        error {
+          ...ErrorFragment
+        }
+      }
+    }
+  }
+`;
+
 export const MCU_SHUTDOWN_MUTATION = gql`
   ${ERROR_FRAGMENT}
   mutation MCU_SHUTDOWN {

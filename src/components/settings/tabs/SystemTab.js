@@ -3,6 +3,7 @@ import { SimpleGrid, Flex } from '@chakra-ui/react';
 import WifiSettings from '../sections/WifiSettings';
 import PasswordSettings from '../sections/PasswordSettings';
 import TemperatureSettings from '../sections/TemperatureSettings';
+import TimezoneSettings from '../sections/TimezoneSettings';
 
 // Two columns, not three. WiFi is the tall one — a list of networks that grows
 // with the neighbourhood — so it takes a column of its own and the two short
@@ -15,6 +16,7 @@ const SystemTab = () => (
     <Flex direction="column">
       <PasswordSettings />
       <TemperatureSettings />
+      <TimezoneSettings />
     </Flex>
   </SimpleGrid>
 );

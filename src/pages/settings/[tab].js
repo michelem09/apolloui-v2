@@ -31,6 +31,7 @@ import { GrUserWorker } from 'react-icons/gr';
 import { GET_SETTINGS_QUERY, SET_SETTINGS_QUERY } from '../../graphql/settings';
 import { GET_POOLS_QUERY, UPDATE_POOLS_QUERY } from '../../graphql/pools';
 import { MINER_RESTART_QUERY } from '../../graphql/miner';
+import { MCU_TIMEZONE_QUERY, MCU_SET_TIMEZONE_MUTATION } from '../../graphql/mcu';
 import { SOLO_RESTART_QUERY } from '../../graphql/solo';
 import {
   NODE_START_MUTATION,
@@ -206,6 +207,23 @@ const SettingsTab = () => {
   const [changeLockPassword, { loading: changeLockPasswordLoading }] =
     useLazyQuery(CHANGE_PASSWORD_QUERY, { fetchPolicy: 'no-cache' });
 
+  // Timezone is a system setting (timedatectl), not a row in the settings table,
+  // but it rides the same save/discard bar as the temperature unit: the current
+  // value is seeded into `settings` so a change lights up the bar, and the save
+  // handler applies it with its own mutation.
+  const { data: dataTimezone, refetch: refetchTimezone } = useQuery(
+    MCU_TIMEZONE_QUERY,
+    { fetchPolicy: 'no-cache' }
+  );
+
+  // A mutation, not a query: applying a zone is an action, and a query would be
+  // free to re-fire on a re-render.
+  const [setTimezone, { loading: loadingSetTimezone }] = useMutation(
+    MCU_SET_TIMEZONE_MUTATION
+  );
+
+  const systemTimezone = dataTimezone?.Mcu?.timezone?.result?.timezone;
+
   // Handle tab change
   const handleTabChange = (index) => {
     const tabNames = deviceType === 'solo-node' 
@@ -274,6 +292,15 @@ const SettingsTab = () => {
     errorQueryPools,
     deviceType,
   ]);
+
+  // Seed the current system timezone into both baselines once it arrives, so
+  // picking a different one lights up the save bar and picking the current one
+  // does not. Patches instead of rebuilding, so it never wipes a pending edit.
+  useEffect(() => {
+    if (!systemTimezone || !currentSettings || currentSettings.timezone) return;
+    setSettings((s) => ({ ...s, timezone: systemTimezone }));
+    setCurrentSettings((s) => ({ ...s, timezone: systemTimezone }));
+  }, [systemTimezone, currentSettings]);
 
   // Detect changes and restart needs
   useEffect(() => {
@@ -613,6 +640,18 @@ const SettingsTab = () => {
         setIsChanged(false);
       }
 
+      // Timezone: a plain save, no restart. Applied only when it actually changed.
+      if (settings.timezone && settings.timezone !== currentSettings?.timezone) {
+        const tzResult = await setTimezone({
+          variables: { input: { timezone: settings.timezone } },
+        });
+        if (tzResult?.data?.Mcu?.setTimezone?.error) {
+          setIsSaving(false);
+          return setErrorForm(tzResult.data.Mcu.setTimezone.error.message);
+        }
+        await refetchTimezone();
+      }
+
       await refetchSettings();
       await refetchPools();
 
@@ -713,6 +752,7 @@ const SettingsTab = () => {
     loadingSoloRestart ||
     loadingNodeStart ||
     loadingNodeStop ||
+    loadingSetTimezone ||
     changeLockPasswordLoading;
 
   // Errors

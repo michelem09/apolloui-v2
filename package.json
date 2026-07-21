@@ -24,7 +24,8 @@
     "docker:build": "docker build -t apolloui-v2 .",
     "docker:run": "docker run -p 3000:3000 apolloui-v2",
     "docker:build:arm": "docker buildx build --platform linux/arm64 -t apolloui-v2 .",
-    "docker:run:arm": "docker run --platform linux/arm64 -p 3000:3000 apolloui-v2"
+    "docker:run:arm": "docker run --platform linux/arm64 -p 3000:3000 apolloui-v2",
+    "postbuild": "bash scripts/assemble-standalone.sh"
   },
   "dependencies": {
     "@apollo/client": "^3.13.9",

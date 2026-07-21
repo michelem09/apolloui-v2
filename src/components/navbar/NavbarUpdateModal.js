@@ -58,6 +58,19 @@ const NavbarUpdateModal = ({
       setProgress(remoteProgress);
     }
 
+    // The updater writes -1 when it gives up. Without this the modal stayed at
+    // "Updating... 0%" forever, with the close button hidden, because a failed
+    // update and a just-started one looked identical from here.
+    if (remoteProgress < 0) {
+      stopPollingProgress();
+      setUpdateInProgress(false);
+      setProgress(0);
+      setUpdateError(
+        'The update failed. The previous version is still installed and running.'
+      );
+      return;
+    }
+
     if (remoteProgress >= 90) {
       stopPollingProgress();
       setUpdateInProgress(false);
@@ -103,7 +116,7 @@ const NavbarUpdateModal = ({
           <Text>
             {localVersion === remoteVersion
               ? 'You are using the latest version of the app.'
-              : 'Please update to the latest version of the app to get the latest features and bug fixes. Update can take 15-30 min. Note: your system will restart after update is complete. Do NOT power off the system until it has restarted. Close this page or refresh it after your system has restarted'}
+              : 'Please update to the latest version of the app to get the latest features and bug fixes. The update downloads a verified package and usually takes a few minutes. Mining and your Bitcoin node stop briefly while it is applied. Do NOT power off the system during the update.'}
           </Text>
           {updateInProgress && <Text>Updating... {progress}%</Text>}
           {done && !updateInProgress && <Text>Done!</Text>}

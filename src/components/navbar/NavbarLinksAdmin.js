@@ -61,6 +61,7 @@ import { versionGt } from '../../lib/semver';
 const VERSION_POLL_MS = 5 * 60 * 1000;
 import NavbarUpdateModal from './NavbarUpdateModal';
 import { useSelector, shallowEqual } from 'react-redux';
+import { useWsConnectionStatus } from '../../lib/useWsConnectionStatus';
 import { soloSelector } from '../../redux/reselect/solo';
 import moment from '../../lib/moment';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
@@ -115,10 +116,26 @@ export default function HeaderLinks({
   // against a version fetched from a completely different source could never
   // converge — it announced updates that did not exist and hid ones that did.
   const bundledVersion = getVersionFromPackageJson();
-  const { data: dataVersion, refetch: refetchVersion } = useQuery(
-    MCU_VERSION_QUERY,
-    { pollInterval: VERSION_POLL_MS }
-  );
+  const {
+    data: dataVersion,
+    refetch: refetchVersion,
+    startPolling: startPollingVersion,
+  } = useQuery(MCU_VERSION_QUERY, { pollInterval: VERSION_POLL_MS });
+
+  // Re-arm the poll whenever the backend comes back.
+  //
+  // Apollo Client stops a pollInterval that hits a network error and does not
+  // restart it, so the version poll died for the rest of the tab's life every
+  // time apollo-api went away — which is exactly what the updater does, for
+  // minutes, right before a new release becomes available. Verified on hardware:
+  // the badge appeared on its own in steady state, and never after an update
+  // until the page was reloaded by hand.
+  const wsStatus = useWsConnectionStatus();
+  useEffect(() => {
+    if (wsStatus !== 'online') return;
+    startPollingVersion(VERSION_POLL_MS);
+    refetchVersion().catch(() => {});
+  }, [wsStatus, startPollingVersion, refetchVersion]);
 
   // Clear the badge as soon as an update finishes, instead of leaving it to the
   // next poll: for up to VERSION_POLL_MS it would otherwise keep offering the

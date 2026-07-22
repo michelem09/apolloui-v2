@@ -36,6 +36,24 @@ describe('version discovery', () => {
     expect(ms).toBeLessThanOrEqual(15 * 60 * 1000);
   });
 
+  it('re-arms the poll when the backend comes back', () => {
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, 'NavbarLinksAdmin.js'),
+      'utf8'
+    );
+    // Apollo Client stops a pollInterval that hits a network error and never
+    // restarts it. The updater stops apollo-api for minutes, so the poll was
+    // dead for the rest of the tab's life from the first update onwards —
+    // measured on hardware: the badge appeared by itself in steady state, and
+    // never after an update until a manual reload. Polling alone is not enough;
+    // it has to be re-armed on the signal the app already has.
+    expect(src).toContain('useWsConnectionStatus');
+    const effect = src.match(/if \(wsStatus !== 'online'\) return;[\s\S]{0,200}/);
+    expect(effect).not.toBeNull();
+    expect(effect[0]).toContain('startPollingVersion(VERSION_POLL_MS)');
+    expect(effect[0]).toContain('refetchVersion()');
+  });
+
   it('refetches as soon as an update finishes, so the badge does not linger', () => {
     const src = require('fs').readFileSync(
       require('path').join(__dirname, 'NavbarLinksAdmin.js'),

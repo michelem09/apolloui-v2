@@ -31,7 +31,7 @@ import {
   updateRunObserved,
 } from '../../redux/slices/updateSlice';
 import { classifyUpdate, FINISHED, ABANDONED } from '../../lib/updateOutcome';
-import { subscribeWsStatus } from '../../lib/apolloClient';
+import { useWsConnectionStatus } from '../../lib/useWsConnectionStatus';
 import {
   MINER_SUBSCRIPTION,
   NODE_SUBSCRIPTION,
@@ -40,20 +40,6 @@ import {
   SERVICES_SUBSCRIPTION,
   SETTINGS_SUBSCRIPTION,
 } from '../../graphql/subscriptions';
-
-// Hook that tracks the WebSocket connection status by subscribing to
-// the module-level tracker maintained in apolloClient.js.
-function useWsConnectionStatus() {
-  const [status, setStatus] = useState('connecting');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const unsubscribe = subscribeWsStatus(setStatus);
-    return unsubscribe;
-  }, []);
-
-  return status;
-}
 
 // How often to ask the device what its update is doing. There is no deadline:
 // the device itself says whether the updater is still running, so waiting ends

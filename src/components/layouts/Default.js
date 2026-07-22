@@ -30,7 +30,12 @@ import {
   updateAbandoned,
   updateRunObserved,
 } from '../../redux/slices/updateSlice';
-import { classifyUpdate, FINISHED, ABANDONED } from '../../lib/updateOutcome';
+import {
+  classifyUpdate,
+  FINISHED,
+  ABANDONED,
+  NEVER_OBSERVED_BACKSTOP_MS,
+} from '../../lib/updateOutcome';
 import { useWsConnectionStatus } from '../../lib/useWsConnectionStatus';
 import {
   MINER_SUBSCRIPTION,
@@ -79,6 +84,31 @@ const Layout = ({ children }) => {
   const [fetchUpdateStatus] = useLazyQuery(MCU_UPDATE_STATUS_QUERY, {
     fetchPolicy: 'network-only',
   });
+
+  // Whether an update could still be running, as opposed to whether we are still
+  // waiting for one.
+  //
+  // Both dispatches that clear `inProgress` sit inside the poll, which is gated
+  // on the WS being online — so a device that never comes back can never clear
+  // it, and the slice is persisted, so every reload brings it back. The offline
+  // screen then keeps saying "Update in progress, do not power off" and, worse,
+  // suppresses its whole troubleshooting block including "try rebooting your
+  // device" — at the one moment rebooting is the correct action, forever, with
+  // no way out from the UI.
+  //
+  // Time-bounded here rather than in the slice: this is a claim about the world
+  // ("the updater is plausibly still working"), and after long enough it is
+  // simply false, whatever we last managed to observe.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!updateInProgress) return undefined;
+    const t = setInterval(() => setNow(Date.now()), 30 * 1000);
+    return () => clearInterval(t);
+  }, [updateInProgress]);
+  const updateStillPlausible =
+    updateInProgress &&
+    (!updateStartedAt ||
+      now - new Date(updateStartedAt).getTime() < NEVER_OBSERVED_BACKSTOP_MS);
 
   // Ask the device what happened while we could not see it, and keep asking for
   // as long as IT says the updater is running.
@@ -354,7 +384,7 @@ const Layout = ({ children }) => {
     return (
       <BackendOfflineScreen
         onRetry={() => window.location.reload()}
-        updating={updateInProgress}
+        updating={updateStillPlausible}
       />
     );
   }

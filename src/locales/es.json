@@ -1172,6 +1172,10 @@
     "rolled_back_title": "Actualización fallida — dispositivo restaurado",
     "rolled_back_description": "La actualización a {to} no se completó, así que el dispositivo volvió automáticamente a {from} y funciona con normalidad. No se perdió nada.",
     "failed_title": "La actualización no pudo iniciarse",
-    "failed_description": "Se detuvo antes de cambiar nada. Tu dispositivo está intacto y sigue ejecutando {from}."
+    "failed_description": "Se detuvo antes de cambiar nada. Tu dispositivo está intacto y sigue ejecutando {from}.",
+    "recovery_failed_title": "Actualización fallida — el dispositivo necesita atención",
+    "recovery_failed_description": "La actualización a {to} no se completó y no se pudo restaurar automáticamente la versión anterior. La minería y el nodo pueden estar detenidos. Contacta con soporte.",
+    "interrupted_title": "Actualización interrumpida",
+    "interrupted_description": "Se detuvo antes de terminar y no informó de un resultado. Revisa el dispositivo y vuelve a intentarlo."
   }
 }

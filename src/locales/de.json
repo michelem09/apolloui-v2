@@ -1172,6 +1172,10 @@
     "rolled_back_title": "Update fehlgeschlagen — Gerät wiederhergestellt",
     "rolled_back_description": "Das Update auf {to} wurde nicht abgeschlossen. Das Gerät wurde automatisch auf {from} zurückgesetzt und läuft normal. Es ging nichts verloren.",
     "failed_title": "Update konnte nicht starten",
-    "failed_description": "Es wurde gestoppt, bevor etwas geändert wurde. Ihr Gerät ist unverändert und läuft weiterhin mit {from}."
+    "failed_description": "Es wurde gestoppt, bevor etwas geändert wurde. Ihr Gerät ist unverändert und läuft weiterhin mit {from}.",
+    "recovery_failed_title": "Update fehlgeschlagen — Gerät benötigt Aufmerksamkeit",
+    "recovery_failed_description": "Das Update auf {to} wurde nicht abgeschlossen und die vorherige Version konnte nicht automatisch wiederhergestellt werden. Mining und Node sind möglicherweise gestoppt. Bitte wenden Sie sich an den Support.",
+    "interrupted_title": "Update unterbrochen",
+    "interrupted_description": "Es wurde abgebrochen, bevor es abgeschlossen war, und hat kein Ergebnis gemeldet. Prüfen Sie das Gerät und versuchen Sie es erneut."
   }
 }

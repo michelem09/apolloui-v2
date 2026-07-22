@@ -1172,6 +1172,10 @@
     "rolled_back_title": "Update failed — your device was restored",
     "rolled_back_description": "The update to {to} did not complete, so the device was automatically put back on {from} and is running normally. Nothing was lost.",
     "failed_title": "Update could not start",
-    "failed_description": "The update was stopped before anything was changed. Your device is untouched and still running {from}."
+    "failed_description": "The update was stopped before anything was changed. Your device is untouched and still running {from}.",
+    "recovery_failed_title": "Update failed — your device needs attention",
+    "recovery_failed_description": "The update to {to} did not complete and the previous version could not be restored automatically. Mining and your node may be stopped. Please contact support.",
+    "interrupted_title": "Update was interrupted",
+    "interrupted_description": "The update stopped before it could finish and did not report an outcome. Check your device, then try again."
   }
 }

@@ -22,7 +22,7 @@ import { isAuthError } from '../../redux/utils/errorUtils';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import { getRoutes } from '../../routes';
 import { GET_SETTINGS_QUERY } from '../../graphql/settings';
-import { MCU_LAST_UPDATE_QUERY } from '../../graphql/mcu';
+import { MCU_UPDATE_STATUS_QUERY } from '../../graphql/mcu';
 import UpdateOutcomeBanner from '../UI/UpdateOutcomeBanner';
 import {
   updateFinished,
@@ -53,11 +53,12 @@ function useWsConnectionStatus() {
   return status;
 }
 
-// How long to keep asking the device for the outcome after reconnecting, and how
-// often. The window has to outlast the gap between the API answering again and
-// the updater finishing — the node and the miner start in between, and the health
-// check can take up to 90 s on its own.
-const OUTCOME_WAIT_MS = 4 * 60 * 1000;
+// How often to ask the device what its update is doing. There is no deadline:
+// the device itself says whether the updater is still running, so waiting ends
+// when it stops rather than when a timer we invented expires. The previous fixed
+// window started at the CLICK — everything before the API is even stopped had to
+// fit inside it — so a slow first update (apt, cosign download, 40 MB, unpack)
+// disarmed the whole mechanism and then told the user to reboot mid-swap.
 const OUTCOME_POLL_MS = 4000;
 
 const createSerializableError = (error) => {
@@ -81,55 +82,53 @@ const Layout = ({ children }) => {
   // window we most need to remember.
   const {
     inProgress: updateInProgress,
-    startedAt: updateStartedAt,
+    previousRunId: updatePreviousRunId,
     outcome: updateOutcome,
   } = useSelector((state) => state.update, shallowEqual);
 
-  const [fetchLastUpdate] = useLazyQuery(MCU_LAST_UPDATE_QUERY, {
+  const [fetchUpdateStatus] = useLazyQuery(MCU_UPDATE_STATUS_QUERY, {
     fetchPolicy: 'network-only',
   });
 
-  // On reconnect, ask the device what happened while we could not see it — and
-  // keep asking, because the answer does not exist yet when we first can.
+  // Ask the device what happened while we could not see it, and keep asking for
+  // as long as IT says the updater is running.
   //
-  // The updater starts apollo-api, then the node and the miner, then runs the
-  // health check, and only writes its outcome once that passes. Measured on
-  // hardware: the API was reachable 40 seconds before the record was written. A
-  // single query on reconnect therefore always arrived too early, got nothing,
-  // and gave up — the banner only ever appeared if the user reloaded by hand.
+  // The answer does not exist when we first can ask: the updater starts the API,
+  // then the node and the miner, then runs the health check, and only then knows
+  // whether the release is kept. Measured on hardware, the API was reachable 40
+  // seconds before the record was written.
   useEffect(() => {
     if (wsStatus !== 'online' || !updateInProgress) return undefined;
     let cancelled = false;
     let timer;
-    const deadline = Date.now() + OUTCOME_WAIT_MS;
 
     const poll = async () => {
       if (cancelled) return;
       try {
-        const { data } = await fetchLastUpdate();
-        const record = data?.Mcu?.lastUpdate?.result;
-        // The device keeps its last outcome forever, so a record older than the
-        // update we started belongs to a previous one and is not an answer.
+        const { data } = await fetchUpdateStatus();
+        const status = data?.Mcu?.updateStatus?.result;
+        const record = status?.record;
+
+        // Ours is the first record carrying a run id different from the one that
+        // was there when we pressed — no clocks involved.
         const isOurs =
-          record &&
-          (!updateStartedAt ||
-            !record.finishedAt ||
-            new Date(record.finishedAt) >= new Date(updateStartedAt));
-        if (isOurs) {
+          record && record.runId && record.runId !== updatePreviousRunId;
+
+        if (isOurs && record.state !== 'running') {
           dispatch(updateFinished(record));
+          return;
+        }
+        // The updater is gone and left nothing of ours behind: it was killed
+        // before it could record anything, so stop waiting for an answer that
+        // will never come.
+        if (!status?.running && !isOurs && record) {
+          dispatch(updateCleared());
           return;
         }
       } catch (err) {
         // Still coming up, or a transient failure — try again.
       }
-      if (cancelled) return;
-      if (Date.now() < deadline) {
-        timer = setTimeout(poll, OUTCOME_POLL_MS);
-      } else {
-        // Stop waiting rather than stay armed forever: an update whose outcome
-        // never appears would otherwise keep this state alive across reloads.
-        dispatch(updateCleared());
-      }
+      if (!cancelled) timer = setTimeout(poll, OUTCOME_POLL_MS);
     };
     poll();
 
@@ -137,7 +136,7 @@ const Layout = ({ children }) => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [wsStatus, updateInProgress, updateStartedAt, fetchLastUpdate, dispatch]);
+  }, [wsStatus, updateInProgress, updatePreviousRunId, fetchUpdateStatus, dispatch]);
 
   // Generate routes dynamically based on device type
   const dynamicRoutes = getRoutes(deviceType || 'miner');

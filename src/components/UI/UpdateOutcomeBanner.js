@@ -20,22 +20,26 @@ import { useIntl } from 'react-intl';
 // Persistent, not a toast: the update window is minutes long and nobody is
 // watching the screen for it.
 const STATUS = {
-  success: { scheme: 'green', key: 'success' },
+  succeeded: { scheme: 'green', key: 'success' },
   'rolled-back': { scheme: 'orange', key: 'rolled_back' },
-  failed: { scheme: 'red', key: 'failed' },
+  // Modified and NOT put back — the only outcome that needs a human.
+  'recovery-failed': { scheme: 'red', key: 'recovery_failed' },
+  aborted: { scheme: 'orange', key: 'failed' },
+  // The updater died without recording anything.
+  interrupted: { scheme: 'orange', key: 'interrupted' },
 };
 
 const UpdateOutcomeBanner = ({ outcome, onDismiss }) => {
   const intl = useIntl();
-  if (!outcome?.result) return null;
+  if (!outcome?.state) return null;
 
-  const status = STATUS[outcome.result] || STATUS.failed;
+  const status = STATUS[outcome.state] || STATUS.aborted;
   const t = (id, values) =>
     intl.formatMessage({ id: `update_outcome.${id}` }, values);
 
   return (
     <Alert
-      status={outcome.result === 'success' ? 'success' : 'warning'}
+      status={outcome.state === 'succeeded' ? 'success' : 'warning'}
       colorScheme={status.scheme}
       variant="left-accent"
       borderRadius="md"

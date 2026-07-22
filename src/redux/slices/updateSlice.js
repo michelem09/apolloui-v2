@@ -11,9 +11,14 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   // An update we started and have not yet seen the outcome of.
   inProgress: false,
-  // ISO timestamp, used to tell OUR update apart from one recorded earlier: the
-  // device keeps the last outcome forever, so without this every page load would
-  // re-announce an update from days ago.
+  // The run id the device reported when we pressed Update — or null if it had
+  // never updated. Our outcome is the first record carrying a DIFFERENT one.
+  //
+  // This replaces comparing the browser's clock against the device's. These
+  // boards have no RTC, their clock is known to ship wrong, and the minutes right
+  // after an update are exactly when NTP has not converged: a device behind the
+  // browser rejected its own record, a device ahead accepted the previous one.
+  previousRunId: null,
   startedAt: null,
   targetVersion: null,
   // The outcome once observed, shown until the user dismisses it.
@@ -26,6 +31,7 @@ export const updateSlice = createSlice({
   reducers: {
     updateStarted: (state, action) => {
       state.inProgress = true;
+      state.previousRunId = action.payload?.previousRunId ?? null;
       state.startedAt = new Date().toISOString();
       state.targetVersion = action.payload?.targetVersion ?? null;
       state.outcome = null;

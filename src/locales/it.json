@@ -1172,6 +1172,10 @@
     "rolled_back_title": "Aggiornamento fallito — il device è stato ripristinato",
     "rolled_back_description": "L'aggiornamento a {to} non è andato a buon fine, quindi il device è stato riportato automaticamente alla {from} e funziona normalmente. Non è andato perso nulla.",
     "failed_title": "L'aggiornamento non è partito",
-    "failed_description": "È stato interrotto prima di modificare qualcosa. Il device è intatto ed esegue ancora la {from}."
+    "failed_description": "È stato interrotto prima di modificare qualcosa. Il device è intatto ed esegue ancora la {from}.",
+    "recovery_failed_title": "Aggiornamento fallito — il device richiede attenzione",
+    "recovery_failed_description": "L'aggiornamento a {to} non è andato a buon fine e non è stato possibile ripristinare automaticamente la versione precedente. Mining e nodo potrebbero essere fermi. Contatta il supporto.",
+    "interrupted_title": "Aggiornamento interrotto",
+    "interrupted_description": "Si è fermato prima di concludersi e non ha riportato un esito. Controlla il device e riprova."
   }
 }

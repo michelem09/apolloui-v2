@@ -11,7 +11,7 @@ import {
   ModalBody,
 } from '@chakra-ui/react';
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { MCU_UPDATE_PROGRESS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
+import { MCU_UPDATE_STATUS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateStarted } from '../../redux/slices/updateSlice';
@@ -32,25 +32,43 @@ const NavbarUpdateModal = ({
     { fetchPolicy: 'no-cache' }
   );
 
+  // Polled only while this modal is following an update it started. It used to
+  // run unconditionally at mount, so the value left by the PREVIOUS run was
+  // already in the cache when the gate opened — the effect read it immediately
+  // and declared "Done!" seconds after the tarball began downloading.
   const {
-    data: dataProgress,
+    data: dataStatus,
     startPolling: startPollingProgress,
     stopPolling: stopPollingProgress,
-  } = useQuery(MCU_UPDATE_PROGRESS_QUERY);
+    refetch: refetchStatus,
+  } = useQuery(MCU_UPDATE_STATUS_QUERY, {
+    skip: !updateInProgress,
+    fetchPolicy: 'network-only',
+  });
 
-  const startUpdate = () => {
+  const startUpdate = async () => {
+    // Read the run id that is there NOW, before anything starts. Our outcome is
+    // the first record carrying a different one — which is how this recognises
+    // its own update without comparing the browser's clock to the device's.
+    let previousRunId = null;
+    try {
+      const { data } = await refetchStatus();
+      previousRunId = data?.Mcu?.updateStatus?.result?.record?.runId ?? null;
+    } catch (err) {
+      // No record, or unreachable: any run id we then see is necessarily new.
+    }
     handleUpdate();
     setUpdateInProgress(true);
     // Also recorded in redux, which is persisted: the updater stops apollo-api,
     // so this component is about to be unmounted with the whole layout. Without
     // this the browser forgets it ever started an update and comes back to an
     // unexplained "backend offline".
-    dispatch(updateStarted({ targetVersion: remoteVersion }));
+    dispatch(updateStarted({ targetVersion: remoteVersion, previousRunId }));
     startPollingProgress(3000);
   };
 
-  const { value: remoteProgress } =
-    dataProgress?.Mcu?.updateProgress?.result || {};
+  const record = dataStatus?.Mcu?.updateStatus?.result?.record;
+  const remoteProgress = record?.progress ?? 0;
 
   useEffect(() => {
     if (errorUpdate) {
@@ -62,35 +80,35 @@ const NavbarUpdateModal = ({
   }, [errorUpdate, stopPollingProgress]);
 
   useEffect(() => {
-    // Everything below is gated on an update WE are following. The progress file
-    // now keeps its terminal value — 100 after a success, -1 after a failure —
-    // so that the outcome survives the window where this API is stopped. Read
-    // ungated, that leftover made every later page load conclude an update had
-    // just finished: the modal showed "Reload App" instead of offering the
-    // update, and a days-old failure re-announced itself every time it opened.
-    // Reporting what a past update did is the outcome banner's job.
+    // Only an update WE are following. Reporting what a past one did is the
+    // outcome banner's job — this modal reading leftovers is what once replaced
+    // the Update button with "Reload App" and left the device unable to take
+    // another update at all.
     if (!updateInProgress) return;
 
     setProgress(remoteProgress);
 
-    // The updater writes -1 when it gives up. Without this the modal stayed at
-    // "Updating... 0%" forever, with the close button hidden, because a failed
-    // update and a just-started one looked identical from here.
-    if (remoteProgress < 0) {
+    if (!record || record.state === 'running') return;
+
+    // Anything that is not "succeeded" is a failure the user has to be told
+    // about, and the record says which kind — including the one that means the
+    // device could NOT be put back.
+    if (record.state !== 'succeeded') {
       stopPollingProgress();
       setUpdateInProgress(false);
       setProgress(0);
       setUpdateError(
-        'The update failed. The previous version is still installed and running.'
+        record.state === 'recovery-failed'
+          ? 'The update failed and the previous version could not be restored. This device needs attention.'
+          : 'The update failed. The previous version is still installed and running.'
       );
       return;
     }
 
-    // 100, not >= 90: the updater writes 88 while starting services, and two
-    // gates that can still roll everything back come after it — the node failing
-    // to start, and the health check timing out. Treating 90 as done told the
-    // user the update had worked while the device was reverting.
-    if (remoteProgress >= 100) {
+    // The device says it succeeded — not a number this client interprets. A
+    // threshold could be crossed while two gates that still roll everything back
+    // were pending, which told the user it had worked while it was reverting.
+    {
       stopPollingProgress();
       setUpdateInProgress(false);
       setProgress(0);
@@ -98,7 +116,7 @@ const NavbarUpdateModal = ({
         setDone(true);
       }, 5000);
     }
-  }, [updateInProgress, remoteProgress, stopPollingProgress]);
+  }, [updateInProgress, record, remoteProgress, stopPollingProgress]);
 
   const handleReloadApp = () => {
     return () => {

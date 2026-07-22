@@ -191,21 +191,27 @@ export const MCU_UPDATE_PROGRESS_QUERY = gql`
   }
 `;
 
-// What the last update attempt did. Progress polling goes through this same API,
-// which the updater stops — so the UI is blind for the minutes that matter and
-// reconnects with no memory. This is what it reads to explain the gap.
-export const MCU_LAST_UPDATE_QUERY = gql`
+// What the last update run is doing, or did. Two facts together: the record says
+// what the updater believes, running says whether it is still there to believe it.
+// A record stuck on "running" with no unit alive means the updater was killed.
+export const MCU_UPDATE_STATUS_QUERY = gql`
   ${ERROR_FRAGMENT}
-  query MCU_LAST_UPDATE {
+  query MCU_UPDATE_STATUS {
     Mcu {
-      lastUpdate {
+      updateStatus {
         result {
-          result
-          from
-          to
-          reason
-          startedAt
-          finishedAt
+          running
+          record {
+            runId
+            state
+            phase
+            progress
+            from
+            to
+            reason
+            startedAt
+            updatedAt
+          }
         }
         error {
           ...ErrorFragment

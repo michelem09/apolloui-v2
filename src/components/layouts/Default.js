@@ -27,6 +27,7 @@ import UpdateOutcomeBanner from '../UI/UpdateOutcomeBanner';
 import {
   updateFinished,
   updateOutcomeDismissed,
+  updateCleared,
 } from '../../redux/slices/updateSlice';
 import { subscribeWsStatus } from '../../lib/apolloClient';
 import {
@@ -51,6 +52,13 @@ function useWsConnectionStatus() {
 
   return status;
 }
+
+// How long to keep asking the device for the outcome after reconnecting, and how
+// often. The window has to outlast the gap between the API answering again and
+// the updater finishing — the node and the miner start in between, and the health
+// check can take up to 90 s on its own.
+const OUTCOME_WAIT_MS = 4 * 60 * 1000;
+const OUTCOME_POLL_MS = 4000;
 
 const createSerializableError = (error) => {
   if (!error) return null;
@@ -81,33 +89,53 @@ const Layout = ({ children }) => {
     fetchPolicy: 'network-only',
   });
 
-  // On reconnect, ask the device what happened while we could not see it.
+  // On reconnect, ask the device what happened while we could not see it — and
+  // keep asking, because the answer does not exist yet when we first can.
+  //
+  // The updater starts apollo-api, then the node and the miner, then runs the
+  // health check, and only writes its outcome once that passes. Measured on
+  // hardware: the API was reachable 40 seconds before the record was written. A
+  // single query on reconnect therefore always arrived too early, got nothing,
+  // and gave up — the banner only ever appeared if the user reloaded by hand.
   useEffect(() => {
     if (wsStatus !== 'online' || !updateInProgress) return undefined;
     let cancelled = false;
+    let timer;
+    const deadline = Date.now() + OUTCOME_WAIT_MS;
 
-    (async () => {
+    const poll = async () => {
+      if (cancelled) return;
       try {
         const { data } = await fetchLastUpdate();
         const record = data?.Mcu?.lastUpdate?.result;
-        if (cancelled || !record) return;
-        // The device keeps its last outcome forever, so an older record belongs
-        // to a previous update and must not be re-announced as ours.
-        if (
-          updateStartedAt &&
-          record.finishedAt &&
-          new Date(record.finishedAt) < new Date(updateStartedAt)
-        ) {
+        // The device keeps its last outcome forever, so a record older than the
+        // update we started belongs to a previous one and is not an answer.
+        const isOurs =
+          record &&
+          (!updateStartedAt ||
+            !record.finishedAt ||
+            new Date(record.finishedAt) >= new Date(updateStartedAt));
+        if (isOurs) {
+          dispatch(updateFinished(record));
           return;
         }
-        dispatch(updateFinished(record));
       } catch (err) {
-        // Reporting the outcome must never be what breaks the page.
+        // Still coming up, or a transient failure — try again.
       }
-    })();
+      if (cancelled) return;
+      if (Date.now() < deadline) {
+        timer = setTimeout(poll, OUTCOME_POLL_MS);
+      } else {
+        // Stop waiting rather than stay armed forever: an update whose outcome
+        // never appears would otherwise keep this state alive across reloads.
+        dispatch(updateCleared());
+      }
+    };
+    poll();
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [wsStatus, updateInProgress, updateStartedAt, fetchLastUpdate, dispatch]);
 

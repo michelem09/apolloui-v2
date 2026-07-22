@@ -17,7 +17,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
 
 import { SidebarResponsive } from '../sidebar/Sidebar';
@@ -47,6 +47,18 @@ import {
 import { useQuery } from '@apollo/client';
 import { MCU_VERSION_QUERY } from '../../graphql/mcu';
 import { versionGt } from '../../lib/semver';
+
+// How often to ask the device whether a newer release exists.
+//
+// It used to be asked once, at mount, and never again — so a device left on a
+// page never learned that a release had appeared, and the only way to see the
+// badge was to reload. `refetch` existed but ran when the version modal was
+// OPENED, which requires the badge that was never going to show.
+//
+// The backend caches the channel lookup for five minutes, so polling faster than
+// that only re-reads a cached value; matching it keeps discovery under ten
+// minutes without adding a single extra request to the update server.
+const VERSION_POLL_MS = 5 * 60 * 1000;
 import NavbarUpdateModal from './NavbarUpdateModal';
 import { useSelector, shallowEqual } from 'react-redux';
 import { soloSelector } from '../../redux/reselect/solo';
@@ -103,8 +115,18 @@ export default function HeaderLinks({
   // against a version fetched from a completely different source could never
   // converge — it announced updates that did not exist and hid ones that did.
   const bundledVersion = getVersionFromPackageJson();
-  const { data: dataVersion, refetch: refetchVersion } =
-    useQuery(MCU_VERSION_QUERY);
+  const { data: dataVersion, refetch: refetchVersion } = useQuery(
+    MCU_VERSION_QUERY,
+    { pollInterval: VERSION_POLL_MS }
+  );
+
+  // Clear the badge as soon as an update finishes, instead of leaving it to the
+  // next poll: for up to VERSION_POLL_MS it would otherwise keep offering the
+  // version the device had just installed.
+  const updateOutcome = useSelector((state) => state.update.outcome);
+  useEffect(() => {
+    if (updateOutcome) refetchVersion();
+  }, [updateOutcome, refetchVersion]);
 
   const {
     installed,

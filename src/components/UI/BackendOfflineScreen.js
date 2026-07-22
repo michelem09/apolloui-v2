@@ -39,7 +39,12 @@ function formatElapsed(s) {
   return `${m}m ${rem}s`;
 }
 
-export default function BackendOfflineScreen({ onRetry }) {
+// `updating` changes what this screen MEANS. The updater deliberately stops
+// apollo-api, so the websocket drops and this screen appears — an expected step
+// of an update the user just started, not a fault. Without the distinction, the
+// most reassuring thing the device does looks identical to a crash, and the
+// troubleshooting tips actively invite a reboot mid-swap.
+export default function BackendOfflineScreen({ onRetry, updating = false }) {
   const intl = useIntl();
   const t = (id) => intl.formatMessage({ id: `backend_offline.${id}` });
   const elapsed = useElapsed();
@@ -86,7 +91,11 @@ export default function BackendOfflineScreen({ onRetry }) {
           border="2px solid"
           borderColor="orange.500"
         >
-          <Icon as={WarningTwoIcon} w={8} h={8} color="orange.400" />
+          {updating ? (
+            <Spinner thickness="3px" speed="0.8s" color="blue.300" w={8} h={8} />
+          ) : (
+            <Icon as={WarningTwoIcon} w={8} h={8} color="orange.400" />
+          )}
         </Flex>
 
         {/* Title */}
@@ -97,10 +106,10 @@ export default function BackendOfflineScreen({ onRetry }) {
             fontWeight="700"
             letterSpacing="-0.02em"
           >
-            {t('title')}
+            {t(updating ? 'updating_title' : 'title')}
           </Heading>
           <Text color="whiteAlpha.600" fontSize="sm" lineHeight="1.6">
-            {t('description')}
+            {t(updating ? 'updating_description' : 'description')}
           </Text>
         </VStack>
 
@@ -134,7 +143,9 @@ export default function BackendOfflineScreen({ onRetry }) {
           </Badge>
         </HStack>
 
-        {/* Suggestions */}
+        {/* Suggestions — never during an update: "try rebooting your device" is
+            exactly the wrong thing to do while the swap is running. */}
+        {!updating && (
         <VStack
           spacing={2}
           w="full"
@@ -174,6 +185,7 @@ export default function BackendOfflineScreen({ onRetry }) {
             </HStack>
           ))}
         </VStack>
+        )}
 
         {/* Retry button */}
         <Button

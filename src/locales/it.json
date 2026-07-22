@@ -1151,7 +1151,9 @@
     "tip_network": "Controlla che il dispositivo sia connesso alla rete locale",
     "tip_reboot": "Prova a riavviare il dispositivo",
     "retry": "Riprova ora",
-    "retrying": "Nuovo tentativo…"
+    "retrying": "Nuovo tentativo…",
+    "updating_title": "Aggiornamento in corso",
+    "updating_description": "Il device sta applicando l'aggiornamento e ha fermato l'API di proposito. Questa pagina si riconnetterà da sola — non spegnere il sistema."
   },
   "apollo": {
     "metrics": {
@@ -1163,5 +1165,13 @@
     "chart": {
       "now": "Adesso"
     }
+  },
+  "update_outcome": {
+    "success_title": "Aggiornamento completato",
+    "success_description": "Il device ora esegue la versione {to}.",
+    "rolled_back_title": "Aggiornamento fallito — il device è stato ripristinato",
+    "rolled_back_description": "L'aggiornamento a {to} non è andato a buon fine, quindi il device è stato riportato automaticamente alla {from} e funziona normalmente. Non è andato perso nulla.",
+    "failed_title": "L'aggiornamento non è partito",
+    "failed_description": "È stato interrotto prima di modificare qualcosa. Il device è intatto ed esegue ancora la {from}."
   }
 }

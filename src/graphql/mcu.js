@@ -191,6 +191,30 @@ export const MCU_UPDATE_PROGRESS_QUERY = gql`
   }
 `;
 
+// What the last update attempt did. Progress polling goes through this same API,
+// which the updater stops — so the UI is blind for the minutes that matter and
+// reconnects with no memory. This is what it reads to explain the gap.
+export const MCU_LAST_UPDATE_QUERY = gql`
+  ${ERROR_FRAGMENT}
+  query MCU_LAST_UPDATE {
+    Mcu {
+      lastUpdate {
+        result {
+          result
+          from
+          to
+          reason
+          startedAt
+          finishedAt
+        }
+        error {
+          ...ErrorFragment
+        }
+      }
+    }
+  }
+`;
+
 export const MCU_VERSION_QUERY = gql`
   ${ERROR_FRAGMENT}
   query MCU_VERSION {

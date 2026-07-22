@@ -17,6 +17,7 @@ import feedbackReducer, {
   resetFeedback,
 } from './slices/feedbackSlice';
 import minerActionReducer from './slices/minerActionSlice';
+import updateReducer from './slices/updateSlice';
 import servicesReducer from './slices/servicesSlice';
 import logsReducer from './slices/logsSlice';
 import soloReducer from './slices/soloSlice';
@@ -64,7 +65,7 @@ const persistConfig = {
   key: 'root',
   storage,
   stateReconciler: autoMergeLevel2,
-  whitelist: ['auth', 'minerAction', 'solo'],
+  whitelist: ['auth', 'minerAction', 'solo', 'update'],
   timeout: null,
 };
 
@@ -79,6 +80,7 @@ const rootReducer = {
   wifi: wifiReducer,
   feedback: feedbackReducer,
   minerAction: minerActionReducer,
+  update: updateReducer,
   services: servicesReducer,
   logs: logsReducer,
   solo: soloReducer,

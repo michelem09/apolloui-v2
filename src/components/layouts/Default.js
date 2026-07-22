@@ -9,7 +9,7 @@ import Navbar from '../navbar/NavbarAdmin';
 import BlockFoundCelebration from '../UI/BlockFoundCelebration';
 import BackendOfflineScreen from '../UI/BackendOfflineScreen';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { useSubscription, useQuery } from '@apollo/client';
+import { useSubscription, useQuery, useLazyQuery } from '@apollo/client';
 import { updateNodeStats } from '../../redux/slices/nodeSlice';
 import { updateMinerStats } from '../../redux/slices/minerSlice';
 import { updateSoloStats } from '../../redux/slices/soloSlice';
@@ -22,6 +22,12 @@ import { isAuthError } from '../../redux/utils/errorUtils';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import { getRoutes } from '../../routes';
 import { GET_SETTINGS_QUERY } from '../../graphql/settings';
+import { MCU_LAST_UPDATE_QUERY } from '../../graphql/mcu';
+import UpdateOutcomeBanner from '../UI/UpdateOutcomeBanner';
+import {
+  updateFinished,
+  updateOutcomeDismissed,
+} from '../../redux/slices/updateSlice';
 import { subscribeWsStatus } from '../../lib/apolloClient';
 import {
   MINER_SUBSCRIPTION,
@@ -60,6 +66,50 @@ const Layout = ({ children }) => {
   const dispatch = useDispatch();
   const deviceType = useDeviceType();
   const wsStatus = useWsConnectionStatus();
+
+  // An update this browser started. Kept in redux and persisted because the
+  // updater stops apollo-api: the layout below is replaced by the offline screen
+  // and everything under it unmounts, so component state cannot survive the one
+  // window we most need to remember.
+  const {
+    inProgress: updateInProgress,
+    startedAt: updateStartedAt,
+    outcome: updateOutcome,
+  } = useSelector((state) => state.update, shallowEqual);
+
+  const [fetchLastUpdate] = useLazyQuery(MCU_LAST_UPDATE_QUERY, {
+    fetchPolicy: 'network-only',
+  });
+
+  // On reconnect, ask the device what happened while we could not see it.
+  useEffect(() => {
+    if (wsStatus !== 'online' || !updateInProgress) return undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data } = await fetchLastUpdate();
+        const record = data?.Mcu?.lastUpdate?.result;
+        if (cancelled || !record) return;
+        // The device keeps its last outcome forever, so an older record belongs
+        // to a previous update and must not be re-announced as ours.
+        if (
+          updateStartedAt &&
+          record.finishedAt &&
+          new Date(record.finishedAt) < new Date(updateStartedAt)
+        ) {
+          return;
+        }
+        dispatch(updateFinished(record));
+      } catch (err) {
+        // Reporting the outcome must never be what breaks the page.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wsStatus, updateInProgress, updateStartedAt, fetchLastUpdate, dispatch]);
 
   // Generate routes dynamically based on device type
   const dynamicRoutes = getRoutes(deviceType || 'miner');
@@ -272,6 +322,7 @@ const Layout = ({ children }) => {
     return (
       <BackendOfflineScreen
         onRetry={() => window.location.reload()}
+        updating={updateInProgress}
       />
     );
   }
@@ -332,6 +383,13 @@ const Layout = ({ children }) => {
             pt="50px"
           >
             <Box pt={!blockFound && { base: '130px', md: '80px', xl: '80px' }}>
+              {/* Above the page content, on every page: nobody watches the screen
+                  for the minutes an update takes, and a rollback is the one thing
+                  they must not miss. */}
+              <UpdateOutcomeBanner
+                outcome={updateOutcome}
+                onDismiss={() => dispatch(updateOutcomeDismissed())}
+              />
               {React.cloneElement(children)}
             </Box>
           </Box>

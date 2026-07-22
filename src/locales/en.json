@@ -1151,7 +1151,9 @@
     "tip_network": "Check that your device is connected to the local network",
     "tip_reboot": "Try rebooting your device",
     "retry": "Retry now",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "updating_title": "Update in progress",
+    "updating_description": "Your device is applying the update and has stopped the API on purpose. This page will reconnect on its own — do not power off the system."
   },
   "apollo": {
     "metrics": {
@@ -1163,5 +1165,13 @@
     "chart": {
       "now": "Now"
     }
+  },
+  "update_outcome": {
+    "success_title": "Update completed",
+    "success_description": "Your device is now running {to}.",
+    "rolled_back_title": "Update failed — your device was restored",
+    "rolled_back_description": "The update to {to} did not complete, so the device was automatically put back on {from} and is running normally. Nothing was lost.",
+    "failed_title": "Update could not start",
+    "failed_description": "The update was stopped before anything was changed. Your device is untouched and still running {from}."
   }
 }

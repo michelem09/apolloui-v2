@@ -1151,7 +1151,9 @@
     "tip_network": "Prüfe, ob dein Gerät mit dem lokalen Netzwerk verbunden ist",
     "tip_reboot": "Versuche, dein Gerät neu zu starten",
     "retry": "Jetzt erneut versuchen",
-    "retrying": "Erneuter Versuch…"
+    "retrying": "Erneuter Versuch…",
+    "updating_title": "Update läuft",
+    "updating_description": "Ihr Gerät installiert das Update und hat die API absichtlich gestoppt. Diese Seite verbindet sich von selbst wieder — schalten Sie das System nicht aus."
   },
   "apollo": {
     "metrics": {
@@ -1163,5 +1165,13 @@
     "chart": {
       "now": "Jetzt"
     }
+  },
+  "update_outcome": {
+    "success_title": "Update abgeschlossen",
+    "success_description": "Ihr Gerät läuft jetzt mit {to}.",
+    "rolled_back_title": "Update fehlgeschlagen — Gerät wiederhergestellt",
+    "rolled_back_description": "Das Update auf {to} wurde nicht abgeschlossen. Das Gerät wurde automatisch auf {from} zurückgesetzt und läuft normal. Es ging nichts verloren.",
+    "failed_title": "Update konnte nicht starten",
+    "failed_description": "Es wurde gestoppt, bevor etwas geändert wurde. Ihr Gerät ist unverändert und läuft weiterhin mit {from}."
   }
 }

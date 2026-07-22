@@ -13,6 +13,8 @@ import {
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { MCU_UPDATE_PROGRESS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
 import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { updateStarted } from '../../redux/slices/updateSlice';
 
 const NavbarUpdateModal = ({
   isOpen,
@@ -20,6 +22,7 @@ const NavbarUpdateModal = ({
   localVersion,
   remoteVersion,
 }) => {
+  const dispatch = useDispatch();
   const [updateInProgress, setUpdateInProgress] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
@@ -38,6 +41,11 @@ const NavbarUpdateModal = ({
   const startUpdate = () => {
     handleUpdate();
     setUpdateInProgress(true);
+    // Also recorded in redux, which is persisted: the updater stops apollo-api,
+    // so this component is about to be unmounted with the whole layout. Without
+    // this the browser forgets it ever started an update and comes back to an
+    // unexplained "backend offline".
+    dispatch(updateStarted({ targetVersion: remoteVersion }));
     startPollingProgress(3000);
   };
 
@@ -71,7 +79,11 @@ const NavbarUpdateModal = ({
       return;
     }
 
-    if (remoteProgress >= 90) {
+    // 100, not >= 90: the updater writes 88 while starting services, and two
+    // gates that can still roll everything back come after it — the node failing
+    // to start, and the health check timing out. Treating 90 as done told the
+    // user the update had worked while the device was reverting.
+    if (remoteProgress >= 100) {
       stopPollingProgress();
       setUpdateInProgress(false);
       setProgress(0);

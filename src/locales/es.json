@@ -1151,7 +1151,9 @@
     "tip_network": "Comprueba que tu dispositivo esté conectado a la red local",
     "tip_reboot": "Intenta reiniciar tu dispositivo",
     "retry": "Reintentar ahora",
-    "retrying": "Reintentando…"
+    "retrying": "Reintentando…",
+    "updating_title": "Actualización en curso",
+    "updating_description": "Tu dispositivo está aplicando la actualización y ha detenido la API a propósito. Esta página se reconectará sola — no apagues el sistema."
   },
   "apollo": {
     "metrics": {
@@ -1163,5 +1165,13 @@
     "chart": {
       "now": "Ahora"
     }
+  },
+  "update_outcome": {
+    "success_title": "Actualización completada",
+    "success_description": "Tu dispositivo ahora ejecuta la versión {to}.",
+    "rolled_back_title": "Actualización fallida — dispositivo restaurado",
+    "rolled_back_description": "La actualización a {to} no se completó, así que el dispositivo volvió automáticamente a {from} y funciona con normalidad. No se perdió nada.",
+    "failed_title": "La actualización no pudo iniciarse",
+    "failed_description": "Se detuvo antes de cambiar nada. Tu dispositivo está intacto y sigue ejecutando {from}."
   }
 }

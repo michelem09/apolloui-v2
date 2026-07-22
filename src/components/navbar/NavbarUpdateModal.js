@@ -62,9 +62,16 @@ const NavbarUpdateModal = ({
   }, [errorUpdate, stopPollingProgress]);
 
   useEffect(() => {
-    if (updateInProgress) {
-      setProgress(remoteProgress);
-    }
+    // Everything below is gated on an update WE are following. The progress file
+    // now keeps its terminal value — 100 after a success, -1 after a failure —
+    // so that the outcome survives the window where this API is stopped. Read
+    // ungated, that leftover made every later page load conclude an update had
+    // just finished: the modal showed "Reload App" instead of offering the
+    // update, and a days-old failure re-announced itself every time it opened.
+    // Reporting what a past update did is the outcome banner's job.
+    if (!updateInProgress) return;
+
+    setProgress(remoteProgress);
 
     // The updater writes -1 when it gives up. Without this the modal stayed at
     // "Updating... 0%" forever, with the close button hidden, because a failed

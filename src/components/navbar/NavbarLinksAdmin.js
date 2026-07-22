@@ -95,12 +95,28 @@ export default function HeaderLinks({
   };
 
   // Handle app update
-  const localVersion = getVersionFromPackageJson();
-
+  //
+  // Both sides come from the device, and both mean what they say: `installed` is
+  // read from the release the updater actually installed, `available` from the
+  // signed channel it would install from. Comparing the bundled package.json
+  // against a version fetched from a completely different source could never
+  // converge — it announced updates that did not exist and hid ones that did.
+  const bundledVersion = getVersionFromPackageJson();
   const { data: dataVersion, refetch: refetchVersion } =
     useQuery(MCU_VERSION_QUERY);
 
-  const { result: remoteVersion } = dataVersion?.Mcu?.version || {};
+  const {
+    installed,
+    available,
+    result: legacyRemoteVersion,
+  } = dataVersion?.Mcu?.version || {};
+
+  const localVersion = installed || bundledVersion;
+  // Null when the channel is unreachable: show no update rather than one we
+  // cannot name. Falls back to the old field while a device still runs a
+  // backend that does not report the new ones.
+  const remoteVersion =
+    available ?? (installed ? null : legacyRemoteVersion) ?? localVersion;
 
   const onOpenModalVersion = async () => {
     await refetchVersion();

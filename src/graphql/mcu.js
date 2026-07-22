@@ -221,6 +221,8 @@ export const MCU_VERSION_QUERY = gql`
     Mcu {
       version {
         result
+        installed
+        available
         error {
           ...ErrorFragment
         }

@@ -21,6 +21,13 @@ const NavbarUpdateModal = ({
   onClose,
   localVersion,
   remoteVersion,
+  // Decided once, with semver ordering, by whoever owns both numbers. Recomputing
+  // it here as `localVersion !== remoteVersion` offered updates the updater then
+  // refused — every difference looked like a newer version, including older ones.
+  updateAvailable,
+  // The channel could not be reached, so we do not know whether an update
+  // exists. Saying "you are up to date" here would be a claim we cannot make.
+  channelUnreachable,
 }) => {
   const dispatch = useDispatch();
   const [updateInProgress, setUpdateInProgress] = useState(false);
@@ -145,13 +152,17 @@ const NavbarUpdateModal = ({
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>
-          {localVersion === remoteVersion
-            ? `Your app is updated to the latest version v${localVersion}`
-            : `New version v${remoteVersion} is available!`}
+          {updateAvailable
+            ? `New version v${remoteVersion} is available!`
+            : channelUnreachable
+              ? `Could not check for updates — running v${localVersion}`
+              : `Your app is updated to the latest version v${localVersion}`}
         </ModalHeader>
         <ModalBody>
           <Text>
-            {localVersion === remoteVersion
+            {channelUnreachable
+              ? 'This device could not reach the update channel, so it is not known whether a newer version exists. It is running normally.'
+              : !updateAvailable
               ? 'You are using the latest version of the app.'
               : 'Please update to the latest version of the app to get the latest features and bug fixes. The update downloads a verified package and usually takes a few minutes. Mining and your Bitcoin node stop briefly while it is applied. Do NOT power off the system during the update.'}
           </Text>
@@ -165,7 +176,7 @@ const NavbarUpdateModal = ({
         </ModalBody>
         {!done && !updateInProgress && <ModalCloseButton />}
         <ModalFooter>
-          {localVersion !== remoteVersion && !done && !updateError && (
+          {updateAvailable && !done && !updateError && (
             <Button
               colorScheme="blue"
               mr={3}
@@ -178,7 +189,7 @@ const NavbarUpdateModal = ({
           )}
           {!done && !updateInProgress && (
             <Button variant="ghost" onClick={onClose}>
-              {localVersion === remoteVersion ? 'Close' : 'Cancel'}
+              {updateAvailable ? 'Cancel' : 'Close'}
             </Button>
           )}
           {done && (

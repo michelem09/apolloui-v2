@@ -46,6 +46,7 @@ import {
 } from '../../lib/utils';
 import { useQuery } from '@apollo/client';
 import { MCU_VERSION_QUERY } from '../../graphql/mcu';
+import { versionGt } from '../../lib/semver';
 import NavbarUpdateModal from './NavbarUpdateModal';
 import { useSelector, shallowEqual } from 'react-redux';
 import { soloSelector } from '../../redux/reselect/solo';
@@ -118,6 +119,19 @@ export default function HeaderLinks({
   const remoteVersion =
     available ?? (installed ? null : legacyRemoteVersion) ?? localVersion;
 
+  // Semver ordering, the same the updater gates on. A plain !== treated ANY
+  // difference as an available update, including a channel serving something
+  // older — an Update button that failed every press, and a badge that never
+  // cleared, because the updater refuses to move to an older or equal version.
+  const updateAvailable = versionGt(remoteVersion, localVersion);
+
+  // "We could not ask" is not "you are up to date". The schema reports installed
+  // and available separately for exactly this reason, and collapsing a null
+  // available onto the local version threw the distinction away — a device with
+  // no route to the channel was told affirmatively that it was current, on a
+  // release the updater would happily have installed.
+  const channelUnreachable = Boolean(installed) && available == null;
+
   const onOpenModalVersion = async () => {
     await refetchVersion();
     onOpen();
@@ -180,6 +194,8 @@ export default function HeaderLinks({
         onClose={onClose}
         localVersion={localVersion}
         remoteVersion={remoteVersion}
+        updateAvailable={updateAvailable}
+        channelUnreachable={channelUnreachable}
       />
 
       <NavbarLogsModal isOpen={isLogsModalOpen} onClose={onLogsModalClose} />
@@ -450,12 +466,12 @@ export default function HeaderLinks({
               icon={
                 <PowerOffIcon
                   className={
-                    localVersion !== remoteVersion &&
+                    updateAvailable &&
                     'animate__animated animate__tada animate__infinite'
                   }
                 />
               }
-              bg={localVersion !== remoteVersion && 'orange.500'}
+              bg={updateAvailable && 'orange.500'}
             />
             <MenuList>
               {deviceType !== 'solo-node' && (
@@ -560,7 +576,7 @@ export default function HeaderLinks({
               <MenuGroup title="Version">
                 <MenuItem
                   icon={
-                    localVersion !== remoteVersion ? (
+                    updateAvailable ? (
                       <TbAlertHexagonFilled color="red" />
                     ) : (
                       <GoVersions />

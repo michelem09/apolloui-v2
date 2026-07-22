@@ -28,7 +28,9 @@ import {
   updateFinished,
   updateOutcomeDismissed,
   updateCleared,
+  updateRunObserved,
 } from '../../redux/slices/updateSlice';
+import { classifyUpdate, FINISHED, ABANDONED } from '../../lib/updateOutcome';
 import { subscribeWsStatus } from '../../lib/apolloClient';
 import {
   MINER_SUBSCRIPTION,
@@ -83,6 +85,8 @@ const Layout = ({ children }) => {
   const {
     inProgress: updateInProgress,
     previousRunId: updatePreviousRunId,
+    seenRunning: updateSeenRunning,
+    startedAt: updateStartedAt,
     outcome: updateOutcome,
   } = useSelector((state) => state.update, shallowEqual);
 
@@ -107,21 +111,26 @@ const Layout = ({ children }) => {
       try {
         const { data } = await fetchUpdateStatus();
         const status = data?.Mcu?.updateStatus?.result;
-        const record = status?.record;
 
-        // Ours is the first record carrying a run id different from the one that
-        // was there when we pressed — no clocks involved.
-        const isOurs =
-          record && record.runId && record.runId !== updatePreviousRunId;
+        const outcome = classifyUpdate({
+          running: Boolean(status?.running),
+          record: status?.record,
+          previousRunId: updatePreviousRunId,
+          seenRunning: updateSeenRunning,
+          elapsedMs: updateStartedAt
+            ? Date.now() - new Date(updateStartedAt).getTime()
+            : 0,
+        });
 
-        if (isOurs && record.state !== 'running') {
-          dispatch(updateFinished(record));
+        // Latch first: this poll may be the only one that catches the unit up.
+        if (outcome.seenRunning && !updateSeenRunning) {
+          dispatch(updateRunObserved());
+        }
+        if (outcome.kind === FINISHED) {
+          dispatch(updateFinished(outcome.record));
           return;
         }
-        // The updater is gone and left nothing of ours behind: it was killed
-        // before it could record anything, so stop waiting for an answer that
-        // will never come.
-        if (!status?.running && !isOurs && record) {
+        if (outcome.kind === ABANDONED) {
           dispatch(updateCleared());
           return;
         }
@@ -136,7 +145,15 @@ const Layout = ({ children }) => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [wsStatus, updateInProgress, updatePreviousRunId, fetchUpdateStatus, dispatch]);
+  }, [
+    wsStatus,
+    updateInProgress,
+    updatePreviousRunId,
+    updateSeenRunning,
+    updateStartedAt,
+    fetchUpdateStatus,
+    dispatch,
+  ]);
 
   // Generate routes dynamically based on device type
   const dynamicRoutes = getRoutes(deviceType || 'miner');

@@ -19,6 +19,12 @@ const initialState = {
   // after an update are exactly when NTP has not converged: a device behind the
   // browser rejected its own record, a device ahead accepted the previous one.
   previousRunId: null,
+  // Have we ever observed this run alive — the updater unit active, or a record
+  // carrying a new run id. Until that happens, "no sign of our update" means it
+  // has not started yet; afterwards it means it is over. Without the distinction
+  // the client read the previous run's leftover record as this run's outcome and
+  // cleared itself ~40 ms after the click, every time but the first.
+  seenRunning: false,
   startedAt: null,
   targetVersion: null,
   // The outcome once observed, shown until the user dismisses it.
@@ -32,9 +38,15 @@ export const updateSlice = createSlice({
     updateStarted: (state, action) => {
       state.inProgress = true;
       state.previousRunId = action.payload?.previousRunId ?? null;
+      state.seenRunning = false;
       state.startedAt = new Date().toISOString();
       state.targetVersion = action.payload?.targetVersion ?? null;
       state.outcome = null;
+    },
+    // We have seen the updater alive. Latched, never unset for this run: it is
+    // what turns a later silence from "not started" into "finished".
+    updateRunObserved: (state) => {
+      state.seenRunning = true;
     },
     // The device reported what happened. Keeps inProgress false from here on, so
     // a reconnect does not re-enter the waiting state.
@@ -54,6 +66,7 @@ export const updateSlice = createSlice({
 
 export const {
   updateStarted,
+  updateRunObserved,
   updateFinished,
   updateOutcomeDismissed,
   updateCleared,

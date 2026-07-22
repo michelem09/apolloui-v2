@@ -13,8 +13,18 @@ import {
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { MCU_UPDATE_STATUS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
 import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { updateStarted } from '../../redux/slices/updateSlice';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
+import {
+  updateStarted,
+  updateRunObserved,
+} from '../../redux/slices/updateSlice';
+import {
+  classifyUpdate,
+  canStartUpdate,
+  RUNNING,
+  WAITING,
+  ABANDONED,
+} from '../../lib/updateOutcome';
 
 const NavbarUpdateModal = ({
   isOpen,
@@ -30,6 +40,13 @@ const NavbarUpdateModal = ({
   channelUnreachable,
 }) => {
   const dispatch = useDispatch();
+  // Shared with the layout, deliberately: these two follow the same run, and
+  // when each kept its own copy of what it had seen they reached opposite
+  // conclusions from the same device answer.
+  const { previousRunId, seenRunning, startedAt } = useSelector(
+    (state) => state.update,
+    shallowEqual
+  );
   const [updateInProgress, setUpdateInProgress] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
@@ -57,25 +74,49 @@ const NavbarUpdateModal = ({
     // Read the run id that is there NOW, before anything starts. Our outcome is
     // the first record carrying a different one — which is how this recognises
     // its own update without comparing the browser's clock to the device's.
-    let previousRunId = null;
+    let startingPoint;
     try {
       const { data } = await refetchStatus();
-      previousRunId = data?.Mcu?.updateStatus?.result?.record?.runId ?? null;
+      startingPoint = data?.Mcu?.updateStatus?.result;
     } catch (err) {
-      // No record, or unreachable: any run id we then see is necessarily new.
+      // We could not read the device's state, so we cannot know what a run id we
+      // see later would mean. Treating that as "no previous run" is the mistake
+      // that made the client accept a stale record as its own outcome: on any
+      // device that has updated before, the leftover run id is NOT new.
+      setUpdateError(
+        'Could not reach the device to start the update. Please try again.'
+      );
+      return;
     }
+
+    // Refuse to stack a second run on a live one. systemd-run would reject the
+    // duplicate unit name and exit before installing the trap that records why,
+    // and this client would have captured the IN-FLIGHT run's id as "previous" —
+    // permanently unable to recognise that run's own outcome, including
+    // recovery-failed, the one that means someone has to SSH in.
+    if (!canStartUpdate(startingPoint ?? {})) {
+      setUpdateError('An update is already running on this device.');
+      return;
+    }
+
+    const capturedRunId = startingPoint?.record?.runId ?? null;
     handleUpdate();
     setUpdateInProgress(true);
     // Also recorded in redux, which is persisted: the updater stops apollo-api,
     // so this component is about to be unmounted with the whole layout. Without
     // this the browser forgets it ever started an update and comes back to an
     // unexplained "backend offline".
-    dispatch(updateStarted({ targetVersion: remoteVersion, previousRunId }));
+    dispatch(
+      updateStarted({
+        targetVersion: remoteVersion,
+        previousRunId: capturedRunId,
+      })
+    );
     startPollingProgress(3000);
   };
 
-  const record = dataStatus?.Mcu?.updateStatus?.result?.record;
-  const remoteProgress = record?.progress ?? 0;
+  const status = dataStatus?.Mcu?.updateStatus?.result;
+  const record = status?.record;
 
   useEffect(() => {
     if (errorUpdate) {
@@ -87,25 +128,56 @@ const NavbarUpdateModal = ({
   }, [errorUpdate, stopPollingProgress]);
 
   useEffect(() => {
-    // Only an update WE are following. Reporting what a past one did is the
-    // outcome banner's job — this modal reading leftovers is what once replaced
-    // the Update button with "Reload App" and left the device unable to take
-    // another update at all.
+    // Only an update WE are following, and only once the device shows something
+    // that is actually ours. Branching on `record.state` alone — which this did
+    // — reads the PREVIOUS run's terminal record, because the updater needs
+    // 150-500 ms to clear sudo, the preamble and systemd-run and reach its first
+    // write_state, while this query fires the instant its skip gate opens. The
+    // result was "Done!" and a Reload App button a moment after the click, on
+    // top of a swap that had not begun.
     if (!updateInProgress) return;
 
-    setProgress(remoteProgress);
+    const outcome = classifyUpdate({
+      running: Boolean(status?.running),
+      record,
+      previousRunId,
+      seenRunning,
+      elapsedMs: startedAt ? Date.now() - new Date(startedAt).getTime() : 0,
+    });
 
-    if (!record || record.state === 'running') return;
+    if (outcome.seenRunning && !seenRunning) dispatch(updateRunObserved());
+
+    if (outcome.kind === RUNNING) {
+      // Only our own record's progress. The previous run's number would jump the
+      // bar to 100 before anything had happened.
+      if (record?.runId && record.runId !== previousRunId) {
+        setProgress(record.progress ?? 0);
+      }
+      return;
+    }
+
+    if (outcome.kind === WAITING) return;
+
+    stopPollingProgress();
+    setUpdateInProgress(false);
+    setProgress(0);
+
+    // Gone without recording anything. The likeliest cause is the first OTA on a
+    // device that has no jq yet: write_state cannot write until the dependency
+    // install has succeeded, so a failure there leaves nothing behind at all.
+    if (outcome.kind === ABANDONED) {
+      setUpdateError(
+        'The update stopped without reporting a result. The device is still running its current version — check the logs before retrying.'
+      );
+      return;
+    }
 
     // Anything that is not "succeeded" is a failure the user has to be told
     // about, and the record says which kind — including the one that means the
     // device could NOT be put back.
-    if (record.state !== 'succeeded') {
-      stopPollingProgress();
-      setUpdateInProgress(false);
-      setProgress(0);
+    if (outcome.record.state !== 'succeeded') {
       setUpdateError(
-        record.state === 'recovery-failed'
+        outcome.record.state === 'recovery-failed'
           ? 'The update failed and the previous version could not be restored. This device needs attention.'
           : 'The update failed. The previous version is still installed and running.'
       );
@@ -115,15 +187,19 @@ const NavbarUpdateModal = ({
     // The device says it succeeded — not a number this client interprets. A
     // threshold could be crossed while two gates that still roll everything back
     // were pending, which told the user it had worked while it was reverting.
-    {
-      stopPollingProgress();
-      setUpdateInProgress(false);
-      setProgress(0);
-      setTimeout(() => {
-        setDone(true);
-      }, 5000);
-    }
-  }, [updateInProgress, record, remoteProgress, stopPollingProgress]);
+    setTimeout(() => {
+      setDone(true);
+    }, 5000);
+  }, [
+    updateInProgress,
+    status,
+    record,
+    previousRunId,
+    seenRunning,
+    startedAt,
+    stopPollingProgress,
+    dispatch,
+  ]);
 
   const handleReloadApp = () => {
     return () => {

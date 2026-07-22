@@ -1179,5 +1179,26 @@
     "interrupted_description": "Es wurde abgebrochen, bevor es abgeschlossen war, und hat kein Ergebnis gemeldet. Prüfen Sie das Gerät und versuchen Sie es erneut.",
     "abandoned_title": "Update ohne Ergebnis beendet",
     "abandoned_description": "Das Update läuft nicht mehr und hat keine Aufzeichnung hinterlassen. Ihr Gerät läuft höchstwahrscheinlich noch auf der vorherigen Version — prüfen Sie die Systemseite, bevor Sie es erneut versuchen."
+  },
+  "update_modal": {
+    "already_running": "Auf diesem Gerät läuft bereits ein Update.",
+    "body_available": "Aktualisieren Sie auf die neueste Version, um neue Funktionen und Fehlerbehebungen zu erhalten. Das Update lädt ein verifiziertes Paket und dauert in der Regel wenige Minuten. Mining und Ihr Bitcoin-Knoten pausieren kurz. Schalten Sie das System während des Updates NICHT aus.",
+    "body_current": "Sie verwenden die neueste Version der App.",
+    "body_unreachable": "Das Gerät konnte den Update-Kanal nicht erreichen, daher ist unbekannt, ob eine neuere Version existiert. Es läuft normal weiter.",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "done": "Fertig!",
+    "error_prefix": "Fehler: {message}",
+    "failed_generic": "Update fehlgeschlagen. Die vorherige Version ist weiterhin installiert und aktiv.",
+    "failed_recovery": "Update fehlgeschlagen, und die vorherige Version konnte nicht wiederhergestellt werden. Dieses Gerät braucht Aufmerksamkeit.",
+    "generic_error": "Beim Update ist ein Fehler aufgetreten",
+    "no_result": "Das Update wurde ohne Ergebnis beendet. Das Gerät läuft noch mit der aktuellen Version — prüfen Sie die Protokolle, bevor Sie es erneut versuchen.",
+    "progress": "Update läuft... {progress}%",
+    "reload": "App neu laden",
+    "title_available": "Neue Version v{version} ist verfügbar!",
+    "title_current": "Ihre App ist auf dem neuesten Stand, v{version}",
+    "title_unreachable": "Update-Prüfung nicht möglich — läuft mit v{version}",
+    "unreachable_start": "Das Gerät konnte für den Start des Updates nicht erreicht werden. Bitte erneut versuchen.",
+    "update": "Aktualisieren"
   }
 }

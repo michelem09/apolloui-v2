@@ -1179,5 +1179,26 @@
     "interrupted_description": "Si è fermato prima di concludersi e non ha riportato un esito. Controlla il device e riprova.",
     "abandoned_title": "Aggiornamento interrotto senza esito",
     "abandoned_description": "L'aggiornamento non è più in esecuzione e non ha lasciato traccia di cosa ha fatto. Molto probabilmente il dispositivo è ancora sulla versione precedente: controlla la pagina di sistema prima di riprovare."
+  },
+  "update_modal": {
+    "already_running": "Un aggiornamento è già in corso su questo dispositivo.",
+    "body_available": "Aggiorna all’ultima versione per ottenere le nuove funzionalità e le correzioni. L’aggiornamento scarica un pacchetto verificato e richiede di solito pochi minuti. Il mining e il nodo Bitcoin si fermano brevemente durante l’operazione. NON spegnere il sistema durante l’aggiornamento.",
+    "body_current": "Stai usando l’ultima versione dell’app.",
+    "body_unreachable": "Il dispositivo non è riuscito a raggiungere il canale di aggiornamento, quindi non si sa se esista una versione più recente. Sta funzionando normalmente.",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "done": "Fatto!",
+    "error_prefix": "Errore: {message}",
+    "failed_generic": "Aggiornamento fallito. La versione precedente è ancora installata e in funzione.",
+    "failed_recovery": "Aggiornamento fallito e non è stato possibile ripristinare la versione precedente. Questo dispositivo richiede attenzione.",
+    "generic_error": "Si è verificato un errore durante l’aggiornamento",
+    "no_result": "L’aggiornamento si è interrotto senza riportare un esito. Il dispositivo sta ancora usando la versione attuale: controlla i log prima di riprovare.",
+    "progress": "Aggiornamento... {progress}%",
+    "reload": "Ricarica l’app",
+    "title_available": "La nuova versione v{version} è disponibile!",
+    "title_current": "L’app è aggiornata all’ultima versione v{version}",
+    "title_unreachable": "Impossibile verificare gli aggiornamenti — in esecuzione v{version}",
+    "unreachable_start": "Impossibile contattare il dispositivo per avviare l’aggiornamento. Riprova.",
+    "update": "Aggiorna"
   }
 }

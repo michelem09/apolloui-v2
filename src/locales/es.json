@@ -1179,5 +1179,26 @@
     "interrupted_description": "Se detuvo antes de terminar y no informó de un resultado. Revisa el dispositivo y vuelve a intentarlo.",
     "abandoned_title": "La actualización se detuvo sin informar",
     "abandoned_description": "El actualizador ya no se está ejecutando y no dejó constancia de lo que hizo. Lo más probable es que el dispositivo siga en la versión anterior: revisa la página del sistema antes de volver a intentarlo."
+  },
+  "update_modal": {
+    "already_running": "Ya hay una actualización en curso en este dispositivo.",
+    "body_available": "Actualiza a la última versión para obtener las nuevas funciones y correcciones. La actualización descarga un paquete verificado y suele tardar unos minutos. La minería y tu nodo Bitcoin se detienen brevemente. NO apagues el sistema durante la actualización.",
+    "body_current": "Estás usando la última versión de la app.",
+    "body_unreachable": "El dispositivo no pudo alcanzar el canal de actualización, así que se desconoce si existe una versión más reciente. Funciona con normalidad.",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "done": "¡Listo!",
+    "error_prefix": "Error: {message}",
+    "failed_generic": "La actualización falló. La versión anterior sigue instalada y en funcionamiento.",
+    "failed_recovery": "La actualización falló y no se pudo restaurar la versión anterior. Este dispositivo necesita atención.",
+    "generic_error": "Se produjo un error durante la actualización",
+    "no_result": "La actualización se detuvo sin informar de un resultado. El dispositivo sigue con su versión actual: revisa los registros antes de reintentar.",
+    "progress": "Actualizando... {progress}%",
+    "reload": "Recargar la app",
+    "title_available": "¡La nueva versión v{version} está disponible!",
+    "title_current": "Tu app está actualizada a la última versión v{version}",
+    "title_unreachable": "No se pudieron comprobar las actualizaciones — ejecutando v{version}",
+    "unreachable_start": "No se pudo contactar con el dispositivo para iniciar la actualización. Inténtalo de nuevo.",
+    "update": "Actualizar"
   }
 }

@@ -13,6 +13,7 @@ import {
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { MCU_UPDATE_STATUS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import {
   updateStarted,
@@ -39,6 +40,13 @@ const NavbarUpdateModal = ({
   // exists. Saying "you are up to date" here would be a claim we cannot make.
   channelUnreachable,
 }) => {
+  const intl = useIntl();
+  // Every user-visible string goes through here. CLAUDE.md §9: locales in all
+  // four files. This modal shipped hardcoded English while the banner and the
+  // offline screen beside it were translated — so a de/it/es user got a
+  // translated banner and an English-only modal describing the same failure,
+  // including the one that says the device needs attention.
+  const t = (id, values) => intl.formatMessage({ id: `update_modal.${id}` }, values);
   const dispatch = useDispatch();
   // Shared with the layout, deliberately: these two follow the same run, and
   // when each kept its own copy of what it had seen they reached opposite
@@ -83,9 +91,7 @@ const NavbarUpdateModal = ({
       // see later would mean. Treating that as "no previous run" is the mistake
       // that made the client accept a stale record as its own outcome: on any
       // device that has updated before, the leftover run id is NOT new.
-      setUpdateError(
-        'Could not reach the device to start the update. Please try again.'
-      );
+      setUpdateError(t('unreachable_start'));
       return;
     }
 
@@ -95,7 +101,7 @@ const NavbarUpdateModal = ({
     // permanently unable to recognise that run's own outcome, including
     // recovery-failed, the one that means someone has to SSH in.
     if (!canStartUpdate(startingPoint ?? {})) {
-      setUpdateError('An update is already running on this device.');
+      setUpdateError(t('already_running'));
       return;
     }
 
@@ -120,7 +126,7 @@ const NavbarUpdateModal = ({
 
   useEffect(() => {
     if (errorUpdate) {
-      setUpdateError(errorUpdate.message || 'An error occurred during the update process');
+      setUpdateError(errorUpdate.message || t('generic_error'));
       setUpdateInProgress(false);
       stopPollingProgress();
       setProgress(0);
@@ -166,9 +172,7 @@ const NavbarUpdateModal = ({
     // device that has no jq yet: write_state cannot write until the dependency
     // install has succeeded, so a failure there leaves nothing behind at all.
     if (outcome.kind === ABANDONED) {
-      setUpdateError(
-        'The update stopped without reporting a result. The device is still running its current version — check the logs before retrying.'
-      );
+      setUpdateError(t('no_result'));
       return;
     }
 
@@ -178,8 +182,8 @@ const NavbarUpdateModal = ({
     if (outcome.record.state !== 'succeeded') {
       setUpdateError(
         outcome.record.state === 'recovery-failed'
-          ? 'The update failed and the previous version could not be restored. This device needs attention.'
-          : 'The update failed. The previous version is still installed and running.'
+          ? t('failed_recovery')
+          : t('failed_generic')
       );
       return;
     }
@@ -229,24 +233,24 @@ const NavbarUpdateModal = ({
       <ModalContent>
         <ModalHeader>
           {updateAvailable
-            ? `New version v${remoteVersion} is available!`
+            ? t('title_available', { version: remoteVersion })
             : channelUnreachable
-              ? `Could not check for updates — running v${localVersion}`
-              : `Your app is updated to the latest version v${localVersion}`}
+              ? t('title_unreachable', { version: localVersion })
+              : t('title_current', { version: localVersion })}
         </ModalHeader>
         <ModalBody>
           <Text>
             {channelUnreachable
-              ? 'This device could not reach the update channel, so it is not known whether a newer version exists. It is running normally.'
+              ? t('body_unreachable')
               : !updateAvailable
-              ? 'You are using the latest version of the app.'
-              : 'Please update to the latest version of the app to get the latest features and bug fixes. The update downloads a verified package and usually takes a few minutes. Mining and your Bitcoin node stop briefly while it is applied. Do NOT power off the system during the update.'}
+              ? t('body_current')
+              : t('body_available')}
           </Text>
-          {updateInProgress && <Text>Updating... {progress}%</Text>}
-          {done && !updateInProgress && <Text>Done!</Text>}
+          {updateInProgress && <Text>{t('progress', { progress })}</Text>}
+          {done && !updateInProgress && <Text>{t('done')}</Text>}
           {updateError && (
             <Text color="red.500" mt={2}>
-              Error: {updateError}
+              {t('error_prefix', { message: updateError })}
             </Text>
           )}
         </ModalBody>
@@ -260,17 +264,17 @@ const NavbarUpdateModal = ({
               isDisabled={updateInProgress}
               isLoading={updateInProgress}
             >
-              Update
+              {t('update')}
             </Button>
           )}
           {!done && !updateInProgress && (
             <Button variant="ghost" onClick={onClose}>
-              {updateAvailable ? 'Cancel' : 'Close'}
+              {updateAvailable ? t('cancel') : t('close')}
             </Button>
           )}
           {done && (
             <Button colorScheme="orange" onClick={handleReloadApp()}>
-              Reload App
+              {t('reload')}
             </Button>
           )}
           {updateError && (

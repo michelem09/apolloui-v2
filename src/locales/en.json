@@ -1179,5 +1179,26 @@
     "interrupted_description": "The update stopped before it could finish and did not report an outcome. Check your device, then try again.",
     "abandoned_title": "Update stopped without reporting",
     "abandoned_description": "The updater is no longer running and left no record of what it did. Your device is most likely still on its previous version — check the system page before trying again."
+  },
+  "update_modal": {
+    "already_running": "An update is already running on this device.",
+    "body_available": "Please update to the latest version of the app to get the latest features and bug fixes. The update downloads a verified package and usually takes a few minutes. Mining and your Bitcoin node stop briefly while it is applied. Do NOT power off the system during the update.",
+    "body_current": "You are using the latest version of the app.",
+    "body_unreachable": "This device could not reach the update channel, so it is not known whether a newer version exists. It is running normally.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "done": "Done!",
+    "error_prefix": "Error: {message}",
+    "failed_generic": "The update failed. The previous version is still installed and running.",
+    "failed_recovery": "The update failed and the previous version could not be restored. This device needs attention.",
+    "generic_error": "An error occurred during the update process",
+    "no_result": "The update stopped without reporting a result. The device is still running its current version — check the logs before retrying.",
+    "progress": "Updating... {progress}%",
+    "reload": "Reload App",
+    "title_available": "New version v{version} is available!",
+    "title_current": "Your app is updated to the latest version v{version}",
+    "title_unreachable": "Could not check for updates — running v{version}",
+    "unreachable_start": "Could not reach the device to start the update. Please try again.",
+    "update": "Update"
   }
 }

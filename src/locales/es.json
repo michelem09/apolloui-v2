@@ -1176,6 +1176,8 @@
     "recovery_failed_title": "Actualización fallida — el dispositivo necesita atención",
     "recovery_failed_description": "La actualización a {to} no se completó y no se pudo restaurar automáticamente la versión anterior. La minería y el nodo pueden estar detenidos. Contacta con soporte.",
     "interrupted_title": "Actualización interrumpida",
-    "interrupted_description": "Se detuvo antes de terminar y no informó de un resultado. Revisa el dispositivo y vuelve a intentarlo."
+    "interrupted_description": "Se detuvo antes de terminar y no informó de un resultado. Revisa el dispositivo y vuelve a intentarlo.",
+    "abandoned_title": "La actualización se detuvo sin informar",
+    "abandoned_description": "El actualizador ya no se está ejecutando y no dejó constancia de lo que hizo. Lo más probable es que el dispositivo siga en la versión anterior: revisa la página del sistema antes de volver a intentarlo."
   }
 }

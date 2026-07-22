@@ -58,8 +58,24 @@ export const updateSlice = createSlice({
     updateOutcomeDismissed: (state) => {
       state.outcome = null;
     },
-    // Escape hatch: the update was abandoned (browser closed and reopened much
-    // later, device reflashed…) so the UI does not wait forever.
+    // The run ended without recording anything: killed before its trap was
+    // installed, or unable to write at all.
+    //
+    // NOT a reset to initialState, which is what this used to be, for two
+    // reasons that both showed up as the user being lied to. It wiped `outcome`,
+    // so the one thing this whole mechanism exists to prevent — the update that
+    // vanishes and says nothing — was its own outcome. And it nulled
+    // `previousRunId` while the modal was still mounted reading the same slice:
+    // the modal's next classification saw the STALE record as "ours" (any run id
+    // differs from null) and showed "Done! / Reload App" for an update that had
+    // disappeared.
+    updateAbandoned: (state) => {
+      state.inProgress = false;
+      state.seenRunning = false;
+      state.outcome = { state: 'abandoned' };
+    },
+    // Escape hatch for state that is genuinely stale (device reflashed, browser
+    // reopened weeks later). Nothing on the update path should call this.
     updateCleared: () => initialState,
   },
 });
@@ -67,6 +83,7 @@ export const updateSlice = createSlice({
 export const {
   updateStarted,
   updateRunObserved,
+  updateAbandoned,
   updateFinished,
   updateOutcomeDismissed,
   updateCleared,

@@ -1176,6 +1176,8 @@
     "recovery_failed_title": "Aggiornamento fallito — il device richiede attenzione",
     "recovery_failed_description": "L'aggiornamento a {to} non è andato a buon fine e non è stato possibile ripristinare automaticamente la versione precedente. Mining e nodo potrebbero essere fermi. Contatta il supporto.",
     "interrupted_title": "Aggiornamento interrotto",
-    "interrupted_description": "Si è fermato prima di concludersi e non ha riportato un esito. Controlla il device e riprova."
+    "interrupted_description": "Si è fermato prima di concludersi e non ha riportato un esito. Controlla il device e riprova.",
+    "abandoned_title": "Aggiornamento interrotto senza esito",
+    "abandoned_description": "L'aggiornamento non è più in esecuzione e non ha lasciato traccia di cosa ha fatto. Molto probabilmente il dispositivo è ancora sulla versione precedente: controlla la pagina di sistema prima di riprovare."
   }
 }

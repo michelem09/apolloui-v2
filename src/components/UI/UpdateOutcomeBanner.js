@@ -27,6 +27,11 @@ const STATUS = {
   aborted: { scheme: 'orange', key: 'failed' },
   // The updater died without recording anything.
   interrupted: { scheme: 'orange', key: 'interrupted' },
+  // Same, seen from the client: we watched the run be alive and then it was
+  // gone, with nothing of ours on disk. Needs to be said — an update that
+  // vanishes in silence is the "random blackout the user has to interpret"
+  // this banner exists to end.
+  abandoned: { scheme: 'orange', key: 'abandoned' },
 };
 
 const UpdateOutcomeBanner = ({ outcome, onDismiss }) => {

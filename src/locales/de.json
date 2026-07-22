@@ -1176,6 +1176,8 @@
     "recovery_failed_title": "Update fehlgeschlagen — Gerät benötigt Aufmerksamkeit",
     "recovery_failed_description": "Das Update auf {to} wurde nicht abgeschlossen und die vorherige Version konnte nicht automatisch wiederhergestellt werden. Mining und Node sind möglicherweise gestoppt. Bitte wenden Sie sich an den Support.",
     "interrupted_title": "Update unterbrochen",
-    "interrupted_description": "Es wurde abgebrochen, bevor es abgeschlossen war, und hat kein Ergebnis gemeldet. Prüfen Sie das Gerät und versuchen Sie es erneut."
+    "interrupted_description": "Es wurde abgebrochen, bevor es abgeschlossen war, und hat kein Ergebnis gemeldet. Prüfen Sie das Gerät und versuchen Sie es erneut.",
+    "abandoned_title": "Update ohne Ergebnis beendet",
+    "abandoned_description": "Das Update läuft nicht mehr und hat keine Aufzeichnung hinterlassen. Ihr Gerät läuft höchstwahrscheinlich noch auf der vorherigen Version — prüfen Sie die Systemseite, bevor Sie es erneut versuchen."
   }
 }

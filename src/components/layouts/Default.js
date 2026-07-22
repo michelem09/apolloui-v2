@@ -27,7 +27,7 @@ import UpdateOutcomeBanner from '../UI/UpdateOutcomeBanner';
 import {
   updateFinished,
   updateOutcomeDismissed,
-  updateCleared,
+  updateAbandoned,
   updateRunObserved,
 } from '../../redux/slices/updateSlice';
 import { classifyUpdate, FINISHED, ABANDONED } from '../../lib/updateOutcome';
@@ -117,7 +117,9 @@ const Layout = ({ children }) => {
           return;
         }
         if (outcome.kind === ABANDONED) {
-          dispatch(updateCleared());
+          // Reported, not silently forgotten, and without resetting the slice
+          // the still-mounted modal reads from.
+          dispatch(updateAbandoned());
           return;
         }
       } catch (err) {

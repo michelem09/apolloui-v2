@@ -1176,6 +1176,8 @@
     "recovery_failed_title": "Update failed — your device needs attention",
     "recovery_failed_description": "The update to {to} did not complete and the previous version could not be restored automatically. Mining and your node may be stopped. Please contact support.",
     "interrupted_title": "Update was interrupted",
-    "interrupted_description": "The update stopped before it could finish and did not report an outcome. Check your device, then try again."
+    "interrupted_description": "The update stopped before it could finish and did not report an outcome. Check your device, then try again.",
+    "abandoned_title": "Update stopped without reporting",
+    "abandoned_description": "The updater is no longer running and left no record of what it did. Your device is most likely still on its previous version — check the system page before trying again."
   }
 }

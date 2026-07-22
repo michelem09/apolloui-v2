@@ -1,0 +1,59 @@
+# Version ordering — the shared table.
+#
+# The UI decides whether to OFFER an update; backend/update decides whether to
+# INSTALL one. When they disagree the user gets a badge that never clears and an
+# Update button that fails every press — the failure semver.js's own header says
+# it exists to prevent. CI and the updater are now literally the same code
+# (backend/lib/version.sh); this file is what keeps the JavaScript honest.
+#
+# Read by BOTH:
+#   apolloui-v2/src/lib/semver.test.js      -> versionGt (JavaScript)
+#   tests/ota/rollback.test.sh              -> version_gt (bash)
+#
+# It lives in the UI repo because the backend checkout always contains this
+# submodule, while a standalone UI clone has no backend. Neither consumer may
+# skip when it is missing: a silently skipped comparison is worse than none.
+#
+# Format:  <a> <b> <yes|no>     meaning "is a strictly newer than b?"
+# Add a line here rather than to either suite.
+
+# --- plain cores -------------------------------------------------------------
+2.3.0 2.2.9 yes
+2.2.9 2.3.0 no
+2.2.0 2.2.0 no
+2.10.0 2.9.0 yes
+2.9.0 2.10.0 no
+3.0.0 2.99.99 yes
+2.2.10 2.2.9 yes
+2.2.9 2.2.10 no
+
+# --- a release outranks its own prerelease -----------------------------------
+# The case sort -V gets backwards, which is why the workflow no longer uses it.
+2.3.0 2.3.0-rc1 yes
+2.3.0-rc1 2.3.0 no
+2.2.0 2.2.0-beta.1 yes
+2.2.0-beta.1 2.2.0 no
+
+# --- prereleases among themselves, compared numerically ----------------------
+# The deliberate deviation from semver §11: rc10 is newer than rc9, because the
+# release train goes rc9, rc10, rc11 and the letter of the spec is useless here.
+2.2.1-rc10 2.2.1-rc9 yes
+2.2.1-rc9 2.2.1-rc10 no
+2.2.1-rc2 2.2.1-rc10 no
+2.2.0-beta.10 2.2.0-beta.2 yes
+2.2.0-rc1 2.2.0-rc1 no
+2.2.0-rc2 2.2.0-rc1 yes
+
+# --- a newer core beats any prerelease distinction ---------------------------
+2.3.0-rc1 2.2.9 yes
+2.2.9 2.3.0-rc1 no
+
+# --- nothing is newer than something unparseable -----------------------------
+# Both sides must refuse rather than guess: offering an update the updater will
+# reject is the badge-that-never-clears failure.
+2.3.0 not-a-version no
+not-a-version 2.3.0 no
+2.3.0 2.3 no
+2.3 2.3.0 no
+2.3.0 "" no
+"" 2.3.0 no

@@ -38,3 +38,40 @@ describe('versionGt — the same ordering the updater gates on', () => {
     expect(versionGt('not-a-version', '2.2.0')).toBe(false);
   });
 });
+
+// The shared table, read by this suite AND by tests/ota/rollback.test.sh against
+// the bash comparator. The UI decides whether to OFFER an update and the shell
+// decides whether to INSTALL one; CI and the updater are now the same code, so
+// this JavaScript is the last independent implementation of the rule and the
+// only thing that can drift.
+describe('agreement with the updater (shared fixture)', () => {
+  // eslint-disable-next-line global-require
+  const fs = require('fs');
+  // eslint-disable-next-line global-require
+  const path = require('path');
+
+  const raw = fs.readFileSync(
+    path.join(__dirname, 'version-order.fixture.txt'),
+    'utf8'
+  );
+  const cases = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => {
+      const [a, b, expected] = line.split(/\s+/);
+      // `""` in the file means the empty string; the file has no way to write it.
+      const unquote = (v) => (v === '""' ? '' : v);
+      return { a: unquote(a), b: unquote(b), expected: expected === 'yes' };
+    });
+
+  it('has a table to read', () => {
+    // A fixture that silently loaded zero cases would make every assertion below
+    // vanish while the suite stayed green.
+    expect(cases.length).toBeGreaterThan(20);
+  });
+
+  it.each(cases)('versionGt($a, $b) === $expected', ({ a, b, expected }) => {
+    expect(versionGt(a, b)).toBe(expected);
+  });
+});

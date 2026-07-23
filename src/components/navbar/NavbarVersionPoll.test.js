@@ -21,9 +21,13 @@ describe('version discovery', () => {
       require('path').join(__dirname, 'NavbarLinksAdmin.js'),
       'utf8'
     );
-    const call = src.match(/useQuery\(\s*MCU_VERSION_QUERY,\s*\{([^}]*)\}/);
+    const call = src.match(/useQuery\(\s*MCU_VERSION_QUERY,\s*\{([\s\S]*?)\}\)/);
     expect(call).not.toBeNull();
     expect(call[1]).toContain('pollInterval');
+    // cache-and-network, so a fresh navbar after an update reads a live value in
+    // one round-trip instead of showing the pre-update version from cache for a
+    // whole poll interval. cache-first is what made the badge lag post-update.
+    expect(call[1]).toContain("fetchPolicy: 'cache-and-network'");
 
     // Not faster than the backend's own cache: below that it re-reads a cached
     // value and buys nothing. Not slower by much either — this is the latency

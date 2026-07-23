@@ -120,16 +120,28 @@ export default function HeaderLinks({
     data: dataVersion,
     refetch: refetchVersion,
     startPolling: startPollingVersion,
-  } = useQuery(MCU_VERSION_QUERY, { pollInterval: VERSION_POLL_MS });
+  } = useQuery(MCU_VERSION_QUERY, {
+    pollInterval: VERSION_POLL_MS,
+    // cache-and-network, not the default cache-first: serve the cached value at
+    // once, but hit the network on every read anyway. The navbar unmounts during
+    // an update (the offline screen replaces the whole layout) and remounts
+    // fresh, and cache-first would then show the pre-update `available` from
+    // cache and wait a full poll interval for a live read. This makes the badge
+    // right in one round-trip instead. The only staleness left is the backend's
+    // own 5-minute cache on the channel lookup.
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Re-arm the poll whenever the backend comes back.
+  // A belt for the case the main path does not cover.
   //
-  // Apollo Client stops a pollInterval that hits a network error and does not
-  // restart it, so the version poll died for the rest of the tab's life every
-  // time apollo-api went away — which is exactly what the updater does, for
-  // minutes, right before a new release becomes available. Verified on hardware:
-  // the badge appeared on its own in steady state, and never after an update
-  // until the page was reloaded by hand.
+  // The main path is the remount: an update takes apollo-api down, the offline
+  // screen replaces the layout, this navbar unmounts, and when it comes back it
+  // mounts fresh with the poll already re-armed — so nothing here is needed for
+  // it, and an earlier version of this comment wrongly credited this effect with
+  // the recovery. What this covers is the OTHER case: a brief blip where the WS
+  // reconnects without ever going fully offline, so the layout never swaps and
+  // this component is never remounted. Apollo can leave a pollInterval stopped
+  // after a network error, so re-arm and read once when the socket returns.
   const wsStatus = useWsConnectionStatus();
   useEffect(() => {
     if (wsStatus !== 'online') return;

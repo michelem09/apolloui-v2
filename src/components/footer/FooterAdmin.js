@@ -11,13 +11,24 @@ import {
 } from '@chakra-ui/react';
 import { FormattedMessage } from 'react-intl';
 
+import { useQuery } from '@apollo/client';
 import config from '../../config';
 import { getVersionFromPackageJson } from '../../lib/utils';
+import { MCU_VERSION_QUERY } from '../../graphql/mcu';
 import LanguageSelector from '../language/LanguageSelector';
 
 const FooterAdmin = () => {
   const textColor = useColorModeValue('gray.800', 'white');
   const { toggleColorMode } = useColorMode();
+
+  // The version the device is actually RUNNING, not the one bundled at build
+  // time. version.json is written by the updater from the release it installed
+  // (Mcu.version.installed), while getVersionFromPackageJson reads the package
+  // baked into this bundle — after a tarball update the two differ, so the
+  // footer showed 2.2.0 on a device running 2.2.1-rc20. cache-first reuses the
+  // navbar's query, so this adds no network request.
+  const { data } = useQuery(MCU_VERSION_QUERY, { fetchPolicy: 'cache-first' });
+  const version = data?.Mcu?.version?.installed || getVersionFromPackageJson();
 
   return (
     <Flex
@@ -43,14 +54,13 @@ const FooterAdmin = () => {
         mb={{ base: '20px', xl: '0px' }}
       >
         {' '}
-        &copy; {1900 + new Date().getYear()}
-        <Text as='span' fontWeight='500' ms='4px'>
+        &copy; {1900 + new Date().getYear()}{' '}
+        <Text as='span' fontWeight='500'>
           <FormattedMessage
             id="footer.made_with_love"
-            values={{ version: getVersionFromPackageJson() }}
-          />
+            values={{ version }}
+          />{' '}
           <Link
-            mx='3px'
             color={textColor}
             href={config.mainWebsite}
             target='_blank'

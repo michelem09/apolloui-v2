@@ -1,8 +1,9 @@
 import React from 'react';
-import { Box, useColorModeValue } from '@chakra-ui/react';
+import { Box, Divider, useColorModeValue } from '@chakra-ui/react';
 import { useIntl } from 'react-intl';
 import { MdHistory } from 'react-icons/md';
 import LogsViewer from '../../logs/LogsViewer';
+import DiagnosticBundle from '../../logs/DiagnosticBundle';
 import PanelCard from '../../UI/PanelCard';
 
 const LogsTab = () => {
@@ -17,7 +18,9 @@ const LogsTab = () => {
       icon={MdHistory}
     >
       <Box p="22px">
-        <LogsViewer height="calc(100vh - 400px)" />
+        <LogsViewer height="calc(100vh - 460px)" />
+        <Divider my={5} />
+        <DiagnosticBundle />
       </Box>
     </PanelCard>
   );

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
+  Badge,
   Box,
   Code,
   Select,
@@ -25,6 +26,13 @@ import { updateLogs } from '../../redux/slices/logsSlice';
 import { MdRefresh, MdContentCopy } from 'react-icons/md';
 import moment from 'moment';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import {
+  parseLogContent,
+  availableLevels,
+  availableComponents,
+  filterEntries,
+  LEVEL_COLORS,
+} from './parsePinoLine';
 
 export const LOG_TYPES = [
   { value: 'CKPOOL', label: 'Apollo Solo' },
@@ -66,6 +74,8 @@ const LogsViewer = ({
   
   const [logType, setLogType] = useState(getValidInitialLogType());
   const [lines, setLines] = useState(initialLines);
+  const [minLevel, setMinLevel] = useState('');
+  const [component, setComponent] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -163,6 +173,24 @@ const LogsViewer = ({
     ? moment(queryData.Logs.read.result.timestamp).format('YYYY-MM-DD HH:mm:ss')
     : '';
 
+  // The backend logs structured JSON; the other units don't. Parse per line and
+  // only offer the level/component filters when this batch actually has entries
+  // to filter — otherwise the controls would be dead weight on a ckpool log.
+  const entries = useMemo(() => parseLogContent(logContent), [logContent]);
+  const levels = useMemo(() => availableLevels(entries), [entries]);
+  const components = useMemo(() => availableComponents(entries), [entries]);
+  const isStructured = levels.length > 0;
+  const visibleEntries = useMemo(
+    () => filterEntries(entries, { minLevel, component }),
+    [entries, minLevel, component]
+  );
+
+  // A filter that outlives the batch it was chosen from would silently show
+  // nothing (switch to a log with no such component and the pane goes blank).
+  useEffect(() => {
+    if (component && !components.includes(component)) setComponent('');
+  }, [components, component]);
+
   return (
     <Box>
       {showHeader && (
@@ -226,6 +254,44 @@ const LogsViewer = ({
             />
           </Tooltip>
 
+          {isStructured && (
+            <>
+              <Tooltip label="Minimum severity">
+                <Select
+                  value={minLevel}
+                  onChange={(e) => setMinLevel(e.target.value)}
+                  width={{ base: 'full', md: '140px' }}
+                  mr={2}
+                >
+                  <option value="">All levels</option>
+                  {levels.map((level) => (
+                    <option key={level} value={level}>
+                      {level} +
+                    </option>
+                  ))}
+                </Select>
+              </Tooltip>
+
+              {components.length > 1 && (
+                <Tooltip label="Component">
+                  <Select
+                    value={component}
+                    onChange={(e) => setComponent(e.target.value)}
+                    width={{ base: 'full', md: '170px' }}
+                    mr={2}
+                  >
+                    <option value="">All components</option>
+                    {components.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </Select>
+                </Tooltip>
+              )}
+            </>
+          )}
+
           <Tooltip label={copied ? 'Copied!' : 'Copy logs'}>
             <IconButton
               icon={<MdContentCopy />}
@@ -257,15 +323,52 @@ const LogsViewer = ({
           <Text color="red.500">Error loading logs: {error.message}</Text>
         )}
 
-        <Code
-          w="100%"
-          bg="transparent"
-          whiteSpace="pre-wrap"
-          fontSize="sm"
-          display="block"
-        >
-          {logContent || 'No logs to display'}
-        </Code>
+        {isStructured ? (
+          <Box fontSize="sm" fontFamily="mono">
+            {visibleEntries.length === 0 && (
+              <Text color="gray.500">No entries match the current filter</Text>
+            )}
+            {visibleEntries.map((entry, index) =>
+              entry.parsed ? (
+                <Flex key={index} gap={2} py="2px" align="baseline" wrap="wrap">
+                  <Text color="gray.500" flexShrink={0}>
+                    {entry.time ? moment(entry.time).format('HH:mm:ss') : ''}
+                  </Text>
+                  <Badge colorScheme={LEVEL_COLORS[entry.level] || 'gray'} flexShrink={0}>
+                    {entry.level}
+                  </Badge>
+                  {entry.component && (
+                    <Badge variant="outline" flexShrink={0}>
+                      {entry.component}
+                    </Badge>
+                  )}
+                  <Text as="span" wordBreak="break-word">
+                    {entry.msg}
+                  </Text>
+                  {entry.fields && (
+                    <Text as="span" color="gray.500" wordBreak="break-all">
+                      {JSON.stringify(entry.fields)}
+                    </Text>
+                  )}
+                </Flex>
+              ) : (
+                <Text key={index} whiteSpace="pre-wrap" wordBreak="break-word" py="2px">
+                  {entry.raw}
+                </Text>
+              )
+            )}
+          </Box>
+        ) : (
+          <Code
+            w="100%"
+            bg="transparent"
+            whiteSpace="pre-wrap"
+            fontSize="sm"
+            display="block"
+          >
+            {logContent || 'No logs to display'}
+          </Code>
+        )}
       </Box>
 
       {showHeader && timestamp && (

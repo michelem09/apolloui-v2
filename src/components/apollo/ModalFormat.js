@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Modal,
@@ -28,17 +28,24 @@ const ModalFormat = ({ isOpen, onClose, onFormat }) => {
       (data) => data?.Node?.formatProgress?.result?.value
     );
 
+  const [failure, setFailure] = useState(null);
+
   const startFormat = () => {
+    setFailure(null);
     // Latch immediately: the next poll is seconds away, and this button wipes a
     // disk — long enough to press twice and run two of them at once.
     markSubmitted();
     onFormat();
   };
 
+  // Reopening while a format runs must show the format, not the confirmation.
+  // Anything the dialog reports has to survive being hidden, so the failure is
+  // held here rather than only announced as a toast the user may never see.
   useEffect(() => {
     if (!outcome) return;
     acknowledgeOutcome();
     if (outcome.status === 'success') {
+      setFailure(null);
       onClose();
       dispatch(
         sendFeedback({
@@ -52,15 +59,12 @@ const ModalFormat = ({ isOpen, onClose, onFormat }) => {
     // saying "done" over it is how someone ends up with an unusable node. Which
     // message matters — telling someone their disk is intact when it has already
     // been wiped is how they decide no recovery is needed.
-    dispatch(
-      sendFeedback({
-        message:
-          outcome.code === -2
-            ? 'Format failed after the disk was erased. The node cannot start until a format completes — check the logs and retry.'
-            : 'Format failed. The disk was not changed — check the logs before retrying.',
-        type: 'error',
-      })
-    );
+    const message =
+      outcome.code === -2
+        ? 'Format failed after the disk was erased. The node cannot start until a format completes — check the logs and retry.'
+        : 'Format failed. The disk was not changed — check the logs before retrying.';
+    setFailure(message);
+    dispatch(sendFeedback({ message, type: 'error' }));
   }, [outcome, acknowledgeOutcome, onClose, dispatch]);
 
   return (
@@ -96,11 +100,16 @@ const ModalFormat = ({ isOpen, onClose, onFormat }) => {
               </Text>
             </Flex>
           ) : (
-            <Flex>
+            <Flex direction="column" gap={3}>
               <Text>
                 Are you sure you want format your SSD disk? You will lose all your
                 data.
               </Text>
+              {failure && (
+                <Text color="red.400" fontSize="sm">
+                  {failure}
+                </Text>
+              )}
             </Flex>
           )}
         </ModalBody>

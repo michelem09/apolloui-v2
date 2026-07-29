@@ -87,6 +87,7 @@ const SettingsTab = () => {
   // Only on the transition into "running", so the dialog can still be dismissed
   // while a format continues in the background.
   const formatWasRunning = useRef(false);
+  const formatInFlight = useRef(false);
   useEffect(() => {
     if (isFormatRunning && !formatWasRunning.current) setIsModalFormatOpen(true);
     formatWasRunning.current = isFormatRunning;
@@ -393,6 +394,14 @@ const SettingsTab = () => {
 
   // Handle format disk
   const handleFormatDisk = async () => {
+    // Node.format is a GraphQL query, and Apollo treats queries as safe to
+    // re-execute — a re-render between the two awaits below was observed firing a
+    // second format a second after the first, and the two raced wipefs and mkfs
+    // on the same disk. The backend refuses concurrent runs as well; this is the
+    // near guard, that one protects every caller.
+    if (formatInFlight.current) return;
+    formatInFlight.current = true;
+
     try {
       setIsSaving(true);
 
@@ -409,6 +418,12 @@ const SettingsTab = () => {
     } catch (error) {
       setIsSaving(false);
       dispatch(sendFeedback({ message: error.toString(), type: 'error' }));
+    } finally {
+      // Long enough for the device to report the format as running, after which
+      // the polled state is what keeps the button disabled.
+      setTimeout(() => {
+        formatInFlight.current = false;
+      }, 10000);
     }
   };
 

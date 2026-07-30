@@ -545,6 +545,23 @@
           "search": "Search a city",
           "search_placeholder": "e.g. New York",
           "search_failed": "Could not reach the location service. Enter the coordinates by hand."
+        },
+        "diagnostics": {
+          "description": "Generate a file with device state and logs to attach to a support request.",
+          "download": "Download support bundle",
+          "generating": "Generating…",
+          "failed": "Could not generate the support bundle.",
+          "confirm": {
+            "title": "Download support bundle",
+            "includes": "This file is meant to be sent to support. It contains:",
+            "item": {
+              "state": "Device state: versions, services, settings, pools, automation.",
+              "logs": "Recent logs, including those from the previous boot."
+            },
+            "redaction": "Passwords and credentials are removed, and Bitcoin addresses are masked. Please review the file before sharing it.",
+            "cancel": "Cancel",
+            "accept": "Generate and download"
+          }
         }
       },
       "extra": {

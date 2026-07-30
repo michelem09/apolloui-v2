@@ -545,6 +545,23 @@
           "search": "Cerca una città",
           "search_placeholder": "es. New York",
           "search_failed": "Servizio di localizzazione non raggiungibile. Inserisci le coordinate a mano."
+        },
+        "diagnostics": {
+          "description": "Genera un file con lo stato del device e i log da allegare a una richiesta di assistenza.",
+          "download": "Scarica bundle di supporto",
+          "generating": "Generazione…",
+          "failed": "Impossibile generare il bundle di supporto.",
+          "confirm": {
+            "title": "Scarica bundle di supporto",
+            "includes": "Questo file è destinato all'assistenza. Contiene:",
+            "item": {
+              "state": "Stato del device: versioni, servizi, impostazioni, pool, automazione.",
+              "logs": "Log recenti, compresi quelli del boot precedente."
+            },
+            "redaction": "Password e credenziali sono rimosse e gli indirizzi Bitcoin sono mascherati. Controlla il file prima di condividerlo.",
+            "cancel": "Annulla",
+            "accept": "Genera e scarica"
+          }
         }
       },
       "extra": {

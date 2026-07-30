@@ -545,6 +545,23 @@
           "search": "Buscar una ciudad",
           "search_placeholder": "p. ej. New York",
           "search_failed": "No se pudo contactar el servicio de ubicación. Introduce las coordenadas a mano."
+        },
+        "diagnostics": {
+          "description": "Genera un archivo con el estado del dispositivo y los registros para adjuntar a una solicitud de soporte.",
+          "download": "Descargar paquete de soporte",
+          "generating": "Generando…",
+          "failed": "No se pudo generar el paquete de soporte.",
+          "confirm": {
+            "title": "Descargar paquete de soporte",
+            "includes": "Este archivo está destinado al soporte técnico. Contiene:",
+            "item": {
+              "state": "Estado del dispositivo: versiones, servicios, ajustes, pools, automatización.",
+              "logs": "Registros recientes, incluidos los del arranque anterior."
+            },
+            "redaction": "Las contraseñas y credenciales se eliminan y las direcciones Bitcoin se enmascaran. Revisa el archivo antes de compartirlo.",
+            "cancel": "Cancelar",
+            "accept": "Generar y descargar"
+          }
         }
       },
       "extra": {

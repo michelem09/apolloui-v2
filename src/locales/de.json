@@ -545,6 +545,23 @@
           "search": "Stadt suchen",
           "search_placeholder": "z. B. New York",
           "search_failed": "Standortdienst nicht erreichbar. Koordinaten von Hand eingeben."
+        },
+        "diagnostics": {
+          "description": "Erzeugt eine Datei mit Gerätestatus und Protokollen für eine Support-Anfrage.",
+          "download": "Support-Paket herunterladen",
+          "generating": "Wird erstellt…",
+          "failed": "Das Support-Paket konnte nicht erstellt werden.",
+          "confirm": {
+            "title": "Support-Paket herunterladen",
+            "includes": "Diese Datei ist für den Support bestimmt. Sie enthält:",
+            "item": {
+              "state": "Gerätestatus: Versionen, Dienste, Einstellungen, Pools, Automatisierung.",
+              "logs": "Aktuelle Protokolle, einschließlich derer des vorherigen Starts."
+            },
+            "redaction": "Passwörter und Zugangsdaten werden entfernt, Bitcoin-Adressen werden maskiert. Bitte prüfe die Datei, bevor du sie teilst.",
+            "cancel": "Abbrechen",
+            "accept": "Erstellen und herunterladen"
+          }
         }
       },
       "extra": {

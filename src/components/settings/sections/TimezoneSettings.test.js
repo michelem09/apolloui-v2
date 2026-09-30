@@ -7,7 +7,7 @@ import { IntlProvider } from 'react-intl';
 import en from '../../../locales/en.json';
 import { flattenMessages } from '../../../lib/utils';
 import { SettingsProvider } from '../context/SettingsContext';
-import { MCU_TIMEZONE_QUERY } from '../../../graphql/mcu';
+import { MCU_TIMEZONE_QUERY, MCU_REBOOT_MUTATION } from '../../../graphql/mcu';
 import TimezoneSettings from './TimezoneSettings';
 
 // The panel dispatches one feedback toast when it triggers a reboot; the store
@@ -118,5 +118,49 @@ describe('TimezoneSettings', () => {
     await screen.findByRole('option', { name: 'Europe/Rome' });
     expect(screen.queryByText(/Restart the system/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Restart now/i })).not.toBeInTheDocument();
+  });
+  // A reboot the device refused, announced as if it had happened, leaves the
+  // user waiting for a machine that never went down.
+  it('reports a refused reboot instead of announcing one', async () => {
+    const rebootRefused = {
+      request: { query: MCU_REBOOT_MUTATION },
+      result: { data: { Mcu: { reboot: { error: { message: 'Failed to reboot device: sudo' } } } } },
+    };
+
+    renderUI({ timezone: 'Europe/Rome' }, () => {}, [pendingRebootMock, rebootRefused]);
+
+    await screen.findByText(/Restart the system/i);
+    await userEvent.click(screen.getByRole('button', { name: /Restart now/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Yes, restart/i }));
+
+    await waitFor(() =>
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ type: 'error' }),
+        })
+      )
+    );
+  });
+
+  // The browser can name a zone this device's tzdata does not have.
+  it('does not offer a browser zone the device would refuse', async () => {
+    const elsewhere = {
+      request: { query: MCU_TIMEZONE_QUERY },
+      result: {
+        data: {
+          Mcu: {
+            timezone: {
+              result: { timezone: 'UTC', available: ['UTC'], rebootPending: false },
+              error: null,
+            },
+          },
+        },
+      },
+    };
+
+    renderUI({ timezone: 'UTC' }, () => {}, [elsewhere]);
+
+    await screen.findByRole('option', { name: 'UTC' });
+    expect(screen.queryByRole('button', { name: /browser/i })).not.toBeInTheDocument();
   });
 });

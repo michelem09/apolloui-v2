@@ -70,16 +70,34 @@ const TimezoneSettings = () => {
 
   const handleReboot = async () => {
     setConfirmingReboot(false);
-    await reboot();
+
+    // The backend reports a refusal in the payload, and onError swallows a
+    // request that never landed. Announcing a restart either way would leave
+    // the user waiting for a machine that never went down, with the warning
+    // still on screen and nothing to explain it.
+    let failure;
+    try {
+      const result = await reboot();
+      failure = result?.data?.Mcu?.reboot?.error?.message;
+    } catch (error) {
+      failure = error.message;
+    }
+
     dispatch(
-      sendFeedback({
-        message: intl.formatMessage({ id: 'settings.sections.system.timezone.rebooting' }),
-        type: 'info',
-      })
+      failure
+        ? sendFeedback({ message: failure, type: 'error' })
+        : sendFeedback({
+            message: intl.formatMessage({ id: 'settings.sections.system.timezone.rebooting' }),
+            type: 'info',
+          })
     );
   };
 
-  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // The browser's own ICU data, which can name a zone this device's tzdata does
+  // not have (Europe/Kyiv on an older image): offering it would seed a value the
+  // backend refuses.
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const detected = available.includes(browserZone) ? browserZone : null;
 
   // The clock read IN that zone — `moment()` would format the browser's own
   // zone and print an hour that has nothing to do with the name beside it.

@@ -647,12 +647,22 @@ const SettingsTab = () => {
       // Timezone: a plain save, no restart of its own. Extracted for the same
       // reason as the pool step below, and it never throws either — a zone the
       // device refuses must not skip the restarts that follow.
-      const timezoneFeedback = await applyTimezone({
+      const { feedback: timezoneFeedback, applied: appliedTimezone } = await applyTimezone({
         wanted: settings.timezone,
         current: currentSettings?.timezone,
         setTimezone,
         refetch: refetchTimezone,
       });
+
+      // The zone is not a row in the settings table, so refetchSettings below
+      // cannot move the save bar's baseline for it — and with a cache-first
+      // query returning identical data, the effect that rebuilds the baselines
+      // does not even re-run. Left alone, the bar stays lit on a change that
+      // was already applied until the page is reloaded.
+      if (appliedTimezone) {
+        setSettings((s) => ({ ...s, timezone: appliedTimezone }));
+        setCurrentSettings((s) => ({ ...s, timezone: appliedTimezone }));
+      }
 
       await refetchSettings();
       await refetchPools();

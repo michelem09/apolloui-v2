@@ -23,17 +23,20 @@ describe('applyTimezone', () => {
     });
     const refetch = jest.fn();
 
-    const feedback = await run({ setTimezone, refetch });
+    const { feedback, applied } = await run({ setTimezone, refetch });
 
     expect(setTimezone).toHaveBeenCalledWith({
       variables: { input: { timezone: 'Europe/Rome' } },
     });
     expect(refetch).toHaveBeenCalled();
     expect(feedback).toEqual([]);
+    // The caller moves the save bar's baseline with this; without it the bar
+    // stays lit on a change that was already applied.
+    expect(applied).toBe('Europe/Rome');
   });
 
   it('reports a refused zone instead of throwing', async () => {
-    const feedback = await run({
+    const { feedback, applied } = await run({
       setTimezone: jest.fn().mockResolvedValue({
         data: { Mcu: { setTimezone: { result: null, error: { message: 'Unknown timezone: Mars/Olympus' } } } },
       }),
@@ -42,14 +45,17 @@ describe('applyTimezone', () => {
     expect(feedback).toEqual([
       { message: 'Unknown timezone: Mars/Olympus', type: 'error' },
     ]);
+    // Nothing was applied, so the baseline must not move.
+    expect(applied).toBeNull();
   });
 
   it('reports a request that never landed instead of throwing', async () => {
-    const feedback = await run({
+    const { feedback, applied } = await run({
       setTimezone: jest.fn().mockRejectedValue(new Error('Failed to fetch')),
     });
 
     expect(feedback).toEqual([{ message: 'Failed to fetch', type: 'error' }]);
+    expect(applied).toBeNull();
   });
 
   it('does not refetch after a refusal — it would just re-read the old zone', async () => {
@@ -68,10 +74,15 @@ describe('applyTimezone', () => {
   it('does nothing when the zone did not change', async () => {
     const setTimezone = jest.fn();
 
-    const feedback = await run({ wanted: 'Europe/Rome', current: 'Europe/Rome', setTimezone });
+    const { feedback, applied } = await run({
+      wanted: 'Europe/Rome',
+      current: 'Europe/Rome',
+      setTimezone,
+    });
 
     expect(setTimezone).not.toHaveBeenCalled();
     expect(feedback).toEqual([]);
+    expect(applied).toBeNull();
   });
 
   it('does nothing when there is no zone to apply', async () => {
@@ -80,5 +91,18 @@ describe('applyTimezone', () => {
     await run({ wanted: undefined, setTimezone });
 
     expect(setTimezone).not.toHaveBeenCalled();
+  });
+  // The device is the authority on what it ended up on: a zone it normalised
+  // must move the baseline to ITS value, or the bar lights up against a name
+  // the device never adopted.
+  it('reports the zone the device confirmed, not the one asked for', async () => {
+    const { applied } = await run({
+      setTimezone: jest.fn().mockResolvedValue({
+        data: { Mcu: { setTimezone: { result: { timezone: 'Europe/Rome' }, error: null } } },
+      }),
+      wanted: 'Europe/Vatican',
+    });
+
+    expect(applied).toBe('Europe/Rome');
   });
 });

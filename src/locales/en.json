@@ -607,7 +607,6 @@
           "description": "The device clock label. Wrong here, and log timestamps and charts drift with it.",
           "current": "Device is on {timezone} — local time {time}",
           "use_browser": "Use this browser’s timezone ({timezone})",
-          "saved": "Timezone updated.",
           "reboot_needed": "The zone is set, but services already running keep logging the old one. Restart the system to line everything up.",
           "reboot_now": "Restart now",
           "reboot_confirm": "Yes, restart",

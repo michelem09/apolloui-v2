@@ -8,11 +8,10 @@ import {
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { MdWarningAmber } from 'react-icons/md';
 import { useQuery, useMutation } from '@apollo/client';
 import { useDispatch } from 'react-redux';
 import { useIntl } from 'react-intl';
-import { MdSchedule } from 'react-icons/md';
+import { MdSchedule, MdWarningAmber } from 'react-icons/md';
 import moment from 'moment';
 import PanelCard from '../../UI/PanelCard';
 import SimpleCard from '../../UI/SimpleCard';

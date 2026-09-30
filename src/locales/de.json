@@ -607,7 +607,12 @@
           "description": "Die Zeitzone des Geräts. Ist sie falsch, verschieben sich Log-Zeitstempel und Diagramme.",
           "current": "Gerät steht auf {timezone} — Ortszeit {time}",
           "use_browser": "Zeitzone dieses Browsers verwenden ({timezone})",
-          "saved": "Zeitzone aktualisiert."
+          "saved": "Zeitzone aktualisiert.",
+          "reboot_needed": "Die Zeitzone ist gesetzt, aber bereits laufende Dienste protokollieren weiter die alte. Starte das System neu, damit alles zusammenpasst.",
+          "reboot_now": "Jetzt neu starten",
+          "reboot_confirm": "Ja, neu starten",
+          "reboot_cancel": "Jetzt nicht",
+          "rebooting": "Das System startet neu — gib ihm etwa eine Minute."
         }
       },
       "extra": {

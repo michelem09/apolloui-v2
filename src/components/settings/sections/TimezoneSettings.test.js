@@ -10,6 +10,11 @@ import { SettingsProvider } from '../context/SettingsContext';
 import { MCU_TIMEZONE_QUERY } from '../../../graphql/mcu';
 import TimezoneSettings from './TimezoneSettings';
 
+// The panel dispatches one feedback toast when it triggers a reboot; the store
+// itself is not what these assertions are about.
+const mockDispatch = jest.fn();
+jest.mock('react-redux', () => ({ useDispatch: () => mockDispatch }));
+
 // A settings section is only ever exercised at render time; a build passes right
 // over one that throws on mount. Mount it, and check it drives the shared
 // settings state instead of a private save button.
@@ -19,7 +24,11 @@ const timezoneMock = {
     data: {
       Mcu: {
         timezone: {
-          result: { timezone: 'America/New_York', available: ['America/New_York', 'Europe/Rome', 'UTC'] },
+          result: {
+            timezone: 'America/New_York',
+            available: ['America/New_York', 'Europe/Rome', 'UTC'],
+            rebootPending: false,
+          },
           error: null,
         },
       },
@@ -27,9 +36,27 @@ const timezoneMock = {
   },
 };
 
-const renderUI = (settings, setSettings) =>
+const pendingRebootMock = {
+  request: { query: MCU_TIMEZONE_QUERY },
+  result: {
+    data: {
+      Mcu: {
+        timezone: {
+          result: {
+            timezone: 'Europe/Rome',
+            available: ['America/New_York', 'Europe/Rome', 'UTC'],
+            rebootPending: true,
+          },
+          error: null,
+        },
+      },
+    },
+  },
+};
+
+const renderUI = (settings, setSettings, mocks = [timezoneMock]) =>
   render(
-    <MockedProvider mocks={[timezoneMock]} addTypename={false}>
+    <MockedProvider mocks={mocks} addTypename={false}>
       <ChakraProvider>
         <IntlProvider locale="en" messages={flattenMessages(en)}>
           <SettingsProvider value={{ settings, setSettings }}>
@@ -72,5 +99,24 @@ describe('TimezoneSettings', () => {
       expect(screen.getByText(/Device is on America\/New_York/)).toBeInTheDocument()
     );
     expect(screen.queryByText(/Device is on Europe\/Rome/)).not.toBeInTheDocument();
+  });
+  // The device decides this, not the browser: the warning has to be there on a
+  // plain visit, with no memory of who changed what.
+  it('warns that a restart is owed, and asks before doing it', async () => {
+    renderUI({ timezone: 'Europe/Rome' }, () => {}, [pendingRebootMock]);
+
+    expect(await screen.findByText(/Restart the system/i)).toBeInTheDocument();
+
+    // One click does not reboot the device.
+    await userEvent.click(screen.getByRole('button', { name: /Restart now/i }));
+    expect(screen.getByRole('button', { name: /Yes, restart/i })).toBeInTheDocument();
+  });
+
+  it('says nothing when no restart is owed', async () => {
+    renderUI({ timezone: 'America/New_York' }, () => {});
+
+    await screen.findByRole('option', { name: 'Europe/Rome' });
+    expect(screen.queryByText(/Restart the system/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Restart now/i })).not.toBeInTheDocument();
   });
 });

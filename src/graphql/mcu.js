@@ -61,6 +61,7 @@ export const MCU_TIMEZONE_QUERY = gql`
         result {
           timezone
           available
+          rebootPending
         }
         error {
           ...ErrorFragment

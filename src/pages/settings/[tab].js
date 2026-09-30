@@ -211,9 +211,12 @@ const SettingsTab = () => {
   // but it rides the same save/discard bar as the temperature unit: the current
   // value is seeded into `settings` so a change lights up the bar, and the save
   // handler applies it with its own mutation.
+  // network-only, not no-cache: a no-cache result never lands in the cache, so
+  // refetching after a save would leave the panel's own copy stale — and with it
+  // the "a restart is still owed" warning it reads from the same query.
   const { data: dataTimezone, refetch: refetchTimezone } = useQuery(
     MCU_TIMEZONE_QUERY,
-    { fetchPolicy: 'no-cache' }
+    { fetchPolicy: 'network-only' }
   );
 
   // A mutation, not a query: applying a zone is an action, and a query would be

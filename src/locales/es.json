@@ -607,7 +607,12 @@
           "description": "La zona horaria del dispositivo. Si es incorrecta, se desajustan las marcas de tiempo de los registros y los gráficos.",
           "current": "El dispositivo está en {timezone} — hora local {time}",
           "use_browser": "Usar la zona horaria de este navegador ({timezone})",
-          "saved": "Zona horaria actualizada."
+          "saved": "Zona horaria actualizada.",
+          "reboot_needed": "La zona está aplicada, pero los servicios ya en marcha siguen registrando la anterior. Reinicia el sistema para alinearlo todo.",
+          "reboot_now": "Reiniciar ahora",
+          "reboot_confirm": "Sí, reiniciar",
+          "reboot_cancel": "Ahora no",
+          "rebooting": "El sistema se está reiniciando — dale alrededor de un minuto."
         }
       },
       "extra": {

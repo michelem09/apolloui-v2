@@ -65,6 +65,7 @@ import { nodeRestartNeeded, restartTypeFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
 import { savePendingPools } from '../../lib/savePendingPools';
+import { applyTimezone } from '../../lib/applyTimezone';
 
 const SettingsTab = () => {
   const intl = useIntl();
@@ -643,17 +644,15 @@ const SettingsTab = () => {
         setIsChanged(false);
       }
 
-      // Timezone: a plain save, no restart. Applied only when it actually changed.
-      if (settings.timezone && settings.timezone !== currentSettings?.timezone) {
-        const tzResult = await setTimezone({
-          variables: { input: { timezone: settings.timezone } },
-        });
-        if (tzResult?.data?.Mcu?.setTimezone?.error) {
-          setIsSaving(false);
-          return setErrorForm(tzResult.data.Mcu.setTimezone.error.message);
-        }
-        await refetchTimezone();
-      }
+      // Timezone: a plain save, no restart of its own. Extracted for the same
+      // reason as the pool step below, and it never throws either — a zone the
+      // device refuses must not skip the restarts that follow.
+      const timezoneFeedback = await applyTimezone({
+        wanted: settings.timezone,
+        current: currentSettings?.timezone,
+        setTimezone,
+        refetch: refetchTimezone,
+      });
 
       await refetchSettings();
       await refetchPools();
@@ -738,6 +737,7 @@ const SettingsTab = () => {
       // so a pool that could not be kept has to be dispatched after the restart
       // notice above rather than under it.
       poolSaveFeedback.forEach((message) => dispatch(sendFeedback(message)));
+      timezoneFeedback.forEach((message) => dispatch(sendFeedback(message)));
 
       setIsSaving(false);
     } catch (error) {

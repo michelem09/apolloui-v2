@@ -38,11 +38,31 @@ const TimezoneSettings = () => {
   const { data, loading } = useQuery(MCU_TIMEZONE_QUERY, { fetchPolicy: 'cache-first' });
   const available = data?.Mcu?.timezone?.result?.available || [];
 
+  // What the device is on NOW. The select shows the pending choice; this line
+  // has to keep telling the truth until the save bar applies it, or it claims a
+  // zone change that has not happened.
+  const systemZone = data?.Mcu?.timezone?.result?.timezone;
+
   const value = settings?.timezone || '';
 
   const handleChange = (e) => setSettings({ ...settings, timezone: e.target.value });
 
   const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // The clock read IN that zone — `moment()` would format the browser's own
+  // zone and print an hour that has nothing to do with the name beside it.
+  const timeThere = (zone) => {
+    if (!zone) return '—';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: zone,
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date());
+    } catch {
+      return moment().format('HH:mm');
+    }
+  };
 
   return (
     <PanelCard
@@ -69,7 +89,7 @@ const TimezoneSettings = () => {
           <Text fontSize="xs" color="secondaryGray.600">
             {intl.formatMessage(
               { id: 'settings.sections.system.timezone.current' },
-              { timezone: value || '—', time: moment().format('HH:mm') }
+              { timezone: systemZone || '—', time: timeThere(systemZone) }
             )}
           </Text>
 

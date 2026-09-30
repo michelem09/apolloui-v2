@@ -59,4 +59,18 @@ describe('TimezoneSettings', () => {
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
     expect(setSettings).toHaveBeenCalledWith(expect.objectContaining({ timezone: 'Europe/Rome' }));
   });
+  // The caption is the only thing on screen that says what the device is on
+  // right now. Bound to the pending choice it announced a zone change that had
+  // not been applied yet.
+  it('keeps naming the zone the device is on while another one is picked', async () => {
+    renderUI({ timezone: 'Europe/Rome' }, () => {});
+
+    await screen.findByRole('option', { name: 'Europe/Rome' });
+    expect(screen.getByRole('combobox')).toHaveValue('Europe/Rome');
+
+    await waitFor(() =>
+      expect(screen.getByText(/Device is on America\/New_York/)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/Device is on Europe\/Rome/)).not.toBeInTheDocument();
+  });
 });

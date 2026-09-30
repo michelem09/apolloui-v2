@@ -604,7 +604,7 @@
         },
         "timezone": {
           "title": "Timezone",
-          "description": "The device clock label. Wrong here, and log timestamps, charts and time-based automation rules all drift.",
+          "description": "The device clock label. Wrong here, and log timestamps and charts drift with it.",
           "current": "Device is on {timezone} — local time {time}",
           "use_browser": "Use this browser’s timezone ({timezone})",
           "saved": "Timezone updated."

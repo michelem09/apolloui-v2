@@ -604,7 +604,7 @@
         },
         "timezone": {
           "title": "Zeitzone",
-          "description": "Die Zeitzone des Geräts. Ist sie falsch, verschieben sich Log-Zeitstempel, Diagramme und zeitbasierte Automatisierungsregeln.",
+          "description": "Die Zeitzone des Geräts. Ist sie falsch, verschieben sich Log-Zeitstempel und Diagramme.",
           "current": "Gerät steht auf {timezone} — Ortszeit {time}",
           "use_browser": "Zeitzone dieses Browsers verwenden ({timezone})",
           "saved": "Zeitzone aktualisiert."

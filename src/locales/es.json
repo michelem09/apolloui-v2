@@ -604,7 +604,7 @@
         },
         "timezone": {
           "title": "Zona horaria",
-          "description": "La zona horaria del dispositivo. Si es incorrecta, se desajustan las marcas de tiempo de los registros, los gráficos y las reglas horarias de la automatización.",
+          "description": "La zona horaria del dispositivo. Si es incorrecta, se desajustan las marcas de tiempo de los registros y los gráficos.",
           "current": "El dispositivo está en {timezone} — hora local {time}",
           "use_browser": "Usar la zona horaria de este navegador ({timezone})",
           "saved": "Zona horaria actualizada."

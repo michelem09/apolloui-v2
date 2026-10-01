@@ -109,3 +109,27 @@ describe('PoolSettings save-pool offer', () => {
     expect(view.queryByText('Add pool to list')).not.toBeInTheDocument();
   });
 });
+
+// Reported by John, 2026-10-01: "the selection blanks out after selecting it",
+// in both setup and settings. Here is the settings half.
+describe('picking a preset — the dropdown must keep it', () => {
+  it('still shows the preset right after it is picked', () => {
+    const view = setup({ url: 'stratum+tcp://old.example:1234', username: 'w', password: 'x' });
+
+    fireEvent.change(view.select(), { target: { value: ocean.key } });
+    view.reload();
+
+    expect(view.select().value).toBe(ocean.key);
+  });
+
+  it('keeps showing it when the pick is re-rendered against the settings it wrote', () => {
+    const view = setup({ url: 'stratum+tcp://old.example:1234', username: 'w', password: 'x' });
+
+    fireEvent.change(view.select(), { target: { value: braiins.key } });
+    view.reload();
+    view.reload(); // a second pass, where the effect watching the URL has run
+
+    expect(view.select().value).toBe(braiins.key);
+    expect(view.url().value).toBe(braiins.url);
+  });
+});

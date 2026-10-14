@@ -774,9 +774,14 @@ const SettingsTab = () => {
         const passwordResult = await changeLockPassword({
           variables: { input: { password: settings.lockPassword } },
         });
+        // The backend refuses some passwords (line breaks, NUL): say so instead
+        // of letting the bar clear as if the change had been applied.
         const passwordError =
-          passwordResult?.data?.Auth?.changePassword?.error;
-        if (passwordError) throw new Error(passwordError.message);
+          passwordResult?.data?.Auth?.changePassword?.error || passwordResult?.error;
+        if (passwordError) {
+          setIsSaving(false);
+          return setErrorForm(passwordError.message);
+        }
         setIsChanged(false);
       }
 

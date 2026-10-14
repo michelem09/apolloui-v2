@@ -8,6 +8,7 @@ import { useIntl, FormattedMessage } from 'react-intl';
 
 const SoloMiningStatus = ({
   serviceStatus,
+  loading,
   ckPoolLastUpdate,
   ckDisconnected,
   blocksCount,
@@ -44,6 +45,23 @@ const SoloMiningStatus = ({
   }, [soloService?.status, soloService?.requestedStatus, soloService?.requestedAt]);
 
   // Check if solo service is available
+  // An absent status object means two different things. While the first
+  // WebSocket push is in flight it means loading: the page renders its real
+  // layout with per-card skeletons, so a status bar here would just be a grey
+  // slab floating above them. Once the subscription has answered without one,
+  // the service is genuinely unreachable — and this is all the page has to show.
+  if (!serviceStatus || Object.keys(serviceStatus).length === 0) {
+    if (loading) return null;
+
+    return (
+      <CustomAlert
+        title={intl.formatMessage({ id: 'solo_mining.status.solo_unavailable.title' })}
+        description={intl.formatMessage({ id: 'solo_mining.status.solo_unavailable.description' })}
+        status="error"
+      />
+    );
+  }
+
   if (!soloService) {
     return (
       <CustomAlert

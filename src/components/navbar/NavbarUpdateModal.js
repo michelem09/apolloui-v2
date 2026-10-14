@@ -10,8 +10,8 @@ import {
   Button,
   ModalBody,
 } from '@chakra-ui/react';
-import { useLazyQuery, useQuery } from '@apollo/client';
-import { MCU_UPDATE_STATUS_QUERY, MCU_UPDATE_QUERY } from '../../graphql/mcu';
+import { useMutation, useQuery } from '@apollo/client';
+import { MCU_UPDATE_STATUS_QUERY, MCU_UPDATE_MUTATION } from '../../graphql/mcu';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
@@ -59,9 +59,12 @@ const NavbarUpdateModal = ({
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [updateError, setUpdateError] = useState(null);
-  const [handleUpdate, { error: errorUpdate, data: dataUpdate }] = useLazyQuery(
-    MCU_UPDATE_QUERY,
-    { fetchPolicy: 'no-cache' }
+  // A mutation: a query is re-executed on re-render, and a phantom re-fire here
+  // launches a second concurrent update. onError keeps the fire-and-forget call
+  // from rejecting unhandled; the effect below reads the error from the hook.
+  const [handleUpdate, { error: errorUpdate, data: dataUpdate }] = useMutation(
+    MCU_UPDATE_MUTATION,
+    { onError: () => {} }
   );
 
   // Polled only while this modal is following an update it started. It used to

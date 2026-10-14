@@ -5,10 +5,12 @@ import { CheckIcon } from '@chakra-ui/icons';
 import CustomAlert from './CustomAlert';
 import config from '../../config';
 import { useIntl } from 'react-intl';
+import useNodeStorage from '../../hooks/useNodeStorage';
 
-const NodeStatus = ({ serviceStatus }) => {
+const NodeStatus = ({ serviceStatus, loading }) => {
   const intl = useIntl();
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const { unavailable: noStorage, state: storageState } = useNodeStorage();
   const node = serviceStatus?.node;
 
   // Show success alert only when the component is first loaded, if the node is online and requested status is also online within 2 minutes of the request.
@@ -32,6 +34,41 @@ const NodeStatus = ({ serviceStatus }) => {
       }
     };
   }, [node?.status, node?.requestedStatus, node?.requestedAt]);
+
+  // An absent status object means two different things. While the first
+  // WebSocket push is in flight it means loading: the page renders its real
+  // layout with per-card skeletons, so a status bar here would just be a grey
+  // slab floating above them. Once the subscription has answered without one,
+  // the service is genuinely unreachable — and this is all the page has to show.
+  if (!serviceStatus || Object.keys(serviceStatus).length === 0) {
+    if (loading) return null;
+
+    return (
+      <CustomAlert
+        title={intl.formatMessage({ id: 'node.status.unavailable.title' })}
+        description={intl.formatMessage({ id: 'node.status.unavailable.description' })}
+        status="error"
+        variant="horizontal"
+      />
+    );
+  }
+
+  // Ahead of the other service states, because none of them is the reason: the
+  // plain offline message tells you to start the node from the top menu, where
+  // that entry is disabled — a dead end dressed up as advice. Not ahead of a
+  // node that is actually RUNNING, though. The probe can be wrong (a drive
+  // mounted from a path it does not recognise reads as foreign), and announcing
+  // "your node is offline" over a page showing live blocks is the one thing this
+  // banner must never do.
+  if (noStorage && serviceStatus?.node?.status !== 'online') {
+    return (
+      <CustomAlert
+        title={intl.formatMessage({ id: 'node.status.offline.title' })}
+        description={intl.formatMessage({ id: `node.storage.${storageState}` })}
+        status={storageState === 'no-drive' ? 'info' : 'warning'}
+      />
+    );
+  }
 
   if (!node) {
     return (

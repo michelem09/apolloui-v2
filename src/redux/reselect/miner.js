@@ -1,4 +1,5 @@
 import { createSelector } from 'reselect';
+import { loadingUntilAnswered } from '../utils/answered';
 import _ from 'lodash';
 import { initialState } from '../../graphql/miner';
 import { displayHashrate, convertHashrateStringToValue } from '../../lib/utils';
@@ -6,7 +7,7 @@ import moment from '../../lib/moment';
 
 const minerDataSelector = (state) => state.miner.data;
 const minerErrorSelector = (state) => state.miner.error;
-const minerLoadingSelector = (state) => state.miner.loading;
+const minerLoadingSelector = (state) => loadingUntilAnswered(state.miner);
 const minerLastShareSelector = (state) => state.miner.lastShare;
 
 export const minerSelector = createSelector(
@@ -213,6 +214,11 @@ export const minerSelector = createSelector(
 
       // Board sum/avg
       let avgBoardEfficiency = (minerPower / globalAvgHashrateInGh) * 1000;
+      // A miner that has just restarted already draws watts while its averaging
+      // window is still empty, so this divides by zero for the first interval:
+      // Infinity, which CountUp then renders as NaN. The per-board efficiency
+      // above guards the same expression; the aggregate did not.
+      if (!isFinite(avgBoardEfficiency)) avgBoardEfficiency = 0;
 
       let avgBoardTemp = _.meanBy(boards, (hb) => {
         if (hb.status) return hb.temperature;

@@ -1,5 +1,6 @@
 import {
   Box,
+  Stack,
   Icon,
   Flex,
   Text,
@@ -12,12 +13,13 @@ import {
   Center,
   useDisclosure,
 } from '@chakra-ui/react';
+import CardSkeleton from '../components/UI/CardSkeleton';
 import { useRef, useEffect } from 'react';
-import { BulletList, List } from 'react-content-loader';
 import { useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
 
 import IconBox from '../components/icons/IconBox';
+import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 import Card from '../components/card/Card';
 import { minerSelector } from '../redux/reselect/miner';
 import { servicesSelector } from '../redux/reselect/services';
@@ -46,12 +48,17 @@ import { ChipSpeedIcon } from '../components/UI/Icons/ChipSpeedIcon';
 import { GrUserWorker } from 'react-icons/gr';
 import MinerDrawer from '../components/apollo/MinerDrawer';
 import PanelGrid from '../components/UI/PanelGrid';
-import Head from 'next/head';
 import MinerStatus from '../components/UI/MinerStatus';
-import { formatTemperature } from '../lib/utils';
+import { formatTemperature, formatMinerMode } from '../lib/utils';
+
+// Full scale for the chip-speed gauge, in GH/s per chip: the family's maximum
+// hashrate divided by the chips on a board. Apollo III reaches 22 TH/s across 21
+// chips, so an Apollo II's 240 left it pegged at over 200%.
+const CHIP_SPEED_FULL_SCALE = { 'apollo-iii': 1050, legacy: 240 };
 
 const Miner = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { minerFamily } = useDeviceConfig();
   const cardColor = useColorModeValue('white', 'brand.800');
   const iconColor = useColorModeValue('white', 'white');
   const iconColorReversed = useColorModeValue('brand.500', 'white');
@@ -76,7 +83,10 @@ const Miner = () => {
   } = useSelector(minerSelector, shallowEqual);
 
   // Services data reselected
-  const { data: servicesStatus } = useSelector(servicesSelector, shallowEqual);
+  const { data: servicesStatus, loading: loadingServices } = useSelector(
+    servicesSelector,
+    shallowEqual
+  );
 
   // Track previous values for flash animations (no cleanup — avoids stale-ref issues)
   const prevDataRef = useRef(null);
@@ -118,7 +128,22 @@ const Miner = () => {
     soloMining
   } = dataMiner || {};
 
-  const { minerMode, fanHigh, fanLow, frequency, voltage, temperatureUnit } = dataSettings || {};
+  const {
+      minerMode,
+      fanHigh,
+      fanLow,
+      frequency,
+      voltage,
+      temperatureUnit,
+      minerHashrate,
+      fanTemp,
+      fanPwm,
+    } = dataSettings || {};
+
+    // Apollo III tunes its own board voltage, so power and oscillator are not
+    // settings there and showing them as "AUTO" claims a control that does not
+    // exist. What it does have is a target hashrate.
+    const isApolloIii = minerFamily === 'apollo-iii';
 
   const dataTableBoards = [
     {
@@ -176,18 +201,6 @@ const Miner = () => {
 
   return (
     <Box>
-      <Head>
-        <title>
-          {globalHashrate
-            ? intl.formatMessage(
-                { id: 'miner.title', defaultMessage: 'Apollo Miner {hashrate}' },
-                { hashrate: `${globalHashrate.value} ${globalHashrate.unit}` }
-              )
-            : intl.formatMessage(
-                { id: 'miner.title', defaultMessage: 'Apollo Miner' }
-              )}
-        </title>
-      </Head>
       <MinerDrawer
         isOpen={isOpen}
         onClose={onClose}
@@ -195,7 +208,12 @@ const Miner = () => {
         data={boards}
       />
       
-      {servicesStatus?.miner?.status === 'online' ? (
+      {/* Render the real page while the services push is still in flight: every
+          card already knows how to draw its own loading state, so the layout
+          lands once and fills in, instead of a stand-in grid that approximates
+          it and then shifts. The offline placeholder is only for a miner the
+          device has actually reported as not running. */}
+      {loadingServices || servicesStatus?.miner?.status === 'online' ? (
         <>
           <Grid
             templateAreas={{
@@ -208,8 +226,8 @@ const Miner = () => {
               lg: 'auto auto auto auto',
             }}
             templateColumns={{
-              base: '1fr',
-              lg: '1fr 1fr 1fr 1fr',
+              base: 'minmax(0, 1fr)',
+              lg: 'repeat(4, minmax(0, 1fr))',
             }}
             gap={'20px'}
             mb={'10px'}
@@ -245,6 +263,7 @@ const Miner = () => {
                 gap="20px"
               >
                 <MiniStatistics
+                  loading={loadingMiner}
                   startContent={
                     <IconBox
                       w="56px"
@@ -276,6 +295,7 @@ const Miner = () => {
                 />
 
                 <MiniStatistics
+                  loading={loadingMiner}
                   startContent={
                     <IconBox
                       w="56px"
@@ -307,6 +327,7 @@ const Miner = () => {
                 />
 
                 <MiniStatistics
+                  loading={loadingMiner}
                   startContent={
                     <IconBox
                       w="56px"
@@ -329,6 +350,7 @@ const Miner = () => {
                 />
 
                 <MiniStatistics
+                  loading={loadingMiner}
                   startContent={
                     <IconBox
                       w="56px"
@@ -358,7 +380,10 @@ const Miner = () => {
                   </Text>
                 </Flex>
                 {loadingMiner ? (
-                  <BulletList />
+                  <Stack spacing={5} px="20px" py="10px">
+                    <CardSkeleton lines={2} />
+                    <CardSkeleton lines={2} />
+                  </Stack>
                 ) : (
                   <Flex my="auto" direction="column">
                     {soloMining && (
@@ -400,49 +425,90 @@ const Miner = () => {
                         />
                       }
                       name={intl.formatMessage({ id: 'miner.stats.mode' })}
-                      value={minerMode?.toUpperCase()}
+                      value={formatMinerMode(minerMode)}
                       reversed={true}
                     />
-                    <NoCardStatistics
-                      startContent={
-                        <IconBox
-                          w="56px"
-                          h="56px"
-                          bg={'transparent'}
-                          icon={
-                            <Icon
-                              w="32px"
-                              h="32px"
-                              as={PowerManagementIcon}
-                              color={iconColorReversed}
+                    {isApolloIii ? (
+                      <NoCardStatistics
+                        startContent={
+                          <IconBox
+                            w="56px"
+                            h="56px"
+                            bg={'transparent'}
+                            icon={
+                              <Icon
+                                w="32px"
+                                h="32px"
+                                as={FrequencyIcon}
+                                color={iconColorReversed}
+                              />
+                            }
+                          />
+                        }
+                        name={intl.formatMessage({
+                          id: 'miner.stats.target_hashrate',
+                        })}
+                        value={
+                          minerMode === 'custom' && minerHashrate
+                            ? `${minerHashrate} TH/s`
+                            : intl.formatMessage({ id: 'miner.auto' })
+                        }
+                        reversed={true}
+                      />
+                    ) : (
+                      <>
+                        <NoCardStatistics
+                          startContent={
+                            <IconBox
+                              w="56px"
+                              h="56px"
+                              bg={'transparent'}
+                              icon={
+                                <Icon
+                                  w="32px"
+                                  h="32px"
+                                  as={PowerManagementIcon}
+                                  color={iconColorReversed}
+                                />
+                              }
                             />
                           }
+                          name={intl.formatMessage({ id: 'miner.stats.power' })}
+                          value={
+                            minerMode === 'custom'
+                              ? `${voltage}%`
+                              : intl.formatMessage({ id: 'miner.auto' })
+                          }
+                          reversed={true}
                         />
-                      }
-                      name={intl.formatMessage({ id: 'miner.stats.power' })}
-                      value={minerMode === 'custom' ? `${voltage}%` : intl.formatMessage({ id: 'miner.auto' })}
-                      reversed={true}
-                    />
-                    <NoCardStatistics
-                      startContent={
-                        <IconBox
-                          w="56px"
-                          h="56px"
-                          bg={'transparent'}
-                          icon={
-                            <Icon
-                              w="32px"
-                              h="32px"
-                              as={FrequencyIcon}
-                              color={iconColorReversed}
+                        <NoCardStatistics
+                          startContent={
+                            <IconBox
+                              w="56px"
+                              h="56px"
+                              bg={'transparent'}
+                              icon={
+                                <Icon
+                                  w="32px"
+                                  h="32px"
+                                  as={FrequencyIcon}
+                                  color={iconColorReversed}
+                                />
+                              }
                             />
                           }
+                          name={intl.formatMessage({
+                            id: 'miner.stats.frequency',
+                          })}
+                          value={
+                            minerMode === 'custom'
+                              ? `${frequency}MHz`
+                              : intl.formatMessage({ id: 'miner.auto' })
+                          }
+                          reversed={true}
                         />
-                      }
-                      name={intl.formatMessage({ id: 'miner.stats.frequency' })}
-                      value={minerMode === 'custom' ? `${frequency}MHz` : intl.formatMessage({ id: 'miner.auto' })}
-                      reversed={true}
-                    />
+                      </>
+                    )}
                     <NoCardStatistics
                       startContent={
                         <IconBox
@@ -460,11 +526,19 @@ const Miner = () => {
                         />
                       }
                       name={intl.formatMessage({ id: 'miner.stats.fan_speed' })}
-                      value={
-                        fanLow !== 40 && fanHigh !== 60
+                      value={(() => {
+                        // Apollo III: one PID target temperature, or a fixed duty
+                        // cycle that replaces it. Apollo I/II: a low/high range.
+                        if (isApolloIii) {
+                          if (fanPwm != null) return `${fanPwm}%`;
+                          if (fanTemp != null)
+                            return formatTemperature(fanTemp, temperatureUnit);
+                          return intl.formatMessage({ id: 'miner.auto' });
+                        }
+                        return fanLow !== 40 && fanHigh !== 60
                           ? `${formatTemperature(fanLow, temperatureUnit)} / ${formatTemperature(fanHigh, temperatureUnit)}`
-                          : intl.formatMessage({ id: 'miner.auto' })
-                      }
+                          : intl.formatMessage({ id: 'miner.auto' });
+                      })()}
                       reversed={true}
                     />
                   </Flex>
@@ -496,7 +570,10 @@ const Miner = () => {
                   </Flex>
                 </Flex>
                 {loadingMiner ? (
-                  <BulletList />
+                  <Stack spacing={5} px="20px" py="10px">
+                    <CardSkeleton lines={2} />
+                    <CardSkeleton lines={2} />
+                  </Stack>
                 ) : (
                   <Box mt="3">
                     <PanelGrid
@@ -527,7 +604,10 @@ const Miner = () => {
                   </Text>
                 </Flex>
                 {loadingMiner ? (
-                  <List />
+                  <Stack spacing={5} px="20px" py="10px">
+                    <CardSkeleton lines={2} />
+                    <CardSkeleton lines={2} />
+                  </Stack>
                 ) : (
                   <SimpleGrid columns={{ base: 1, md: 3 }} gap="20px">
                     <NoCardStatisticsGauge
@@ -576,7 +656,10 @@ const Miner = () => {
                       name={intl.formatMessage({ id: 'miner.stats.chip_speed' })}
                       value={avgChipSpeed ? avgChipSpeed.toFixed(2) : 'N/A'}
                       rawValue={avgChipSpeed}
-                      total={240}
+                      total={
+                        CHIP_SPEED_FULL_SCALE[minerFamily] ||
+                        CHIP_SPEED_FULL_SCALE.legacy
+                      }
                       gauge={true}
                       loading={loadingMiner}
                     />
@@ -614,7 +697,7 @@ const Miner = () => {
         </>
       ) : (
         <Flex height="60vh" align="center" justify="center">
-          <MinerStatus serviceStatus={servicesStatus} />
+          <MinerStatus serviceStatus={servicesStatus} loading={loadingServices} />
         </Flex>
       )}
     </Box>

@@ -21,6 +21,7 @@
       "blockchain_size": "Tamaño de la blockchain"
     },
     "system": {
+      "title": "Sistema",
       "cpu_usage": "Uso de CPU",
       "memory_usage": "Uso de memoria",
       "disk_usage": "Uso del disco del sistema",
@@ -33,7 +34,30 @@
       "daily_chance": "Probabilidad Diaria",
       "pending": "Pendiente... Por favor espera.",
       "offline": "El servicio Solo está fuera de línea.",
-      "unknown": "Estado del servicio Solo desconocido."
+      "unknown": "Estado del servicio Solo desconocido.",
+      "start": "Iniciar el pool solo",
+      "state": {
+        "starting": {
+          "title": "Iniciando el pool solo",
+          "description": "Tarda unos segundos antes de que el pool acepte conexiones."
+        },
+        "off": {
+          "title": "El pool solo está apagado",
+          "description": "Nadie puede minar en este dispositivo mientras el pool no esté activo."
+        },
+        "unknown": {
+          "title": "Estado del pool solo desconocido",
+          "description": "El dispositivo no ha informado si el pool está activo."
+        },
+        "stopping": {
+          "title": "Deteniendo el pool solo",
+          "description": "Todo lo que esté minando en este dispositivo va a desconectarse."
+        }
+      }
+    },
+    "metrics": {
+      "no_data": "Aún no hay datos",
+      "load_error": "No se pudo cargar el historial"
     }
   },
   "node": {
@@ -140,6 +164,22 @@
       "txs": "Transacciones",
       "fees": "Comisiones",
       "miner": "Minero"
+    },
+    "storage": {
+      "no-drive": "No se detectó ningún disco SSD. El nodo Bitcoin necesita uno para la cadena de bloques: instala uno para habilitarlo.",
+      "unformatted": "Se encontró un disco SSD pero aún no está formateado. Formatéalo en Ajustes → Extra para habilitar el nodo.",
+      "not-mounted": "El disco SSD no está montado, así que el nodo no puede arrancar. Prueba a reiniciar o formatea el disco en Ajustes → Extra.",
+      "foreign": "La carpeta del nodo no está en el disco SSD. El nodo no arrancará hasta corregirlo; formatear el disco lo restablece.",
+      "low": {
+        "title": "El disco del nodo se está quedando sin espacio",
+        "description": "Solo quedan {free} en el SSD. La cadena de bloques sigue creciendo (unos 10 GB al mes) y, cuando el disco se llena, el nodo se detiene hasta que se libere espacio. Libera espacio o cambia a un disco más grande."
+      }
+    },
+    "widget": {
+      "connections": "Conexiones del nodo",
+      "current_block": "Bloque actual",
+      "blockchain_size": "Tamaño de la blockchain",
+      "disk_free": "Espacio libre del nodo"
     }
   },
   "miner": {
@@ -150,7 +190,7 @@
       "efficiency": "Eficiencia",
       "temperature": "Temperatura",
       "fan_speed": "Velocidad del ventilador",
-      "voltage": "Voltaje",
+      "voltage": "Corriente",
       "errors": "Errores",
       "pool_hashrate": "Hashrate del pool",
       "difficulty": "Dificultad",
@@ -176,7 +216,8 @@
       "pools": {
         "active": "Pools activos",
         "total": "Pools totales"
-      }
+      },
+      "target_hashrate": "Hashrate objetivo"
     },
     "units": {
       "rpm": "rpm",
@@ -265,7 +306,9 @@
       "accepted_shares": "Shares aceptadas",
       "rejected_shares": "Shares rechazadas",
       "last_share": "Última share",
-      "uptime": "Tiempo en funcionamiento"
+      "uptime": "Tiempo en funcionamiento",
+      "best_share_ever": "Mejor share de siempre",
+      "best_share_session": "Esta sesión"
     },
     "info": {
       "title": "Información de Solo",
@@ -382,7 +425,11 @@
       "discard": "Descartar cambios",
       "save": "Guardar",
       "save_restart": "Guardar y reiniciar",
-      "saving": "Guardando..."
+      "saving": "Guardando...",
+      "save_pool": "Añadir el pool a la lista",
+      "save_pool_name": "Nombre para este pool",
+      "save_pool_done": "Pool «{name}» añadido a tu lista",
+      "save_pool_hint": "Los pools guardados aparecen en la lista de arriba y en la del pool de respaldo."
     },
     "tabs": {
       "pools": "Pools",
@@ -409,7 +456,7 @@
           },
           "eco": {
             "title": "ECO",
-            "description": "En modo ECO tu minero será más eficiente, pero tendrá un hashrate ligeramente menor. Este modo es recomendado, y genera menos ruido y calor."
+            "description": "El modo ECO es nuestro modo de bajo consumo predeterminado para una muy buena eficiencia y bajo ruido en la minería de escritorio diaria."
           },
           "balanced": {
             "title": "EQUILIBRADO",
@@ -435,12 +482,22 @@
               "description": "Puedes establecer una frecuencia personalizada o restablecer a los valores por defecto.",
               "min": "Mín",
               "max": "Máx"
+            },
+            "hashrate": {
+              "title": "Hashrate objetivo",
+              "description": "Establece un hashrate objetivo personalizado. Más alto significa más calor y ruido.",
+              "slider_description": "El Apollo III usa algoritmos avanzados para ajustar el voltaje y obtener la mejor eficiencia.",
+              "min": "5 TH/s",
+              "max": "20 TH/s"
             }
           }
         },
         "fan": {
           "title": "Configuración del ventilador",
           "description": "Ajusta la velocidad del ventilador o configúralo como automático",
+          "auto": {
+            "description": "Desactiva Auto para ajustar la configuración predeterminada"
+          },
           "low": {
             "title": "Temperatura para iniciar el ventilador",
             "description": "Temperatura necesaria para iniciar el ventilador.",
@@ -452,6 +509,22 @@
             "description": "Temperatura necesaria para que el ventilador funcione a velocidad máxima.",
             "min": "Mín",
             "max": "Máx"
+          },
+          "target": {
+            "title": "Temperatura objetivo",
+            "description": "El ventilador acelera automáticamente para mantener las placas a esta temperatura. Temperaturas más bajas = mejor eficiencia pero más ruido; temperaturas más altas = peor eficiencia pero menos ruido.",
+            "min": "40°c",
+            "max": "80°c"
+          },
+          "override": {
+            "title": "Control manual del ventilador",
+            "description": "Hace girar el ventilador a velocidad fija en lugar de dejar que se ajuste automáticamente.",
+            "speed": {
+              "title": "Velocidad del ventilador",
+              "description": "Velocidad fija. ADVERTENCIA: Esto desactiva el control automático de temperatura; una velocidad demasiado baja puede sobrecalentar las placas. SOLO para usuarios avanzados.",
+              "min": "10%",
+              "max": "100%"
+            }
           }
         },
         "power_led": {
@@ -470,11 +543,11 @@
         },
         "tor_mode": {
           "title": "Modo TOR",
-          "description": "Conecta tu nodo Bitcoin mediante la red Tor para aumentar seguridad y anonimato. Nota: el nodo se reiniciará para aplicar los cambios."
+          "description": "Conecta tu nodo Bitcoin mediante la red Tor para aumentar seguridad y anonimato."
         },
         "allow_lan": {
           "title": "Permitir conexiones LAN",
-          "description": "Permitir que tu nodo Bitcoin acepte conexiones LAN desde billeteras y servicios externos. Nota: el nodo se reiniciará para aplicar los cambios."
+          "description": "Permitir que tu nodo Bitcoin acepte conexiones LAN desde billeteras y servicios externos."
         },
         "max_connections": "Conexiones máximas",
         "extra_options": "Opciones extra",
@@ -482,7 +555,9 @@
           "title": "Configuración avanzada del nodo",
           "description": "Agrega líneas adicionales al archivo bitcoin.conf. (Nota: esta sección es para usuarios avanzados, no se realiza validación. Consulta la documentación de Bitcoin Core para ver las opciones válidas.)"
         },
-        "solo_mining_warning": "Tienes activada la minería solo. Se recomienda desactivar Tor para este modo. Los nodos Bitcoin en Tor propagan los blocos más lentamente, lo que aumenta el riesgo de bloques huérfanos."
+        "solo_mining_warning": "Tienes activada la minería solo. Se recomienda desactivar Tor para este modo. Los nodos Bitcoin en Tor propagan los blocos más lentamente, lo que aumenta el riesgo de bloques huérfanos.",
+        "storage_note": "Los ajustes de esta pestaña se guardan igualmente y se aplicarán cuando haya una unidad disponible.",
+        "restart_note": "Nota: el nodo se reiniciará para aplicar los cambios."
       },
       "system": {
         "title": "Configuración del sistema",
@@ -530,10 +605,15 @@
         },
         "timezone": {
           "title": "Zona horaria",
-          "description": "La zona horaria del dispositivo. Si es incorrecta, se desajustan las marcas de tiempo de los registros, los gráficos y las reglas horarias de la automatización.",
+          "description": "La zona horaria del dispositivo. Si es incorrecta, se desajustan las marcas de tiempo de los registros y los gráficos.",
           "current": "El dispositivo está en {timezone} — hora local {time}",
           "use_browser": "Usar la zona horaria de este navegador ({timezone})",
-          "saved": "Zona horaria actualizada."
+          "saved": "Zona horaria actualizada.",
+          "reboot_needed": "La zona está aplicada, pero los servicios ya en marcha siguen registrando la anterior. Reinicia el sistema para alinearlo todo.",
+          "reboot_now": "Reiniciar ahora",
+          "reboot_confirm": "Sí, reiniciar",
+          "reboot_cancel": "Ahora no",
+          "rebooting": "El sistema se está reiniciando — dale alrededor de un minuto."
         },
         "location": {
           "title": "Ubicación",
@@ -705,7 +785,7 @@
     "automation": "Automatización"
   },
   "signin": {
-    "title": "Bienvenido a Apollo Web OS 2",
+    "title": "Bienvenido a Apollo OS 2",
     "heading": "Iniciar sesión",
     "description": "¡Ingresa tu contraseña para acceder!",
     "password_label": "Contraseña",
@@ -775,7 +855,8 @@
       "title": "¡Configuración completada!",
       "subtitle": "¡Empecemos a minar Bitcoin!",
       "button": "Comenzar minería",
-      "button_solo": "Iniciar Solo Node"
+      "button_solo": "Iniciar Solo Node",
+      "warming_up": "Calentando…"
     },
     "common": {
       "previous": "Anterior",
@@ -786,7 +867,7 @@
     "support": "Soporte",
     "shop": "Tienda",
     "website": "Sitio web",
-    "made_with_love": "Apollo Web OS v{version} Hecho con amor por",
+    "made_with_love": "Apollo OS v{version} Hecho con amor por",
     "futurebit": "FutureBit"
   },
   "utils": {
@@ -1217,5 +1298,146 @@
     "title_unreachable": "No se pudieron comprobar las actualizaciones — ejecutando v{version}",
     "unreachable_start": "No se pudo contactar con el dispositivo para iniciar la actualización. Inténtalo de nuevo.",
     "update": "Actualizar"
+  },
+  "update": {
+    "title": {
+      "check_failed": "No se pudo comprobar si hay actualizaciones",
+      "available": "¡Hay una nueva versión v{version} disponible!",
+      "current": "No hay actualizaciones disponibles para v{version}"
+    },
+    "description": {
+      "check_failed": "No se pudo determinar la versión más reciente. Cierra este cuadro de diálogo e inténtalo de nuevo.",
+      "available": "Actualiza la aplicación a la versión más reciente para obtener las últimas funciones y correcciones. La actualización puede tardar entre 15 y 30 minutos. Nota: el sistema se reiniciará cuando finalice la actualización. NO apagues el sistema hasta que se haya reiniciado. Cierra o actualiza esta página después de que el sistema se haya reiniciado.",
+      "current": "Este sistema ya ejecuta la misma versión o una más reciente que la versión publicada actualmente."
+    },
+    "status": {
+      "updating": "Actualizando… {progress}%",
+      "done": "¡Listo!",
+      "error": "Error: {error}"
+    },
+    "error": {
+      "start_failed": "Se produjo un error durante el proceso de actualización",
+      "stopped": "La actualización se detuvo antes de finalizar. El dispositivo no se actualizó — consulta los registros."
+    },
+    "button": {
+      "update": "Actualizar",
+      "hide": "Ocultar",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "reload": "Recargar aplicación",
+      "retry": "Intentar de nuevo"
+    }
+  },
+  "format": {
+    "navbar": {
+      "running": "Formateando… {progress}%",
+      "success": "Formateo completado",
+      "failed": "Formateo fallido"
+    },
+    "toast": {
+      "started": "Formateo del disco iniciado...",
+      "startFailed": "No se pudo iniciar el formateo",
+      "success": "¡Formateo completado! Su sistema está listo.",
+      "failedErased": "El formateo falló después de borrar el disco. El nodo no puede iniciarse hasta que se complete un formateo — revise los registros y reintente.",
+      "failedUntouched": "El formateo falló. El disco no se modificó — revise los registros antes de reintentar.",
+      "incomplete": "El formateo no se completó — revise los registros antes de reintentar."
+    }
+  },
+  "page_title": {
+    "overview": "Resumen",
+    "miner": "Miner",
+    "node": "Nodo",
+    "system": "Sistema",
+    "settings": "Ajustes",
+    "solo_mining": "Solo Mining",
+    "apps": "Apps",
+    "signout": "Cerrando sesión",
+    "signin": "Iniciar sesión",
+    "setup": "Configuración",
+    "not_found": "No encontrado",
+    "default": "Apollo",
+    "node_syncing": "Sincronizando"
+  },
+  "wifi": {
+    "connectedTo": "Conectado a «{ssid}»",
+    "notConnected": "Sin conexión",
+    "notConnected.hint": "Elige una red abajo para conectarte",
+    "available": "Redes disponibles",
+    "saved": "Redes guardadas",
+    "noNetworks": "No se encontraron redes",
+    "noAdapter": "Este dispositivo no tiene adaptador Wi-Fi",
+    "adapter": {
+      "label": "Adaptador",
+      "builtin": "integrado",
+      "usb": "USB"
+    },
+    "network": {
+      "hidden": "Red oculta",
+      "saved": "guardada",
+      "active": "Conectada",
+      "hiddenHint": "requiere el nombre"
+    },
+    "security": {
+      "open": "abierta"
+    },
+    "status": {
+      "connecting": "Conectando…"
+    },
+    "action": {
+      "connect": "Conectar",
+      "disconnect": "Desconectar",
+      "forget": "Olvidar",
+      "refresh": "Actualizar",
+      "cancel": "Cancelar",
+      "addHidden": "+ Conectar a una red oculta…",
+      "scan": "Buscar redes"
+    },
+    "password": {
+      "title": "Conectar a «{ssid}»",
+      "label": "Contraseña",
+      "placeholder": "Contraseña de la red",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "ssidLabel": "Nombre de la red",
+      "ssidPlaceholder": "Nombre exacto de la red oculta",
+      "isHidden": "Esta red no difunde su nombre",
+      "replacing": "Esta red está guardada. La contraseña que introduzcas aquí reemplaza la almacenada.",
+      "required": "Introduce la contraseña de la red"
+    },
+    "confirm": {
+      "disconnect": {
+        "title": "¿Salir de «{ssid}»?",
+        "body": "El dispositivo se desconectará de esta red. La contraseña sigue guardada, así que podrás volver a conectarte sin escribirla."
+      },
+      "forget": {
+        "title": "¿Olvidar «{ssid}»?",
+        "body": "Se elimina la contraseña guardada. Para volver a conectarte tendrás que escribirla otra vez."
+      },
+      "selfLockout": "Es la conexión que sirve esta página. Si continúas, el dispositivo quedará aislado y puede que necesites acceso físico."
+    },
+    "toast": {
+      "connected": "Conectado a «{ssid}»"
+    },
+    "error": {
+      "failed": "No se pudo conectar a la red",
+      "ssid-not-found": "Esa red no está al alcance",
+      "activation-failed": "No se pudo conectar. Revisa la contraseña e inténtalo de nuevo.",
+      "bad-passphrase": "Contraseña incorrecta",
+      "timeout": "La red tardó demasiado en responder",
+      "not-confirmed": "La red no llegó a levantarse",
+      "no-ip-address": "Conectado, pero sin dirección asignada",
+      "not-authorized": "No se permite cambiar la red",
+      "no-wifi-interface": "No hay adaptador Wi-Fi disponible",
+      "not-a-wifi-interface": "Ese adaptador no es Wi-Fi",
+      "not-a-wifi-profile": "Esa red guardada no es Wi-Fi",
+      "disconnect-failed": "No se pudo desconectar de la red",
+      "forget-failed": "No se pudo eliminar la red guardada",
+      "unreachable": "Sin respuesta: puede que el dispositivo haya pasado a la otra red. Vuelve a cargar esta página desde su nueva dirección."
+    },
+    "scan": {
+      "hint": "La búsqueda activa la radio y tarda unos segundos"
+    },
+    "band": "{band} GHz",
+    "band.auto": "Auto"
   }
 }

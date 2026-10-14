@@ -149,7 +149,11 @@ export const checkBackendAvailability = async () => {
 // ---------------------------------------------------------------------------
 // WS connection status — tracked module-level, published to React subscribers
 // ---------------------------------------------------------------------------
-// Status values: 'connecting' | 'online' | 'offline'
+// Status values: 'connecting' | 'online' | 'offline' | 'unauthorized'
+//
+// 'unauthorized' is not a degree of 'offline': the backend is there and
+// answering, it is the token it will not take. Treating the two alike sent
+// people to check cables and services while the fix was to sign in again.
 let _wsStatus = 'connecting';
 const _wsStatusListeners = new Set();
 // True once we successfully connect for the first time in this page session.
@@ -164,6 +168,62 @@ let _offlineTimer = null;
 //  - 15 s if we lost a previously-working connection (brief drop / restart)
 const WS_FIRST_CONNECT_TIMEOUT_MS = 8000;
 const WS_RECONNECT_TIMEOUT_MS = 15000;
+
+// 4403 is what the server sends when it refuses the token (onConnect returns
+// false). Deliberately not 4401: in graphql-ws that means a Subscribe arrived
+// before the ack — a timing race on a slow device, with a perfectly good
+// session — and treating it as a bad token would sign the user out for nothing.
+const WS_FORBIDDEN = 4403;
+const isAuthRefusal = (event) => event?.code === WS_FORBIDDEN;
+
+// A refusal is only believed when it repeats. The socket is opened by the
+// layout's subscriptions, which mount before ProtectedRoutes has copied the
+// token out of the session and into storage — so the first attempt after a
+// fresh sign-in can legitimately carry no token at all. Giving up on that one
+// refusal leaves the page rendered but deaf: graphql-ws stops reconnecting for
+// good, every subscription is dead, and nothing short of a reload brings the
+// pushes back. connectionParams is re-read on each attempt, so a retry is what
+// lets a token that arrived a tick late be used.
+const MAX_AUTH_REFUSALS = 3;
+let _authRefusals = 0;
+
+// A socket can die without the client being told. The machine sleeps, the WiFi
+// drops, the path is cut: the server sees the connection go and the browser is
+// handed nothing. The page then keeps a dashboard on screen that answers clicks
+// and reports nothing — no offline screen, because as far as it knows it is
+// still connected — and only a reload brings it back.
+//
+// Measured on two devices at once: the backend logged the disconnect at
+// 09:33:11 and the next connection at 09:40:06, and in between the miner was
+// restarted four times from a UI that never said a word.
+//
+// So the connection is made to prove itself. `keepAlive` sends a ping once the
+// socket has been quiet, the server answers with a pong, and any message at all
+// re-arms the watchdog below. Silence past the limit means the socket is gone
+// whatever it claims: terminating it closes with 4499, which graphql-ws is
+// happy to retry.
+const WS_KEEPALIVE_MS = 10000;
+const WS_SILENCE_LIMIT_MS = 30000;
+// Uncapped, graphql-ws doubles the wait on every failed attempt — nine in a row
+// and the next try is eight minutes away. On a dashboard served from the same
+// LAN there is nothing to spare the backend from.
+const WS_MAX_RETRY_WAIT_MS = 10000;
+
+let _wsClient = null;
+let _silenceTimer = null;
+
+function _armSilenceWatchdog() {
+  clearTimeout(_silenceTimer);
+  _silenceTimer = setTimeout(() => {
+    _silenceTimer = null;
+    _wsClient?.terminate();
+  }, WS_SILENCE_LIMIT_MS);
+}
+
+function _disarmSilenceWatchdog() {
+  clearTimeout(_silenceTimer);
+  _silenceTimer = null;
+}
 
 function _setWsStatus(next) {
   if (next === _wsStatus) return;
@@ -206,47 +266,86 @@ function createWsLink() {
     }
   };
 
-  return new GraphQLWsLink(
-    createClient({
-      url: () => getBackendUrl('/api/graphql', { ws: true }),
-      // connectionParams is a function so it re-evaluates on every (re)connect,
-      // picking up the latest token automatically.
-      connectionParams: () => {
-        const token = ls.getItem('token');
-        return { authorization: token ? `Bearer ${token}` : '' };
+  _wsClient = createClient({
+    url: () => getBackendUrl('/api/graphql', { ws: true }),
+    // connectionParams is a function so it re-evaluates on every (re)connect,
+    // picking up the latest token automatically.
+    connectionParams: () => {
+      const token = ls.getItem('token');
+      return { authorization: token ? `Bearer ${token}` : '' };
+    },
+    retryAttempts: Infinity,
+    keepAlive: WS_KEEPALIVE_MS,
+    retryWait: (retries) =>
+      new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          Math.min(1000 * 2 ** retries, WS_MAX_RETRY_WAIT_MS) +
+            Math.floor(Math.random() * 500)
+        )
+      ),
+    // graphql-ws retries 4403 by default, on the theory that access might be
+    // granted later. Here it will not: the same stored token goes back every
+    // time, so the retry only delays sending the user to sign in.
+    shouldRetry: (errOrCloseEvent) =>
+      !isAuthRefusal(errOrCloseEvent) || _authRefusals < MAX_AUTH_REFUSALS,
+    on: {
+      connecting: () => {
+        // Retries are in progress — don't touch the timer here.
+        // The timer must keep ticking so it eventually fires if the backend
+        // stays down through multiple retries.
       },
-      retryAttempts: Infinity,
-      shouldRetry: () => true,
-      on: {
-        connecting: () => {
-          // Retries are in progress — don't touch the timer here.
-          // The timer must keep ticking so it eventually fires if the backend
-          // stays down through multiple retries.
-        },
-        connected: () => {
-          // Connection (re)established — cancel any pending offline timer and go online.
-          _everConnected = true;
+      // Anything arriving proves the socket is alive — a pong from our own
+      // keepAlive counts, so this works on a device with nothing to push.
+      message: () => {
+        _armSilenceWatchdog();
+      },
+      connected: () => {
+        // Connection (re)established — cancel any pending offline timer and go online.
+        _everConnected = true;
+        _authRefusals = 0;
+        _armSilenceWatchdog();
+        clearTimeout(_offlineTimer);
+        _offlineTimer = null;
+        _setWsStatus('online');
+      },
+      closed: (event) => {
+        _disarmSilenceWatchdog();
+
+        // A refused token is a different problem with a different remedy, and
+        // no amount of waiting fixes it.
+        if (isAuthRefusal(event)) {
+          _authRefusals += 1;
+          // A retry is on its way; say nothing yet, or a token that is one
+          // tick late would send the user to sign in again.
+          if (_authRefusals < MAX_AUTH_REFUSALS) return;
           clearTimeout(_offlineTimer);
           _offlineTimer = null;
-          _setWsStatus('online');
-        },
-        closed: () => {
-          // Move 'online' → 'connecting' (data may be stale) and let the grace
-          // timer decide when to show the offline screen. Subsequent 'closed'
-          // events during retries must not reset a running timer.
-          enterConnecting();
-        },
-        error: () => {
-          // A socket error is just another transient drop from the UI's point of
-          // view (a refused reconnect, an abnormal close): demote to 'connecting'
-          // and lean on the grace timer, exactly like 'closed'. Going offline here
-          // instantly made the 8/15s timers dead code and flashed the offline
-          // screen on every reconnect blip.
-          enterConnecting();
-        },
+          _setWsStatus('unauthorized');
+          return;
+        }
+
+        // Move 'online' → 'connecting' (data may be stale) and let the grace
+        // timer decide when to show the offline screen. Subsequent 'closed'
+        // events during retries must not reset a running timer.
+        enterConnecting();
       },
-    })
-  );
+      error: () => {
+        _disarmSilenceWatchdog();
+
+        // Close events never reach here — graphql-ws routes them to `closed`,
+        // and this receives the raw socket error instead.
+        // A socket error is just another transient drop from the UI's point of
+        // view (a refused reconnect, an abnormal close): demote to 'connecting'
+        // and lean on the grace timer, exactly like 'closed'. Going offline here
+        // instantly made the 8/15s timers dead code and flashed the offline
+        // screen on every reconnect blip.
+        enterConnecting();
+      },
+    },
+  });
+
+  return new GraphQLWsLink(_wsClient);
 }
 
 function createApolloClient() {

@@ -50,59 +50,9 @@ export const MCU_STATS_QUERY = gql`
   }
 `;
 
-export const MCU_WIFI_SCAN_QUERY = gql`
-  ${ERROR_FRAGMENT}
-  query MCU_WIFI_SCAN {
-    Mcu {
-      wifiScan {
-        result {
-          wifiScan {
-            ssid
-            mode
-            channel
-            rate
-            signal
-            security
-            inuse
-          }
-        }
-        error {
-          ...ErrorFragment
-        }
-      }
-    }
-  }
-`;
-
-export const MCU_WIFI_CONNECT_QUERY = gql`
-  ${ERROR_FRAGMENT}
-  query MCU_CONNECT($input: McuWifiConnectInput!) {
-    Mcu {
-      wifiConnect(input: $input) {
-        result {
-          address
-        }
-        error {
-          ...ErrorFragment
-        }
-      }
-    }
-  }
-`;
-
-export const MCU_WIFI_DISCONNECT_QUERY = gql`
-  ${ERROR_FRAGMENT}
-  query MCU_DISCONNECT {
-    Mcu {
-      wifiDisconnect {
-        error {
-          ...ErrorFragment
-        }
-      }
-    }
-  }
-`;
-
+// Mutations, not queries: Apollo re-executes queries on a re-render, and a
+// phantom re-fire reboots the device, powers it off, or launches a second
+// concurrent update (same hazard the node format move fixed).
 export const MCU_TIMEZONE_QUERY = gql`
   ${ERROR_FRAGMENT}
   query MCU_TIMEZONE {
@@ -111,6 +61,7 @@ export const MCU_TIMEZONE_QUERY = gql`
         result {
           timezone
           available
+          rebootPending
         }
         error {
           ...ErrorFragment
@@ -120,9 +71,9 @@ export const MCU_TIMEZONE_QUERY = gql`
   }
 `;
 
-export const MCU_SET_TIMEZONE_QUERY = gql`
+export const MCU_SET_TIMEZONE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MCU_SET_TIMEZONE($input: McuSetTimezoneInput!) {
+  mutation MCU_SET_TIMEZONE($input: McuSetTimezoneInput!) {
     Mcu {
       setTimezone(input: $input) {
         result {
@@ -136,9 +87,9 @@ export const MCU_SET_TIMEZONE_QUERY = gql`
   }
 `;
 
-export const MCU_SHUTDOWN_QUERY = gql`
+export const MCU_SHUTDOWN_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MCU_SHUTDOWN {
+  mutation MCU_SHUTDOWN {
     Mcu {
       shutdown {
         error {
@@ -149,9 +100,9 @@ export const MCU_SHUTDOWN_QUERY = gql`
   }
 `;
 
-export const MCU_REBOOT_QUERY = gql`
+export const MCU_REBOOT_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MCU_REBOOT {
+  mutation MCU_REBOOT {
     Mcu {
       reboot {
         error {
@@ -162,9 +113,9 @@ export const MCU_REBOOT_QUERY = gql`
   }
 `;
 
-export const MCU_UPDATE_QUERY = gql`
+export const MCU_UPDATE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MCU_UPDATE {
+  mutation MCU_UPDATE {
     Mcu {
       update {
         error {
@@ -266,16 +217,6 @@ export const initialState = {
           },
           disks: [],
         },
-      },
-    },
-  },
-};
-
-export const initialStateWifi = {
-  Mcu: {
-    wifiConnect: {
-      result: {
-        address: null,
       },
     },
   },

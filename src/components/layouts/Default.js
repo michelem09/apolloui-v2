@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Portal, Box, useDisclosure } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 
 import Sidebar from '../sidebar/Sidebar';
 import Footer from '../footer/FooterAdmin';
 import Navbar from '../navbar/NavbarAdmin';
 import BlockFoundCelebration from '../UI/BlockFoundCelebration';
 import BackendOfflineScreen from '../UI/BackendOfflineScreen';
+import ModalFormat from '../apollo/ModalFormat';
+import { FormatTaskProvider } from '../../contexts/FormatTaskContext';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { useSubscription, useQuery, useLazyQuery } from '@apollo/client';
 import { updateNodeStats } from '../../redux/slices/nodeSlice';
@@ -376,7 +378,46 @@ const Layout = ({ children }) => {
   });
 
   const { status } = useSession();
+
+  // A refused token is not an unreachable backend, and the remedy is not a
+  // redirect: navigating to /signin with the next-auth session still valid sends
+  // ProtectedRoutes straight back here, where it rewrites the same rejected token
+  // into localStorage and the socket is refused again — a reload loop with no way
+  // out. The session has to be ended, and the stored token with it.
+  //
+  // Ending it is all we do. Asking next-auth to land on /signin cannot work in
+  // this app: its `redirect` callback turns any URL containing '/signin' into the
+  // site root, and the root redirects to /overview (next.config), so the sign-out
+  // navigation comes straight back to a page whose socket is still refused — the
+  // very loop, one layer further down. With the session gone, ProtectedRoutes
+  // sees 'unauthenticated' and does the navigating, as it does everywhere else.
+  const signingOut = useRef(false);
+
+  useEffect(() => {
+    if (wsStatus !== 'unauthorized') return;
+    // Nothing to end, and the sign-in page is already on its way.
+    if (status !== 'authenticated') return;
+    // The status is module-level and sticky, so this effect runs again on every
+    // remount; without the latch each one fires another sign-out.
+    if (signingOut.current) return;
+    signingOut.current = true;
+    // The stored token goes after the session, not before: while the session is
+    // still alive ProtectedRoutes copies it back out of it on every pass, so an
+    // early removal is undone within the same tick.
+    signOut({ redirect: false }).finally(() => {
+      try {
+        localStorage.removeItem('token');
+      } catch {
+        // A browser that refuses storage still reaches the sign-in page.
+      }
+    });
+  }, [wsStatus, status]);
+
   if (status === 'loading' || status === 'unauthenticated') return <></>;
+
+  // Sign-out in flight: hold the page blank rather than render a dashboard whose
+  // data source has just rejected us.
+  if (wsStatus === 'unauthorized') return <></>;
 
   // Show the full-screen offline overlay when the WS connection is completely lost.
   // The 'connecting' state is transient (retry in progress) so we only block on 'offline'.
@@ -390,6 +431,7 @@ const Layout = ({ children }) => {
   }
 
   return (
+    <FormatTaskProvider>
     <motion.div
       initial={{ x: 300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
@@ -461,6 +503,8 @@ const Layout = ({ children }) => {
         </Box>
       </Box>
     </motion.div>
+    <ModalFormat />
+    </FormatTaskProvider>
   );
 };
 

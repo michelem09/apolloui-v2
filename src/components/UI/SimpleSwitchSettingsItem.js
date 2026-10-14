@@ -148,8 +148,15 @@ const SimpleSwitchSettingsItem = ({
                         fontWeight="200"
                       >
                         {item[slider.id] || slider.min}
-                        {slider.id === 'voltage' && '%'}
-                        {slider.id.match(/fan/) && '°'}
+                        {/* Sliders may state their own unit; the id-based cases
+                            below are the original two and stay as they were. */}
+                        {slider.unit
+                          ? slider.unit
+                          : slider.id === 'voltage'
+                          ? '%'
+                          : slider.id.match(/fan/)
+                          ? '°'
+                          : ''}
                       </Text>
                     </Flex>
                     <Button
@@ -180,6 +187,10 @@ const SimpleSwitchSettingsItem = ({
                   <SliderTooltip
                     my="5"
                     width={'99%'}
+                    // Without this a disabled card still had draggable sliders,
+                    // so the user could set a value the hardware would ignore
+                    // and the UI would then report back to them.
+                    isDisabled={isDisabled}
                     value={item[slider.id] || slider.min}
                     minValue={slider.min}
                     maxValue={slider.max}

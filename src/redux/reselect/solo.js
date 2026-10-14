@@ -1,4 +1,5 @@
 import { createSelector } from 'reselect';
+import { loadingUntilAnswered } from '../utils/answered';
 import _ from 'lodash';
 import { initialState } from '../../graphql/solo';
 import { displayHashrate, convertHashrateStringToValue } from '../../lib/utils';
@@ -6,7 +7,7 @@ import moment from '../../lib/moment';
 
 const soloDataSelector = (state) => state.solo.data;
 const soloErrorSelector = (state) => state.solo.error;
-const soloLoadingSelector = (state) => state.solo.loading;
+const soloLoadingSelector = (state) => loadingUntilAnswered(state.solo);
 
 export const soloSelector = createSelector(
   soloDataSelector,
@@ -27,6 +28,9 @@ export const soloSelector = createSelector(
     const poolData = resultStats?.pool ?? null;
     const usersData = resultStats?.users ?? [];
     const blockFound = resultStats?.blockFound ?? false;
+    // The device's record, kept in the database. Unlike the pool figure beside
+    // it, it is not tied to a connected worker or to the current ckpool run.
+    const bestShareEver = resultStats?.bestShareEver ?? null;
     const timestamp = resultStats?.timestamp ?? null;
 
     // Serialize errors to ensure they are always safe to pass to React components
@@ -153,6 +157,7 @@ export const soloSelector = createSelector(
         totalAccepted,
         totalRejected,
         blockFound,
+        bestShareEver,
         timestamp,
       };
     }
@@ -170,6 +175,7 @@ export const soloSelector = createSelector(
         users: usersStats,
         summary: summaryStats,
         blockFound,
+        bestShareEver,
         timestamp,
         hasUsers,
       },

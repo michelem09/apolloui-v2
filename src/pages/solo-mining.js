@@ -1,5 +1,6 @@
 import {
   Box,
+  Stack,
   Icon,
   Flex,
   Text,
@@ -17,8 +18,8 @@ import {
   Tooltip,
   Divider,
 } from '@chakra-ui/react';
+import CardSkeleton from '../components/UI/CardSkeleton';
 import { useRef, useEffect, useState } from 'react';
-import { BulletList } from 'react-content-loader';
 import { useSelector, shallowEqual } from 'react-redux';
 import { useRouter } from 'next/router';
 import { useIntl } from 'react-intl';
@@ -42,7 +43,6 @@ import { FaUserCog, FaUserFriends } from 'react-icons/fa';
 import { GiDiamondTrophy } from 'react-icons/gi';
 import ActiveBadge from '../components/apollo/ActiveBadge';
 import PanelGrid from '../components/UI/PanelGrid';
-import Head from 'next/head';
 import moment from '../lib/moment';
 import _ from 'lodash';
 import { BlocksIcon } from '../components/UI/Icons/BlocksIcon';
@@ -92,7 +92,10 @@ const SoloMining = () => {
   const isBannerDisabled = typeof window !== 'undefined' ? localStorage.getItem('solo-mining-banner-disabled') : null;
   const [showBanner, setShowBanner] = useState(!isBannerDisabled);
 
-  const { data: servicesStatus } = useSelector(servicesSelector, shallowEqual);
+  const { data: servicesStatus, loading: loadingServices } = useSelector(
+    servicesSelector,
+    shallowEqual
+  );
 
   // Solo service actions
   const [startSolo, { loading: loadingSoloStart }] = useLazyQuery(
@@ -172,6 +175,7 @@ const SoloMining = () => {
     summary: poolSummary,
     blockFound,
     timestamp,
+    bestShareEver,
     hasUsers = false,
   } = soloData || {};
 
@@ -333,26 +337,15 @@ const SoloMining = () => {
     localStorage.removeItem('solo-mining-banner-disabled');
   };
 
+  // The placeholder is only for a solo service the device has actually reported
+  // as not running. While the services push is still in flight the real content
+  // renders instead, and each card draws its own loading state.
+  const soloIsOnline = servicesStatus?.solo?.status === 'online';
+  const showSoloContent = isNodeSynced && (loadingServices || soloIsOnline);
+  const showSoloPlaceholder = isNodeSynced && !loadingServices && !soloIsOnline;
+
   return (
     <Box>
-      <Head>
-        <title>
-          {ckPoolGlobalHashrate
-            ? intl.formatMessage(
-                {
-                  id: 'solo_mining.title',
-                  defaultMessage: 'Apollo Solo Pool {hashrate}',
-                },
-                {
-                  hashrate: `${ckPoolGlobalHashrate.value} ${ckPoolGlobalHashrate.unit}`,
-                }
-              )
-            : intl.formatMessage({
-                id: 'solo_mining.title',
-                defaultMessage: 'Apollo Solo Pool',
-              })}
-        </title>
-      </Head>
 
       {/* Show node not synced alert */}
       {!isNodeSynced && (
@@ -390,10 +383,11 @@ const SoloMining = () => {
       )}
 
       {/* Show SoloMiningStatus when solo service is not online */}
-      {isNodeSynced && servicesStatus?.solo?.status !== 'online' && (
+      {showSoloPlaceholder && (
         <Flex height="60vh" align="center" justify="center">
           <SoloMiningStatus
             serviceStatus={servicesStatus}
+            loading={loadingServices}
             ckPoolLastUpdate={ckPoolLastUpdate}
             ckDisconnected={ckDisconnected}
             blocksCount={blocksCount}
@@ -404,7 +398,7 @@ const SoloMining = () => {
       )}
       
       {/* Show content only when solo service is online AND node is synced */}
-      {isNodeSynced && servicesStatus?.solo?.status === 'online' && (
+      {showSoloContent && (
         <>
           {showBanner || isVisibleBanner ? (
             <Alert mb="5" borderRadius={'10px'} status={'info'}>
@@ -447,9 +441,16 @@ const SoloMining = () => {
               base: 'auto auto auto auto auto',
               lg: 'auto auto',
             }}
+            /* minmax(0, 1fr), not 1fr: a bare `1fr` is `minmax(auto, 1fr)`,
+               and that `auto` floor is the widest the content refuses to break
+               below. The best share is one unbreakable number, so as CountUp
+               ticks through its digits the column's floor changes on every
+               frame and the whole row shifts left and right — measured here at
+               a 49px swing on a ten-digit figure. A zero floor lets the columns
+               stay equal and the content fit itself to them. */
             templateColumns={{
-              base: '1fr',
-              lg: '1fr 1fr 1fr 1fr',
+              base: 'minmax(0, 1fr)',
+              lg: 'repeat(4, minmax(0, 1fr))',
             }}
             gap={'20px'}
             mb={'10px'}
@@ -475,6 +476,7 @@ const SoloMining = () => {
                 errors={errorSolo}
                 data={ckPoolGlobalBestshare}
                 prevData={prevCkPoolGlobalBestshare}
+                bestEver={bestShareEver}
                 shadow={shadow}
                 iconColor={iconColor}
               />
@@ -591,7 +593,10 @@ const SoloMining = () => {
                   </Text>
                 </Flex>
                 {loadingSolo ? (
-                  <BulletList />
+                  <Stack spacing={5} px="20px" py="10px">
+                    <CardSkeleton lines={2} />
+                    <CardSkeleton lines={2} />
+                  </Stack>
                 ) : (
                   <Flex my="auto" direction="column">
                     <Tooltip
@@ -774,7 +779,10 @@ const SoloMining = () => {
                   </Flex>
                 </Flex>
                 {loadingSolo ? (
-                  <BulletList />
+                  <Stack spacing={5} px="20px" py="10px">
+                    <CardSkeleton lines={2} />
+                    <CardSkeleton lines={2} />
+                  </Stack>
                 ) : !dataTableBoards.length ? (
                   <Text m="3">
                     {intl.formatMessage({

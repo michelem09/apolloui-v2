@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { useColorModeValue, useDisclosure } from '@chakra-ui/react';
 import { useIntl } from 'react-intl';
 
 import { MINER_RESTART_QUERY } from '../graphql/miner';
-import { NODE_START_QUERY } from '../graphql/node';
+import { NODE_START_MUTATION } from '../graphql/node';
 import { AUTH_LOGIN_QUERY, SAVE_SETUP_QUERY } from '../graphql/auth';
 import { UPDATE_POOLS_QUERY } from '../graphql/pools';
 import { SET_SETTINGS_QUERY } from '../graphql/settings';
@@ -25,7 +24,7 @@ const Setup = () => {
   const router = useRouter();
   const intl = useIntl();
   const textColor = useColorModeValue('brand.800', 'white');
-  const { deviceType } = useDeviceConfig();
+  const { deviceType, hasUsbMiners } = useDeviceConfig();
   const isSoloNode = deviceType === 'solo-node';
 
   const [step, setStep] = useState(1);
@@ -48,9 +47,11 @@ const Setup = () => {
     { fetchPolicy: 'no-cache' }
   );
 
-  const [startNode, { loading: loadingNodeStart }] = useLazyQuery(
-    NODE_START_QUERY,
-    { fetchPolicy: 'no-cache' }
+  // Mutation — onError noop so the fire-and-forget call cannot reject
+  // unhandled; errors surface via the hook's error state like the lazy query.
+  const [startNode, { loading: loadingNodeStart }] = useMutation(
+    NODE_START_MUTATION,
+    { onError: () => {} }
   );
 
   const [saveSetup, { data: dataSaveSetup, error: errorSaveSetup, loading: loadingSaveSetup }] =
@@ -244,12 +245,18 @@ const Setup = () => {
       const nodeError = nodeResult?.data?.Node?.start?.error;
       if (nodeError) throw new Error(nodeError.message);
 
-      if (!isSoloNode) {
+      // The Solo Node has no internal board, but it still runs apollo-miner for
+      // USB hashboards, and the miner only reads the pool out of miner_config at
+      // launch — so it needs the restart too whenever one is plugged in.
+      if (!isSoloNode || hasUsbMiners) {
         const minerResult = await restartMiner();
         const minerError = minerResult?.data?.Miner?.restart?.error;
         if (minerError) throw new Error(minerError.message);
       }
-      router.reload();
+      // Go straight to signin — where the guard sends a completed setup anyway.
+      // router.reload() instead remounted /setup and flashed step 1 of the wizard
+      // while ProtectedRoutes waited for the async auth-status query to redirect.
+      router.replace('/signin');
     } catch (startError) {
       setError(startError.message || 'Could not start mining services');
     }
@@ -257,9 +264,6 @@ const Setup = () => {
 
   return (
     <>
-      <Head>
-        <title>Setup your Apollo miner</title>
-      </Head>
 
       {step === 1 && <StepWelcome setStep={setStep} isSoloNode={isSoloNode} />}
 

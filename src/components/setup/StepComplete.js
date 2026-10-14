@@ -12,8 +12,10 @@ const StepComplete = ({
   const intl = useIntl();
   const textColor = useColorModeValue('white', 'white');
   const buttonColor = useColorModeValue('gray.400', 'brand.300');
-  const isLoading =
-    loadingNodeStart || (!isSoloNode && loadingMinerRestart);
+  // The miner restart also runs on a Solo Node with USB hashboards, so watch it
+  // regardless of the chassis: keying this off the device type left the button
+  // live between two awaited restarts.
+  const isLoading = loadingNodeStart || loadingMinerRestart;
 
   return (
     <Box mx="auto" py="150px">
@@ -37,6 +39,7 @@ const StepComplete = ({
           onClick={handleStartMining}
           isDisabled={isLoading}
           isLoading={isLoading}
+          loadingText={intl.formatMessage({ id: 'setup.complete.warming_up' })}
         >
           {isSoloNode 
             ? intl.formatMessage({ id: 'setup.complete.button_solo' }) 

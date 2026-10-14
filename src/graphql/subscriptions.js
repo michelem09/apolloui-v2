@@ -100,6 +100,10 @@ export const SOLO_SUBSCRIPTION = gql`
           }
         }
         blockFound
+        bestShareEver {
+          value
+          at
+        }
         timestamp
       }
       error {
@@ -144,6 +148,9 @@ export const SETTINGS_SUBSCRIPTION = gql`
           frequency
           fan_low
           fan_high
+          minerHashrate
+          fanTemp
+          fanPwm
           apiAllow
           customApproval
           connectedWifi

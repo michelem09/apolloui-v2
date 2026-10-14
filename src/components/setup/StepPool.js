@@ -40,6 +40,18 @@ const StepPool = ({
   setStep,
 }) => {
   const intl = useIntl();
+
+  // The options are keyed by position, so the select has to be told a position
+  // too. It was given `pool.id`, which the presets do not have at all and which
+  // is 'custom' for the one that does — so nothing ever matched an option and
+  // the dropdown went blank the moment anything was chosen.
+  //
+  // By name, not by object identity: the chosen pool travels through the page's
+  // state and comes back as a prop, and matching on the value survives that.
+  // A stable id on each preset, like the settings panel's keys, would be the
+  // better shape — that is a change to shared data, not to this select.
+  const selectedIndex = pool ? presetPools.findIndex((item) => item.name === pool.name) : -1;
+
   
   // Theme colors
   const headingColor = useColorModeValue('white', 'white');
@@ -77,7 +89,7 @@ const StepPool = ({
                 <Select
                   id="poolPreset"
                   onChange={handleChangePool}
-                  value={pool?.id || ''}
+                  value={selectedIndex >= 0 ? String(selectedIndex) : ''}
                   fontSize="sm"
                   size="lg"
                   variant="auth"

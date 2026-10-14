@@ -32,7 +32,7 @@ const MinerMetricsGrid = React.memo(({
   const m = (id) => intl.formatMessage({ id: `apollo.metrics.${id}` });
   const config = INTERVAL_CONFIG[interval] || INTERVAL_CONFIG.hour;
 
-  const { loading, data: queryData } = useQuery(GET_ANALYTICS_QUERY, {
+  const { loading, error, data: queryData } = useQuery(GET_ANALYTICS_QUERY, {
     variables: { input: { interval } },
     fetchPolicy: 'cache-and-network',
     nextFetchPolicy: 'cache-first',
@@ -106,6 +106,7 @@ const MinerMetricsGrid = React.memo(({
         tooltipFormatter={hashrateTooltipFmt}
         interval={interval}
         loading={isLoading}
+        error={error}
         secondary={{
           title: m('pool'),
           valueNum: poolParts.num,
@@ -131,6 +132,7 @@ const MinerMetricsGrid = React.memo(({
         tooltipUnit="°C"
         interval={interval}
         loading={isLoading}
+        error={error}
         secondary={{
           title: m('power'),
           valueNum: powerParts.num,

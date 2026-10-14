@@ -21,6 +21,7 @@
       "blockchain_size": "Blockchain size"
     },
     "system": {
+      "title": "System",
       "cpu_usage": "CPU usage",
       "memory_usage": "Memory usage",
       "disk_usage": "System disk usage",
@@ -33,7 +34,30 @@
       "daily_chance": "Daily Chance",
       "pending": "Pending... Please wait.",
       "offline": "Solo service is offline.",
-      "unknown": "Solo service status unknown."
+      "unknown": "Solo service status unknown.",
+      "start": "Start solo pool",
+      "state": {
+        "starting": {
+          "title": "Starting the solo pool",
+          "description": "It takes a few seconds before the pool accepts connections."
+        },
+        "off": {
+          "title": "The solo pool is off",
+          "description": "Nothing can mine to this device until the pool is running."
+        },
+        "unknown": {
+          "title": "Solo pool status unknown",
+          "description": "The device has not reported whether the pool is running."
+        },
+        "stopping": {
+          "title": "Stopping the solo pool",
+          "description": "Anything mining to this device is about to be disconnected."
+        }
+      }
+    },
+    "metrics": {
+      "no_data": "No data yet",
+      "load_error": "Couldn't load history"
     }
   },
   "node": {
@@ -140,6 +164,22 @@
       "txs": "Transactions",
       "fees": "Fees",
       "miner": "Miner"
+    },
+    "storage": {
+      "no-drive": "No SSD drive detected. The Bitcoin node needs one to store the blockchain — fit a drive to enable it.",
+      "unformatted": "An SSD drive was found but is not formatted yet. Format it from Settings → Extra to enable the node.",
+      "not-mounted": "The SSD drive is not mounted, so the node cannot start. Try a reboot, or format the drive from Settings → Extra.",
+      "foreign": "The node folder is not on the SSD drive. The node will not start until this is corrected — formatting the drive resets it.",
+      "low": {
+        "title": "Node drive is running out of space",
+        "description": "Only {free} left on the SSD. The blockchain keeps growing (about 10 GB a month), and when the drive fills up the node stops until space is freed. Free some space, or move to a larger drive."
+      }
+    },
+    "widget": {
+      "connections": "Node Connections",
+      "current_block": "Node Current Block",
+      "blockchain_size": "Blockchain Size",
+      "disk_free": "Node Disk Free"
     }
   },
   "miner": {
@@ -150,7 +190,7 @@
       "efficiency": "Efficiency",
       "temperature": "Temperature",
       "fan_speed": "Fan speed",
-      "voltage": "Voltage",
+      "voltage": "Current",
       "errors": "Errors",
       "pool_hashrate": "Pool hashrate",
       "difficulty": "Difficulty",
@@ -176,7 +216,8 @@
       "pools": {
         "active": "Active pools",
         "total": "Total pools"
-      }
+      },
+      "target_hashrate": "Target hashrate"
     },
     "units": {
       "rpm": "rpm",
@@ -265,7 +306,9 @@
       "accepted_shares": "Accepted shares",
       "rejected_shares": "Rejected shares",
       "last_share": "Last share",
-      "uptime": "Uptime"
+      "uptime": "Uptime",
+      "best_share_ever": "Best share ever",
+      "best_share_session": "This session"
     },
     "info": {
       "title": "Solo Info",
@@ -382,7 +425,11 @@
       "discard": "Discard changes",
       "save": "Save",
       "save_restart": "Save & Restart",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "save_pool": "Add pool to list",
+      "save_pool_name": "Name for this pool",
+      "save_pool_done": "Pool \"{name}\" added to your list",
+      "save_pool_hint": "Saved pools appear in the list above, and in the backup pool list."
     },
     "tabs": {
       "pools": "Pools",
@@ -409,7 +456,7 @@
           },
           "eco": {
             "title": "ECO",
-            "description": "In ECO mode your miner will be at its most efficient, but its hashrate will be slightly slower. This mode is recommended, and will produce the least amount of noise and heat."
+            "description": "ECO mode is our default low power mode for very good efficiency and low noise for every day desktop mining."
           },
           "balanced": {
             "title": "BALANCED",
@@ -435,12 +482,22 @@
               "description": "You can set your miner custom frequency or reset to default value.",
               "min": "Min",
               "max": "Max"
+            },
+            "hashrate": {
+              "title": "Target hashrate",
+              "description": "Set a custom hashrate target. Higher means more heat and noise.",
+              "slider_description": "The Apollo III uses advanced algorithms to adjust voltage for best efficiency.",
+              "min": "5 TH/s",
+              "max": "20 TH/s"
             }
           }
         },
         "fan": {
           "title": "Miner fan settings",
           "description": "Adjust the fan speed or set it to automatic",
+          "auto": {
+            "description": "Turn off Auto to adjust default settings"
+          },
           "low": {
             "title": "Temperature to start fan",
             "description": "This is the temperature needed to start the fan.",
@@ -452,6 +509,22 @@
             "description": "This is the temperature needed to set the fan at maximum speed.",
             "min": "Min",
             "max": "Max"
+          },
+          "target": {
+            "title": "Target temperature",
+            "description": "The fan speeds up automatically to hold the boards at this temperature. Lower temps = better efficiency but more noise, higher temps = worse efficiency but lower noise.",
+            "min": "40°c",
+            "max": "80°c"
+          },
+          "override": {
+            "title": "Fan override",
+            "description": "Run the fan at a fixed speed instead of letting it adjust automatically.",
+            "speed": {
+              "title": "Fan speed",
+              "description": "A fixed duty cycle. WARNING: This disables automatic temperature control, too low a speed can let the boards overheat. For advanced users ONLY.",
+              "min": "10%",
+              "max": "100%"
+            }
           }
         },
         "power_led": {
@@ -470,11 +543,11 @@
         },
         "tor_mode": {
           "title": "TOR mode",
-          "description": "Connect your Bitcoin Node over the Tor network to increase security and anonymity. Note: your node will be restarted to apply."
+          "description": "Connect your Bitcoin Node over the Tor network to increase security and anonymity."
         },
         "allow_lan": {
           "title": "Allow LAN connections",
-          "description": "Allow LAN connections to your Bitcoin Node to connect external wallets and services. Note: your node will be restarted to apply."
+          "description": "Allow LAN connections to your Bitcoin Node to connect external wallets and services."
         },
         "max_connections": "Max connections",
         "extra_options": "Extra options",
@@ -482,7 +555,9 @@
           "title": "Bitcoin node configuration",
           "description": "Add additional configuration lines to the bitcoin.conf file. (Note: this section is for advanced users, and no validation is performed. Please check Bitcoin Core documentation for valid options.)"
         },
-        "solo_mining_warning": "You have solo mining enabled, it is suggested to turn off tor for solo mining. Bitcoin nodes over the tor network propagate blocks slower, and there is a higher chance of orphaning a block"
+        "solo_mining_warning": "You have solo mining enabled, it is suggested to turn off tor for solo mining. Bitcoin nodes over the tor network propagate blocks slower, and there is a higher chance of orphaning a block",
+        "storage_note": "Settings on this tab are still saved and will apply once a drive is available.",
+        "restart_note": "Note: your node will be restarted to apply."
       },
       "system": {
         "title": "System settings",
@@ -530,10 +605,15 @@
         },
         "timezone": {
           "title": "Timezone",
-          "description": "The device clock label. Wrong here, and log timestamps, charts and time-based automation rules all drift.",
+          "description": "The device clock label. Wrong here, and log timestamps and charts drift with it.",
           "current": "Device is on {timezone} — local time {time}",
           "use_browser": "Use this browser’s timezone ({timezone})",
-          "saved": "Timezone updated."
+          "saved": "Timezone updated.",
+          "reboot_needed": "The zone is set, but services already running keep logging the old one. Restart the system to line everything up.",
+          "reboot_now": "Restart now",
+          "reboot_confirm": "Yes, restart",
+          "reboot_cancel": "Not now",
+          "rebooting": "The system is restarting — give it about a minute."
         },
         "location": {
           "title": "Location",
@@ -705,7 +785,7 @@
     "automation": "Automation"
   },
   "signin": {
-    "title": "Welcome to Apollo Web OS 2",
+    "title": "Welcome to Apollo OS 2",
     "heading": "Sign In",
     "description": "Enter your password to sign in!",
     "password_label": "Password",
@@ -775,7 +855,8 @@
       "title": "Your Setup is complete!",
       "subtitle": "Let's start mining some Bitcoin!",
       "button": "Start mining",
-      "button_solo": "Start Solo Node"
+      "button_solo": "Start Solo Node",
+      "warming_up": "Warming up…"
     },
     "common": {
       "previous": "Previous",
@@ -786,7 +867,7 @@
     "support": "Support",
     "shop": "Shop",
     "website": "Website",
-    "made_with_love": "Apollo Web OS v{version} Made with love by",
+    "made_with_love": "Apollo OS v{version} Made with love by",
     "futurebit": "FutureBit"
   },
   "utils": {
@@ -1217,5 +1298,146 @@
     "title_unreachable": "Could not check for updates — running v{version}",
     "unreachable_start": "Could not reach the device to start the update. Please try again.",
     "update": "Update"
+  },
+  "update": {
+    "title": {
+      "check_failed": "Unable to check for updates",
+      "available": "New version v{version} is available!",
+      "current": "No update is available for v{version}"
+    },
+    "description": {
+      "check_failed": "The latest version could not be determined. Please close this dialog and try again.",
+      "available": "Please update to the latest version of the app to get the latest features and bug fixes. The update can take 15–30 minutes. Note: your system will restart after the update is complete. Do NOT power off the system until it has restarted. Close or refresh this page after your system has restarted.",
+      "current": "This system is already running the same or a newer version than the current release."
+    },
+    "status": {
+      "updating": "Updating… {progress}%",
+      "done": "Done!",
+      "error": "Error: {error}"
+    },
+    "error": {
+      "start_failed": "An error occurred during the update process",
+      "stopped": "The update stopped before it finished. The device was not updated — check the logs."
+    },
+    "button": {
+      "update": "Update",
+      "hide": "Hide",
+      "cancel": "Cancel",
+      "close": "Close",
+      "reload": "Reload App",
+      "retry": "Try Again"
+    }
+  },
+  "format": {
+    "navbar": {
+      "running": "Formatting… {progress}%",
+      "success": "Format complete",
+      "failed": "Format failed"
+    },
+    "toast": {
+      "started": "Formatting disk started...",
+      "startFailed": "Could not start the format",
+      "success": "Format done! Your system is ready.",
+      "failedErased": "Format failed after the disk was erased. The node cannot start until a format completes — check the logs and retry.",
+      "failedUntouched": "Format failed. The disk was not changed — check the logs before retrying.",
+      "incomplete": "Format did not complete — check the logs before retrying."
+    }
+  },
+  "page_title": {
+    "overview": "Overview",
+    "miner": "Miner",
+    "node": "Node",
+    "system": "System",
+    "settings": "Settings",
+    "solo_mining": "Solo Mining",
+    "apps": "Apps",
+    "signout": "Signing out",
+    "signin": "Sign in",
+    "setup": "Setup",
+    "not_found": "Not found",
+    "default": "Apollo",
+    "node_syncing": "Syncing"
+  },
+  "wifi": {
+    "connectedTo": "Connected to “{ssid}”",
+    "notConnected": "Not connected",
+    "notConnected.hint": "Pick a network below to join one",
+    "available": "Available networks",
+    "saved": "Saved networks",
+    "noNetworks": "No networks found",
+    "noAdapter": "This device has no Wi-Fi adapter",
+    "adapter": {
+      "label": "Adapter",
+      "builtin": "built-in",
+      "usb": "USB"
+    },
+    "network": {
+      "hidden": "Hidden network",
+      "saved": "saved",
+      "active": "Connected",
+      "hiddenHint": "name required"
+    },
+    "security": {
+      "open": "open"
+    },
+    "status": {
+      "connecting": "Connecting…"
+    },
+    "action": {
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "forget": "Forget",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "addHidden": "+ Join a hidden network…",
+      "scan": "Scan for networks"
+    },
+    "password": {
+      "title": "Join “{ssid}”",
+      "label": "Password",
+      "placeholder": "Network password",
+      "show": "Show",
+      "hide": "Hide",
+      "ssidLabel": "Network name",
+      "ssidPlaceholder": "Exact name of the hidden network",
+      "isHidden": "This network does not broadcast its name",
+      "replacing": "This network is saved. A password entered here replaces the stored one.",
+      "required": "Enter the network password"
+    },
+    "confirm": {
+      "disconnect": {
+        "title": "Leave “{ssid}”?",
+        "body": "The device disconnects from this network. The password stays saved, so you can rejoin without typing it again."
+      },
+      "forget": {
+        "title": "Forget “{ssid}”?",
+        "body": "The saved password is deleted. Rejoining this network will require typing it again."
+      },
+      "selfLockout": "This is the connection serving this page. Continuing will cut the device off, and you may need physical access to get it back."
+    },
+    "toast": {
+      "connected": "Connected to “{ssid}”"
+    },
+    "error": {
+      "failed": "Could not join the network",
+      "ssid-not-found": "That network is not in range",
+      "activation-failed": "Could not join. Check the password and try again.",
+      "bad-passphrase": "Wrong password",
+      "timeout": "The network took too long to answer",
+      "not-confirmed": "The network did not come up",
+      "no-ip-address": "Joined, but no address was assigned",
+      "not-authorized": "Not allowed to change the network",
+      "no-wifi-interface": "No Wi-Fi adapter available",
+      "not-a-wifi-interface": "That adapter is not Wi-Fi",
+      "not-a-wifi-profile": "That saved network is not Wi-Fi",
+      "disconnect-failed": "Could not leave the network",
+      "forget-failed": "Could not delete the saved network",
+      "unreachable": "No answer — the device may have moved to the other network. Reload this page from its new address."
+    },
+    "scan": {
+      "hint": "Scanning wakes the radio and takes a few seconds"
+    },
+    "band": "{band} GHz",
+    "band.auto": "Auto"
   }
 }

@@ -1,13 +1,8 @@
 import React, { useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import moment from '../../lib/moment';
 import { Box, Flex, Text, Icon, useColorModeValue, Skeleton } from '@chakra-ui/react';
-
-const ReactApexChart = dynamic(() => import('react-apexcharts'), {
-  ssr: false,
-  loading: () => <Skeleton height="148px" borderRadius="md" />,
-});
+import AreaChart from '../charts/AreaChart';
 
 /**
  * MiniMetricChart — standalone area chart card for the 2×2 miner metrics grid.
@@ -38,6 +33,7 @@ const MiniMetricChart = React.memo(({
   icon,
   interval = 'hour',
   loading = false,
+  error = null,
   // Optional second series rendered on the same card. When provided, the
   // header shows both values stacked and the chart uses a dual y-axis
   // (independent scale + axis on the right for the secondary series).
@@ -45,6 +41,14 @@ const MiniMetricChart = React.memo(({
 }) => {
   const intl = useIntl();
   const cardBg     = useColorModeValue('white', 'navy.800');
+  // The panel shadow the rest of the app uses. Chakra's own `md` is a tight
+  // black one: along a straight edge it hides under the card, but the rounded
+  // corners cut the card away and expose it, which is why these two cards had a
+  // grey crescent at each bottom corner and no other panel did.
+  const cardShadow = useColorModeValue(
+    '0px 17px 40px 0px rgba(112, 144, 176, 0.1)',
+    'none'
+  );
   const gridColor  = useColorModeValue('#EDF2F7', '#2D3748');
   const unitColor  = useColorModeValue('#A0AEC0', '#718096');
   const titleColor = useColorModeValue('#1A202C', '#FFFFFF');
@@ -58,136 +62,50 @@ const MiniMetricChart = React.memo(({
     return moment(labels[0]).format(interval === 'day' ? 'DD MMM' : 'HH:mm');
   }, [labels, interval]);
 
-  const options = useMemo(() => {
-    const colors = secondary ? [colorFrom, secondary.colorFrom] : [colorFrom];
-    const gradientTo = secondary ? [colorTo, secondary.colorTo] : [colorTo];
+  // What the chart needs, rather than a chart library's configuration: one
+  // entry per series, with the formatter each tooltip line uses.
+  const chartSeries = useMemo(() => {
+    const fmt = (formatter, unit) => (v) =>
+      v != null
+        ? formatter
+          ? formatter(v)
+          : `${Number(v).toFixed(1)} ${unit || ''}`.trim()
+        : 'N/A';
 
-    // When the second series uses a different unit, give it its own y-axis
-    // anchored on the right side. Same-unit series share a single axis.
-    const sameUnit =
-      !secondary || (secondary.tooltipUnit || '') === (tooltipUnit || '');
-    const yaxis = secondary && !sameUnit
-      ? [
-          { labels: { show: false }, min: 0 },
-          { opposite: true, labels: { show: false }, min: 0 },
-        ]
-      : { labels: { show: false }, min: 0 };
+    const base = [{
+      id: `${title}-1`.replace(/[^a-zA-Z0-9-]/g, ''),
+      name: secondary ? title : '',
+      data,
+      colorFrom,
+      colorTo,
+      format: fmt(tooltipFormatter, tooltipUnit),
+    }];
 
-    return {
-      chart: {
-        type: 'area',
-        toolbar:    { show: false },
-        zoom:       { enabled: false },
-        sparkline:  { enabled: false },
-        animations: {
-          enabled: true,
-          easing:  'easeinout',
-          dynamicAnimation: { speed: 700 },
-        },
-        background: 'transparent',
-      },
-      dataLabels: { enabled: false },
-      stroke: {
-        curve:  'smooth',
-        width:  2.5,
-        colors,
-      },
-      fill: {
-        type: 'gradient',
-        gradient: {
-          type:             'vertical',
-          gradientToColors: gradientTo,
-          shadeIntensity:   1,
-          opacityFrom:      0.55,
-          opacityTo:        0.05,
-          stops:            [0, 90, 100],
-        },
-      },
-      colors,
-      grid: {
-        borderColor:    gridColor,
-        strokeDashArray: 3,
-        xaxis: { lines: { show: false } },
-        yaxis: { lines: { show: true } },
-        padding: { top: -10, right: 4, bottom: -12, left: 4 },
-      },
-      xaxis: {
-        categories: labels,
-        labels:      { show: false },
-        axisBorder:  { show: false },
-        axisTicks:   { show: false },
-        tooltip:     { enabled: false },
-      },
-      yaxis,
-      tooltip: {
-        theme: 'dark',
-        shared: !!secondary,
-        x: {
-          formatter: (_, { dataPointIndex }) => {
-            const raw = labels[dataPointIndex];
-            return raw ? moment(raw).format(tooltipDateFmt) : '';
-          },
-        },
-        y: secondary
-          ? [
-              {
-                formatter: (v) =>
-                  v != null
-                    ? tooltipFormatter
-                      ? tooltipFormatter(v)
-                      : `${Number(v).toFixed(1)} ${tooltipUnit}`
-                    : 'N/A',
-                title: { formatter: () => `${title}:` },
-              },
-              {
-                formatter: (v) =>
-                  v != null
-                    ? secondary.tooltipFormatter
-                      ? secondary.tooltipFormatter(v)
-                      : `${Number(v).toFixed(1)} ${secondary.tooltipUnit || ''}`
-                    : 'N/A',
-                title: { formatter: () => `${secondary.title}:` },
-              },
-            ]
-          : {
-              formatter: (v) =>
-                v != null
-                  ? tooltipFormatter
-                    ? tooltipFormatter(v)
-                    : `${Number(v).toFixed(1)} ${tooltipUnit}`
-                  : 'N/A',
-              title: { formatter: () => '' },
-            },
-      },
-      legend:  { show: false },
-      markers: { size: 0 },
-    };
-  }, [
-    labels,
-    colorFrom,
-    colorTo,
-    gridColor,
-    tooltipUnit,
-    tooltipFormatter,
-    tooltipDateFmt,
-    title,
-    secondary,
-  ]);
-
-  const series = useMemo(() => {
-    const base = [{ name: title, data }];
-    if (secondary) base.push({ name: secondary.title, data: secondary.data });
+    if (secondary) {
+      base.push({
+        id: `${title}-2`.replace(/[^a-zA-Z0-9-]/g, ''),
+        name: secondary.title,
+        data: secondary.data,
+        colorFrom: secondary.colorFrom,
+        colorTo: secondary.colorTo,
+        format: fmt(secondary.tooltipFormatter, secondary.tooltipUnit),
+      });
+    }
     return base;
-  }, [title, data, secondary]);
+  }, [title, data, colorFrom, colorTo, tooltipFormatter, tooltipUnit, secondary]);
+
+  // Two series with different units each keep their own scale — sharing one
+  // would flatten whichever is smaller.
+  const dualScale =
+    !!secondary && (secondary.tooltipUnit || '') !== (tooltipUnit || '');
 
   return (
     <Box
       bg={cardBg}
-      borderRadius="2xl"
-      boxShadow="md"
+      borderRadius="20px"
+      boxShadow={cardShadow}
       overflow="hidden"
       width="100%"
-      pb={2}
     >
       {/* Header: title + value(s) */}
       <Flex px={5} pt={5} pb={2} justify="space-between" align="flex-start" gap={3}>
@@ -234,25 +152,55 @@ const MiniMetricChart = React.memo(({
       </Flex>
 
       {/* Chart area */}
-      {loading || !data.length ? (
+      {/* A skeleton says "wait", and it must not be shown to someone who has
+          nothing to wait for: with the stats unavailable the data never arrives,
+          and a card pulsing forever reads as a hung page. */}
+      {loading ? (
         <Skeleton height="120px" mx={3} mb={3} borderRadius="lg" />
-      ) : (
-        <Box mx={-1}>
-          <ReactApexChart
-            options={options}
-            series={series}
-            type="area"
-            height={148}
-          />
-        </Box>
-      )}
-
-      {/* Time range strip */}
-      {!loading && data.length > 0 && (
-        <Flex px={5} justify="space-between" mt="-6px">
-          <Text fontSize="xs" color={timeColor}>{startLabel}</Text>
-          <Text fontSize="xs" color={timeColor}>{intl.formatMessage({ id: 'apollo.chart.now' })}</Text>
+      ) : !data.length ? (
+        <Flex height="120px" mx={3} mb={3} align="center" justify="center">
+          <Text fontSize="sm" color={unitColor}>
+            {/* An empty history and a failed request look identical from here —
+                one is normal on a fresh device, the other is a fault. */}
+            {error ? (
+              <FormattedMessage
+                id="overview.metrics.load_error"
+                defaultMessage="Couldn't load history"
+              />
+            ) : (
+              <FormattedMessage id="overview.metrics.no_data" defaultMessage="No data yet" />
+            )}
+          </Text>
         </Flex>
+      ) : (
+        // The chart closes the card: it runs to the bottom edge and into the
+        // rounded corners, which `overflow: hidden` on the card clips for it.
+        // Anything below it — padding, a row of labels on white — reads as the
+        // panel being cut short rather than finished, so the time range is laid
+        // over the fill instead.
+        <Box position="relative" mx={-1}>
+          <AreaChart
+            series={chartSeries}
+            labels={labels}
+            height={148}
+            gridColor={gridColor}
+            dualScale={dualScale}
+            formatDate={(v) => (v ? moment(v).format(tooltipDateFmt) : '')}
+          />
+
+          <Flex
+            position="absolute"
+            bottom="6px"
+            left="0"
+            right="0"
+            px={5}
+            justify="space-between"
+            pointerEvents="none"
+          >
+            <Text fontSize="xs" color={timeColor}>{startLabel}</Text>
+            <Text fontSize="xs" color={timeColor}>{intl.formatMessage({ id: 'apollo.chart.now' })}</Text>
+          </Flex>
+        </Box>
       )}
     </Box>
   );

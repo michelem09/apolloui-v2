@@ -13,12 +13,14 @@ import {
   Flex,
   Button,
   Spinner,
+  Switch,
+  FormLabel,
+  Input,
 } from '@chakra-ui/react';
-import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { useQuery, useLazyQuery } from '@apollo/client';
+import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
 import { useIntl } from 'react-intl';
 import { PoolIcon } from '../../components/UI/Icons/PoolIcon';
 import { MinerIcon } from '../../components/UI/Icons/MinerIcon';
@@ -29,17 +31,12 @@ import { GrUserWorker } from 'react-icons/gr';
 import { GET_SETTINGS_QUERY, SET_SETTINGS_QUERY } from '../../graphql/settings';
 import { GET_POOLS_QUERY, UPDATE_POOLS_QUERY } from '../../graphql/pools';
 import { MINER_RESTART_QUERY } from '../../graphql/miner';
-import { MCU_TIMEZONE_QUERY, MCU_SET_TIMEZONE_QUERY } from '../../graphql/mcu';
+import { MCU_TIMEZONE_QUERY, MCU_SET_TIMEZONE_MUTATION } from '../../graphql/mcu';
 import {
   GET_AUTOMATION_CONFIG_QUERY,
   SET_AUTOMATION_CONFIG_QUERY,
 } from '../../graphql/automation';
 import { GET_MQTT_QUERY, SET_MQTT_QUERY } from '../../graphql/mqtt';
-import { SOLO_RESTART_QUERY } from '../../graphql/solo';
-import {
-  NODE_STOP_QUERY,
-  NODE_FORMAT_QUERY,
-} from '../../graphql/node';
 import { sendFeedback } from '../../redux/slices/feedbackSlice';
 import { SettingsProvider } from '../../components/settings/context/SettingsContext';
 import PoolsTab from '../../components/settings/tabs/PoolsTab';
@@ -51,7 +48,6 @@ import MqttSettingsCard from '../../components/mqtt/MqttSettingsCard';
 import ExtraTab from '../../components/settings/tabs/ExtraTab';
 import LogsTab from '../../components/settings/tabs/LogsTab';
 import ModalRestore from '../../components/apollo/ModalRestore';
-import ModalFormat from '../../components/apollo/ModalFormat';
 import ModalConnectNode from '../../components/apollo/ModalConnectNode';
 import _ from 'lodash';
 import moment from 'moment';
@@ -62,6 +58,10 @@ import {
 import { mcuSelector } from '../../redux/reselect/mcu';
 import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import usePoolProfiles from '../../hooks/usePoolProfiles';
+import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
+import { savePendingPools } from '../../lib/savePendingPools';
+import { applyTimezone } from '../../lib/applyTimezone';
 
 const RESTORABLE_SETTINGS_FIELDS = [
   'agree',
@@ -98,10 +98,31 @@ const SettingsTab = () => {
   const [currentSettings, setCurrentSettings] = useState();
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
+  // Saved pools, and the pending "keep this one" the action bar offers. A pool
+  // is worth offering to keep only when it is not already in the list — picking
+  // a preset or a saved profile has nothing new to remember.
+  const { profiles: poolProfiles, save: savePoolProfile } = usePoolProfiles();
+  // One pending "keep this" per pool: a single flag kept whichever pool the
+  // handler happened to read, which is not the one the user was looking at when
+  // they turned it on. Gated on isChanged because saving a profile rides on the
+  // Save button — with nothing to save there is no button to press.
+  const emptySave = { enabled: false, name: '' };
+  const [poolToSave, setPoolToSave] = useState({
+    primary: emptySave,
+    backup: emptySave,
+  });
+  // Per pool, not per page: one global "something changed" made editing the
+  // primary offer to keep the backup pool as well.
+  const poolSaveOffered = {
+    primary: poolFieldsChanged(currentSettings?.pool, settings?.pool),
+    backup: poolFieldsChanged(currentSettings?.backupPool, settings?.backupPool),
+  };
   const [restartNeeded, setRestartNeeded] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
   const [isModalRestoreOpen, setIsModalRestoreOpen] = useState(false);
-  const [isModalFormatOpen, setIsModalFormatOpen] = useState(false);
+  // The format dialog and its progress now live at layout level (FormatTaskContext),
+  // so a running format is watched — and its outcome reported — from any page, not
+  // just here. The Extra tab's Format button opens it via that context.
   const [isModalConnectOpen, setIsModalConnectOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [browserHostname, setBrowserHostname] = useState(null);
@@ -179,16 +200,6 @@ const SettingsTab = () => {
     { fetchPolicy: 'no-cache' }
   );
 
-  const [stopNode, { loading: loadingNodeStop }] = useLazyQuery(
-    NODE_STOP_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
-
-  const [formatDisk, { loading: loadingFormat }] = useLazyQuery(
-    NODE_FORMAT_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
-
   const [changeLockPassword, { loading: changeLockPasswordLoading }] =
     useLazyQuery(CHANGE_PASSWORD_QUERY, { fetchPolicy: 'no-cache' });
 
@@ -196,14 +207,18 @@ const SettingsTab = () => {
   // but it rides the same save/discard bar as the temperature unit: the current
   // value is seeded into `settings` so a change lights up the bar, and the save
   // handler applies it with its own mutation.
+  // network-only, not no-cache: a no-cache result never lands in the cache, so
+  // refetching after a save would leave the panel's own copy stale — and with it
+  // the "a restart is still owed" warning it reads from the same query.
   const { data: dataTimezone, refetch: refetchTimezone } = useQuery(
     MCU_TIMEZONE_QUERY,
-    { fetchPolicy: 'no-cache' }
+    { fetchPolicy: 'network-only' }
   );
 
-  const [setTimezone, { loading: loadingSetTimezone }] = useLazyQuery(
-    MCU_SET_TIMEZONE_QUERY,
-    { fetchPolicy: 'no-cache' }
+  // A mutation, not a query: applying a zone is an action, and a query would be
+  // free to re-fire on a re-render.
+  const [setTimezone, { loading: loadingSetTimezone }] = useMutation(
+    MCU_SET_TIMEZONE_MUTATION
   );
 
   const systemTimezone = dataTimezone?.Mcu?.timezone?.result?.timezone;
@@ -282,7 +297,14 @@ const SettingsTab = () => {
           index: 1,
         };
 
-    const finalSettings = { ...settingsData, pool: poolToUse };
+    // A second pool is the backup one: the miner takes them in index order, so
+    // whatever sits after the primary is what it falls back to.
+    const backupPoolToUse =
+      poolsData && poolsData.length > 1
+        ? poolsData[1]
+        : { enabled: false, url: '', username: '', password: 'x', index: 2 };
+
+    const finalSettings = { ...settingsData, pool: poolToUse, backupPool: backupPoolToUse };
     setSettings(finalSettings);
     setCurrentSettings(finalSettings);
   }, [
@@ -343,13 +365,21 @@ const SettingsTab = () => {
 
   // Detect changes and restart needs
   useEffect(() => {
+    // Everything that ends up on the miner's command line: the binary reads its
+    // configuration once, at startup, so a field changed here without a restart
+    // is written to miner_config and then ignored by the running process.
+    // Apollo III has its own tuning fields alongside the Apollo I/II ones.
     const restartMinerFields = [
       'minerMode',
       'frequency',
       'voltage',
       'pool',
+      'backupPool',
       'fan_low',
       'fan_high',
+      'minerHashrate',
+      'fanTemp',
+      'fanPwm',
       'powerLedOff',
       'nodeEnableSoloMining',
     ];
@@ -409,9 +439,17 @@ const SettingsTab = () => {
         pools: poolsList.result.pools,
       };
 
-      const blob = new Blob([JSON.stringify(freshBackup)], {
-        type: 'application/json',
-      });
+      // The saved pools are configuration like the rest, and this file is the
+      // only thing that carries any of it across a reflash. Written out by
+      // field: the ids are this device's, and would mean nothing on another.
+      const poolProfilesBackup = poolProfiles.map(
+        ({ name, url, username, password }) => ({ name, url, username, password })
+      );
+
+      const blob = new Blob(
+        [JSON.stringify({ ...freshBackup, poolProfiles: poolProfilesBackup })],
+        { type: 'application/json' }
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -446,7 +484,7 @@ const SettingsTab = () => {
       ) {
         throw new Error('Invalid Apollo backup file');
       }
-      const { pools, settings } = restoreData;
+      const { pools, settings, poolProfiles: savedPools } = restoreData;
       // Credentials are appliance-owned runtime state and are never restored
       // from either current or legacy backup files.
       const safeSettings = _.pick(settings, RESTORABLE_SETTINGS_FIELDS);
@@ -463,40 +501,31 @@ const SettingsTab = () => {
       });
       const poolsError = poolsResult?.data?.Pool?.updateAll?.error;
       if (poolsError) throw new Error(poolsError.message);
+
+      // Backups taken before saved pools existed simply carry none. One that
+      // cannot be written back is reported rather than thrown: the settings
+      // above are already restored.
+      let poolsNotRestored = 0;
+      for (const saved of savedPools || []) {
+        if (!saved?.name || !saved?.url) continue;
+        const kept = await savePoolProfile({
+          name: saved.name,
+          url: saved.url,
+          username: saved.username || null,
+          password: saved.password || null,
+        });
+        if (!kept.ok) poolsNotRestored += 1;
+      }
+
       await refetchSettings();
       await refetchPools();
       setIsModalRestoreOpen(false);
       dispatch(
         sendFeedback({
-          message:
-            'Restore complete. Node services were updated automatically; restart your miner if its pool changed.',
-          type: 'success',
-        })
-      );
-
-      setIsSaving(false);
-    } catch (error) {
-      setIsSaving(false);
-      dispatch(sendFeedback({ message: error.toString(), type: 'error' }));
-    }
-  };
-
-  // Handle format disk
-  const handleFormatDisk = async () => {
-    try {
-      setIsSaving(true);
-
-      const stopResult = await stopNode();
-      const stopError = stopResult?.data?.Node?.stop?.error;
-      if (stopError) throw new Error(stopError.message);
-
-      const formatResult = await formatDisk();
-      const formatError = formatResult?.data?.Node?.format?.error;
-      if (formatError) throw new Error(formatError.message);
-      dispatch(
-        sendFeedback({
-          message: 'Formatting disk started...',
-          type: 'info',
+          message: poolsNotRestored
+            ? `Restore complete, but ${poolsNotRestored} saved pool(s) could not be restored. Node services were updated automatically; restart your miner if its pool changed.`
+            : 'Restore complete. Node services were updated automatically; restart your miner if its pool changed.',
+          type: poolsNotRestored ? 'error' : 'success',
         })
       );
 
@@ -512,6 +541,8 @@ const SettingsTab = () => {
     setSettings(currentSettings);
     setMqttDraft(mqttBaseline);
     setErrorForm(null);
+    // The pending "keep this pool" belongs to the edit being discarded.
+    setPoolToSave({ primary: emptySave, backup: emptySave });
   };
 
   // Handle save settings
@@ -562,6 +593,9 @@ const SettingsTab = () => {
         frequency,
         fan_low,
         fan_high,
+        minerHashrate,
+        fanTemp,
+        fanPwm,
         apiAllow,
         customApproval,
         temperatureUnit,
@@ -573,6 +607,7 @@ const SettingsTab = () => {
         nodeSoftware,
         powerLedOff,
         pool,
+        backupPool,
         btcsig,
         startdiff,
         mindiff,
@@ -599,6 +634,25 @@ const SettingsTab = () => {
         return setErrorForm('Invalid pool URL');
       }
 
+      // The backup pool goes onto the same command line as the primary, so it
+      // gets the same checks. Without them an empty worker produced a bare
+      // `-user2` and a URL without a port was silently dropped, so failover the
+      // user had configured never reached the miner.
+      if (backupPool?.enabled) {
+        if (!backupPool.url) {
+          setIsSaving(false);
+          return setErrorForm('Backup pool URL is required');
+        }
+        if (!backupPool.url.match(/^(stratum\+tcp:\/\/)?[a-zA-Z0-9.-]+:[0-9]+$/)) {
+          setIsSaving(false);
+          return setErrorForm('Invalid backup pool URL');
+        }
+        if (!backupPool.username) {
+          setIsSaving(false);
+          return setErrorForm('Backup pool username/wallet address is required');
+        }
+      }
+
       // Additional validation for solo mining
       if (nodeEnableSoloMining) {
         if (!isValidBitcoinAddress(username)) {
@@ -622,6 +676,11 @@ const SettingsTab = () => {
         frequency,
         fan_low,
         fan_high,
+        // Apollo III tuning. Null is meaningful: it tells the generator to
+        // leave the flag off and let the binary use its own default.
+        minerHashrate,
+        fanTemp,
+        fanPwm,
         apiAllow,
         customApproval,
         temperatureUnit,
@@ -641,12 +700,17 @@ const SettingsTab = () => {
         (value, key) => !_.isEqual(value, currentSettings?.[key])
       );
 
+      // Indices are the priority order the miner reads — generate() sorts by them
+      // and takes the first as primary. Keeping whatever index the primary
+      // happened to be stored with was a real hazard: the seeded pool carries
+      // index 99, so adding a backup at 2 made the backup sort first and take all
+      // the hashrate, paying out to the wrong address.
       const poolInput = {
         enabled: enabled !== undefined ? enabled : true, // Default to true if not set
         url,
         username,
         password: password ?? null,
-        index: index !== undefined ? index : 1, // Default to 1 if not set
+        index: 1,
       };
 
       // Submit only fields changed in this editor so a stale tab cannot
@@ -659,17 +723,39 @@ const SettingsTab = () => {
         }
       }
 
-      const currentPool = _.pick(currentSettings?.pool || {}, [
-        'enabled',
-        'url',
-        'username',
-        'password',
-        'index',
-      ]);
-      currentPool.password = currentPool.password ?? null;
-      if (!_.isEqual(poolInput, currentPool)) {
+      // updateAll replaces the whole table, so the array IS the intent: leaving the
+      // backup out of it is how switching it off removes it.
+      const poolsInput = [poolInput];
+      if (backupPool?.enabled && backupPool.url) {
+        poolsInput.push({
+          enabled: true,
+          url: backupPool.url,
+          username: backupPool.username,
+          password: backupPool.password ?? null,
+          index: 2,
+        });
+      }
+
+      // Only write the pools when they changed: the pool set is rewritten as a
+      // whole, so an untouched one would be replaced by itself for nothing.
+      const poolFields = ['enabled', 'url', 'username', 'password', 'index'];
+      const currentPools = [
+        { ..._.pick(currentSettings?.pool || {}, poolFields) },
+      ];
+      currentPools[0].password = currentPools[0].password ?? null;
+      const currentBackup = currentSettings?.backupPool;
+      if (currentBackup?.enabled && currentBackup.url) {
+        currentPools.push({
+          enabled: true,
+          url: currentBackup.url,
+          username: currentBackup.username,
+          password: currentBackup.password ?? null,
+          index: 2,
+        });
+      }
+      if (!_.isEqual(poolsInput, currentPools)) {
         const poolsResult = await savePools({
-          variables: { input: { pools: [poolInput] } },
+          variables: { input: { pools: poolsInput } },
         });
         const poolsError = poolsResult?.data?.Pool?.updateAll?.error;
         if (poolsError) {
@@ -694,20 +780,24 @@ const SettingsTab = () => {
         setIsChanged(false);
       }
 
-      // Timezone: a plain save, no restart. Applied only when it actually changed.
-      if (settings.timezone && settings.timezone !== currentSettings?.timezone) {
-        const tzResult = await setTimezone({
-          variables: { input: { timezone: settings.timezone } },
-        });
-        if (tzResult?.data?.Mcu?.setTimezone?.error) {
-          setIsSaving(false);
-          return setErrorForm(tzResult.data.Mcu.setTimezone.error.message);
-        }
-        // Timezone is not a field of the settings query, so refetching it returns
-        // the same data and does not rebuild the baseline. Move currentSettings to
-        // the saved value ourselves, or the save/discard bar never clears.
-        setCurrentSettings((c) => ({ ...c, timezone: settings.timezone }));
-        await refetchTimezone();
+      // Timezone: a plain save, no restart of its own. Extracted for the same
+      // reason as the pool step below, and it never throws either — a zone the
+      // device refuses must not skip the restarts that follow.
+      const { feedback: timezoneFeedback, applied: appliedTimezone } = await applyTimezone({
+        wanted: settings.timezone,
+        current: currentSettings?.timezone,
+        setTimezone,
+        refetch: refetchTimezone,
+      });
+
+      // The zone is not a row in the settings table, so refetchSettings below
+      // cannot move the save bar's baseline for it — and with a cache-first
+      // query returning identical data, the effect that rebuilds the baselines
+      // does not even re-run. Left alone, the bar stays lit on a change that
+      // was already applied until the page is reloaded.
+      if (appliedTimezone) {
+        setSettings((s) => ({ ...s, timezone: appliedTimezone }));
+        setCurrentSettings((s) => ({ ...s, timezone: appliedTimezone }));
       }
 
       // Device location: saved to the automation config, no restart. Same story
@@ -733,6 +823,36 @@ const SettingsTab = () => {
 
       await refetchSettings();
       await refetchPools();
+
+      // Keeping the pool is a side errand of saving, so it reports separately
+      // and never fails the save: the settings are already applied by here, and
+      // turning that into an error would say the opposite. Hence its own try —
+      // a throw from in here escaped into the handler's catch and skipped the
+      // restart below, the one step that makes the saved pool take effect.
+      // Each section keeps its own pool. Sequential rather than parallel: two
+      // saves racing on the same name is the one case where "last write wins"
+      // would quietly drop one of them.
+      // Extracted so the one place these two features meet can be tested: it
+      // never throws, so a pool that could not be kept cannot skip the restarts
+      // below — the step that makes the saved settings take effect.
+      const poolSaveFeedback = await savePendingPools({
+        pending: poolToSave,
+        settings,
+        offered: poolSaveOffered,
+        profiles: poolProfiles,
+        save: savePoolProfile,
+        suggestName: suggestPoolName,
+        onSaved: (profile) => ({
+          message: intl.formatMessage(
+            { id: 'settings.actions.save_pool_done' },
+            { name: profile?.name }
+          ),
+          type: 'success',
+        }),
+        onFailed: (message) => ({ message, type: 'error' }),
+      });
+
+      setPoolToSave({ primary: emptySave, backup: emptySave });
 
       // Handle restarts based on type
       if (type === 'miner') {
@@ -763,6 +883,12 @@ const SettingsTab = () => {
         dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
       }
 
+      // Last, and errors after successes: feedback holds one message at a time,
+      // so a pool that could not be kept has to be dispatched after the restart
+      // notice above rather than under it.
+      poolSaveFeedback.forEach((message) => dispatch(sendFeedback(message)));
+      timezoneFeedback.forEach((message) => dispatch(sendFeedback(message)));
+
       setIsSaving(false);
     } catch (error) {
       setIsSaving(false);
@@ -776,7 +902,6 @@ const SettingsTab = () => {
     loadingSave ||
     loadingSavePools ||
     loadingMinerRestart ||
-    loadingNodeStop ||
     loadingSetTimezone ||
     loadingSaveLocation ||
     changeLockPasswordLoading;
@@ -800,22 +925,12 @@ const SettingsTab = () => {
 
   return (
     <Box>
-      <Head>
-        <title>{intl.formatMessage({ id: 'settings.title' })}</title>
-      </Head>
 
       <ModalRestore
         isOpen={isModalRestoreOpen}
         onClose={() => setIsModalRestoreOpen(false)}
         onUpload={setRestoreData}
         onRestore={handleRestoreBackup}
-        isLoading={isSaving}
-      />
-
-      <ModalFormat
-        isOpen={isModalFormatOpen}
-        onClose={() => setIsModalFormatOpen(false)}
-        onFormat={handleFormatDisk}
         isLoading={isSaving}
       />
 
@@ -854,7 +969,7 @@ const SettingsTab = () => {
             >
               {intl.formatMessage({ id: 'settings.actions.discard' })}
             </Button>
-            <Flex direction="row">
+            <Flex direction="row" align="center">
               {restartNeeded && (
                 <Button
                   colorScheme="orange"
@@ -897,12 +1012,14 @@ const SettingsTab = () => {
           setIsChanged,
           handleBackup,
           handleRestoreBackup,
-          handleFormatDisk,
           handleDiscardChanges,
           handleSaveSettings,
           setIsModalRestoreOpen,
-          setIsModalFormatOpen,
           setIsModalConnectOpen,
+          poolProfiles,
+          poolToSave,
+          setPoolToSave,
+          poolSaveOffered,
         }}
       >
         <Box minH="calc(100vh - 80px)" pb={isChanged ? "80px" : "0"}>

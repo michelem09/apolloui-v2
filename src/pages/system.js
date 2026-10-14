@@ -22,7 +22,6 @@ import { mcuSelector } from '../redux/reselect/mcu';
 import { CpuIcon } from '../components/UI/Icons/CpuIcon';
 import { DatabaseIcon } from '../components/UI/Icons/DatabaseIcon';
 import { MemoryIcon } from '../components/UI/Icons/MemoryIcon';
-import Head from 'next/head';
 import { ArchIcon } from '../components/UI/Icons/ArchIcon';
 import { HostnameIcon } from '../components/UI/Icons/HostnameIcon';
 import { LinuxIcon } from '../components/UI/Icons/LinuxIcon';
@@ -31,6 +30,8 @@ import moment from 'moment';
 import MultiStatistics from '../components/UI/MultiStatistics';
 import { NetworkIcon } from '../components/UI/Icons/NetworkIcon';
 import { FaWifi, FaEthernet, FaCopy, FaThermometerHalf, FaServer } from 'react-icons/fa';
+import SignalBars from '../components/wifi/SignalBars';
+import { useWifiStatus } from '../hooks/useWifiStatus';
 
 const System = () => {
   const intl = useIntl();
@@ -88,7 +89,11 @@ const System = () => {
 
   const { threads: cpuCores, usedPercent: cpuUsage } = cpu || {};
 
-  const wifi = activeWifi && typeof activeWifi === 'string' ? activeWifi.split(',')[0] : null;
+  // The name of the network, from the interface itself. `activeWifi` is every
+  // active connection joined by commas, so with ethernet up too this card used
+  // to announce the wired one.
+  const { status: wifiStatus } = useWifiStatus();
+  const wifi = wifiStatus?.ssid || null;
   const eth0 = _.find(network, { name: 'eth0' });
   const wlan0 = _.find(network, { name: 'wlan0' });
 
@@ -102,9 +107,6 @@ const System = () => {
 
   return (
     <Box>
-      <Head>
-        <title>{intl.formatMessage({ id: 'system.title' })}</title>
-      </Head>
       
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing="20px" mb="20px">
         <Card py="15px" bgColor={cardColor}>
@@ -194,7 +196,9 @@ const System = () => {
               {intl.formatMessage({ id: 'system.stats.active_wifi' })}
             </Text>
             <Text fontSize="lg" fontWeight="bold" mt="5px">
-              {wlan0 && wlan0.address ? wifi : intl.formatMessage({ id: 'system.stats.disconnected' })}
+              {wlan0 && wlan0.address && wifi
+                ? wifi
+                : intl.formatMessage({ id: 'system.stats.disconnected' })}
             </Text>
             {wlan0 && wlan0.address && (
               <Flex alignItems="center" mt="5px">
@@ -209,6 +213,9 @@ const System = () => {
                   variant="ghost"
                   onClick={() => copyToClipboard(wlan0.address)}
                 />
+                {Number.isFinite(wifiStatus?.signal) && (
+                  <SignalBars signal={wifiStatus.signal} ml="8px" />
+                )}
               </Flex>
             )}
           </Flex>

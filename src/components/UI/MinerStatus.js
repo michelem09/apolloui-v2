@@ -6,7 +6,7 @@ import CustomAlert from './CustomAlert';
 import config from '../../config';
 import { useIntl, FormattedMessage } from 'react-intl';
 
-const MinerStatus = ({ serviceStatus }) => {
+const MinerStatus = ({ serviceStatus, loading }) => {
   const intl = useIntl();
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const miner = serviceStatus?.miner;
@@ -33,6 +33,23 @@ const MinerStatus = ({ serviceStatus }) => {
       }
     };
   }, [miner?.status, miner?.requestedStatus, miner?.requestedAt]);
+
+  // An absent status object means two different things. While the first
+  // WebSocket push is in flight it means loading: the page renders its real
+  // layout with per-card skeletons, so a status bar here would just be a grey
+  // slab floating above them. Once the subscription has answered without one,
+  // the service is genuinely unreachable — and this is all the page has to show.
+  if (!serviceStatus || Object.keys(serviceStatus).length === 0) {
+    if (loading) return null;
+
+    return (
+      <CustomAlert
+        title={intl.formatMessage({ id: 'miner.status.unavailable.title' })}
+        description={intl.formatMessage({ id: 'miner.status.unavailable.description' })}
+        status="error"
+      />
+    );
+  }
 
   if (!miner) {
     return (

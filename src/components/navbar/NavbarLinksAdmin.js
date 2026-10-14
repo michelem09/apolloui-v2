@@ -14,8 +14,10 @@ import {
   MenuDivider,
   Spinner,
   Box,
+  Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
+import { useIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
@@ -60,9 +62,12 @@ import { versionGt } from '../../lib/semver';
 // minutes without adding a single extra request to the update server.
 const VERSION_POLL_MS = 5 * 60 * 1000;
 import NavbarUpdateModal from './NavbarUpdateModal';
+import NavbarFormatProgress from './NavbarFormatProgress';
+import useNodeStorage from '../../hooks/useNodeStorage';
 import { useSelector, shallowEqual } from 'react-redux';
 import { useWsConnectionStatus } from '../../lib/useWsConnectionStatus';
 import { soloSelector } from '../../redux/reselect/solo';
+import { servicesSelector } from '../../redux/reselect/services';
 import moment from '../../lib/moment';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 
@@ -90,6 +95,11 @@ export default function HeaderLinks({
     '14px 17px 40px 4px rgba(112, 144, 176, 0.06)'
   );
 
+  // Without somewhere to put a blockchain the node cannot start, so the controls
+  // that would try are turned off rather than left to fail.
+  const intl = useIntl();
+  const { unavailable: noNodeStorage, state: nodeStorageState } =
+    useNodeStorage();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isLogsModalOpen,
@@ -210,21 +220,66 @@ export default function HeaderLinks({
 
   // Extract ckpool disconnected status from solo service
   const { pool: poolData } = soloData || {};
-  const ckPoolDisconnected = poolData?.lastupdate ? 
-    moment().diff(moment.unix(poolData.lastupdate), 'seconds') > 90 : 
-    true;
+  // Never having heard from ckpool is not the same as having heard from it too
+  // long ago. On a pool that has just been started there is no `lastupdate`
+  // yet — it appears when ckpool first writes its status file — and treating
+  // that absence as "disconnected" put a warning badge in the navbar on a pool
+  // that was coming up perfectly well, for as long as it took to write.
+  const ckPoolSilent = !poolData?.lastupdate;
+  const ckPoolDisconnected =
+    !ckPoolSilent &&
+    moment().diff(moment.unix(poolData.lastupdate), 'seconds') > 90;
+
+  // Silence is only patience for so long. A pool that has been online for a
+  // minute without ever writing its status file is not still coming up — the
+  // writer is gone, or logs/pool/ is unreadable — and that has to read as a
+  // fault again, not as a spinner that never ends.
+  const [ckPoolSilentTooLong, setCkPoolSilentTooLong] = useState(false);
+  useEffect(() => {
+    if (!(soloOnline === 'online' && ckPoolSilent)) {
+      setCkPoolSilentTooLong(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setCkPoolSilentTooLong(true), 60000);
+    return () => clearTimeout(timer);
+  }, [soloOnline, ckPoolSilent]);
+
+  const ckPoolComingUp = soloOnline === 'online' && ckPoolSilent && !ckPoolSilentTooLong;
 
   // Parse stats
   const { globalHashrate, avgBoardTemp } = minerStats || {};
 
   const { nodeEnableSoloMining, temperatureUnit } = settings || {};
 
+  // Whether the service statuses failed to arrive at all. `servicesSelector`
+  // nulls its data on error, so without this an error and a first load look
+  // identical from here — and "absent means pending" would leave all three
+  // badges spinning for ever over a failure nothing else in the navbar reports.
+  const { error: servicesError } = useSelector(servicesSelector, shallowEqual);
+  const servicesFailed = !!servicesError?.length;
+
+  // Not having heard yet is not an error.
+  //
+  // Service statuses arrive on their own WebSocket topic; miner and node stats
+  // arrive on theirs, every 5 and 8 seconds. So the numbers are routinely on
+  // screen before the first services push lands — and until it did, these
+  // badges read "Error" in orange next to live data. An absent status is a
+  // question, not an answer: it shows as pending until the device says
+  // otherwise. A status of 'unknown' is different — that is the backend
+  // asserting it could not tell — and keeps its warning.
   const nodeStatusLabel = nodeOnline
     ? capitalizeFirstLetter(nodeOnline)
-    : 'Error';
+    : servicesFailed
+    ? 'Error'
+    : 'Pending';
 
-  const minerStatusLabel =
-    minerOnline && !error.length ? capitalizeFirstLetter(minerOnline) : 'Error';
+  const minerStatusLabel = minerOnline
+    ? error.length
+      ? 'Error'
+      : capitalizeFirstLetter(minerOnline)
+    : servicesFailed
+    ? 'Error'
+    : 'Pending';
 
   return (
     <Flex
@@ -260,65 +315,80 @@ export default function HeaderLinks({
 
       <Center>
         {/* NODE */}
-        <Flex
-          bg={badgeBg}
-          display={secondary ? 'flex' : 'none'}
-          borderRadius="30px"
-          ms="auto"
-          p="6px"
-          align="center"
-          me="8px"
-          px="10px"
+        {/* The badge alone says something is wrong without saying what: on a
+            device with no drive it is the only thing on screen, and "warning"
+            is not an instruction. */}
+        <Tooltip
+          isDisabled={!noNodeStorage}
+          label={
+            noNodeStorage
+              ? intl.formatMessage({ id: `node.storage.${nodeStorageState}` })
+              : ''
+          }
+          placement="bottom"
+          hasArrow
+          maxW="320px"
         >
           <Flex
-            align="center"
-            justify="center"
-            bg={badgeBox}
-            h="29px"
-            w="29px"
+            bg={badgeBg}
+            display={secondary ? 'flex' : 'none'}
             borderRadius="30px"
-            me="7px"
-          >
-            <Link href="/node">
-              <Icon w="18px" h="18px" color={navbarIcon} as={NodeIcon} />
-            </Link>
-          </Flex>
-          <Flex
+            ms="auto"
+            p="6px"
             align="center"
-            justify="center"
-            bg={
-              nodeStatusLabel === 'Online'
-                ? 'green.500'
-                : nodeStatusLabel === 'Offline'
-                ? 'gray.400'
-                : nodeStatusLabel === 'Error'
-                ? 'orange.500'
-                : nodeStatusLabel === 'Pending'
-                ? 'gray.300'
-                : null
-            }
-            h="20px"
-            w="20px"
-            borderRadius="30px"
+            me="8px"
+            px="10px"
           >
-            <Icon
-              w="12px"
-              h="12px"
-              color={badgeBox}
-              as={
+            <Flex
+              align="center"
+              justify="center"
+              bg={badgeBox}
+              h="29px"
+              w="29px"
+              borderRadius="30px"
+              me="7px"
+            >
+              <Link href="/node">
+                <Icon w="18px" h="18px" color={navbarIcon} as={NodeIcon} />
+              </Link>
+            </Flex>
+            <Flex
+              align="center"
+              justify="center"
+              bg={
                 nodeStatusLabel === 'Online'
-                  ? CheckIcon
+                  ? 'green.500'
                   : nodeStatusLabel === 'Offline'
-                  ? PowerIcon
+                  ? 'gray.400'
                   : nodeStatusLabel === 'Error'
-                  ? WarningIcon
+                  ? 'orange.500'
                   : nodeStatusLabel === 'Pending'
-                  ? Spinner
+                  ? 'gray.300'
                   : null
               }
-            />
+              h="20px"
+              w="20px"
+              borderRadius="30px"
+            >
+              <Icon
+                w="12px"
+                h="12px"
+                color={badgeBox}
+                as={
+                  nodeStatusLabel === 'Online'
+                    ? CheckIcon
+                    : nodeStatusLabel === 'Offline'
+                    ? PowerIcon
+                    : nodeStatusLabel === 'Error'
+                    ? WarningIcon
+                    : nodeStatusLabel === 'Pending'
+                    ? Spinner
+                    : null
+                }
+              />
+            </Flex>
           </Flex>
-        </Flex>
+        </Tooltip>
 
         {/* SOLO MINING */}
         {(deviceType === 'solo-node' || nodeEnableSoloMining) && (
@@ -355,11 +425,13 @@ export default function HeaderLinks({
               align="center"
               justify="center"
               bg={
-                soloOnline === 'online' && !ckPoolDisconnected
+                soloOnline === 'online' && !ckPoolDisconnected && !ckPoolSilent
                   ? 'green.500'
                   : soloOnline === 'offline'
                   ? 'gray.400'
-                  : soloOnline === 'pending'
+                  : (!soloOnline && !servicesFailed) ||
+                    soloOnline === 'pending' ||
+                    ckPoolComingUp
                   ? 'gray.300'
                   : 'orange.500'
               }
@@ -372,11 +444,13 @@ export default function HeaderLinks({
                 h="12px"
                 color={badgeBox}
                 as={
-                  soloOnline === 'online' && !ckPoolDisconnected
+                  soloOnline === 'online' && !ckPoolDisconnected && !ckPoolSilent
                     ? CheckIcon
                     : soloOnline === 'offline'
                     ? PowerIcon
-                    : soloOnline === 'pending'
+                    : (!soloOnline && !servicesFailed) ||
+                      soloOnline === 'pending' ||
+                      ckPoolComingUp
                     ? Spinner
                     : WarningIcon
                 }
@@ -509,6 +583,8 @@ export default function HeaderLinks({
           <SidebarResponsive routes={routes} />
         </Box>
 
+        <NavbarFormatProgress />
+
         <Flex p="0px" mx="4px" justify="flex-end">
           <Menu isLazy>
             <MenuButton
@@ -561,17 +637,20 @@ export default function HeaderLinks({
                 <MenuItem
                   icon={<StartIcon />}
                   isDisabled={
-                    nodeOnline === 'online' || nodeOnline === 'pending'
+                    noNodeStorage || nodeOnline === 'online' || nodeOnline === 'pending'
                   }
                   onClick={() => handleSystemAction('startNode')}
                 >
                   Start
                 </MenuItem>
+                {/* Stopping is never gated on storage — the case where the
+                    drive went away with bitcoind still running is exactly when
+                    it must be stoppable, before the blockchain it is still
+                    writing lands on the SD card. Start is; nothing can start
+                    without somewhere to run. */}
                 <MenuItem
                   icon={<StopIcon />}
-                  isDisabled={
-                    nodeOnline === 'offline'
-                  }
+                  isDisabled={nodeOnline === 'offline'}
                   onClick={() => handleSystemAction('stopNode')}
                 >
                   Stop
@@ -582,7 +661,9 @@ export default function HeaderLinks({
                 <MenuItem
                   icon={<StartIcon />}
                   isDisabled={
-                    soloOnline === 'online' || soloOnline === 'pending'
+                    noNodeStorage ||
+                    soloOnline === 'online' ||
+                    soloOnline === 'pending'
                   }
                   onClick={() => handleSystemAction('startSolo')}
                 >
@@ -598,7 +679,9 @@ export default function HeaderLinks({
                 <MenuItem
                   icon={<RestartIcon />}
                   isDisabled={
-                    soloOnline === 'offline' || soloOnline === 'pending'
+                    noNodeStorage ||
+                    soloOnline === 'offline' ||
+                    soloOnline === 'pending'
                   }
                   onClick={() => handleSystemAction('restartSolo')}
                 >

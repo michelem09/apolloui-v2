@@ -10,6 +10,8 @@ import {
 import { useIntl } from 'react-intl';
 import Card from '../../card/Card';
 import { useSettings } from '../context/SettingsContext';
+import { useFormatTask } from '../../../contexts/FormatTaskContext';
+import useNodeStorage from '../../../hooks/useNodeStorage';
 import { DownloadIcon } from '../../UI/Icons/DownloadIcon';
 import { RestoreIcon } from '../../UI/Icons/RestoreIcon';
 import { FormatIcon } from '../../UI/Icons/FormatIcon';
@@ -19,8 +21,12 @@ const ExtraSettingsActions = () => {
   const {
     handleBackup,
     setIsModalRestoreOpen,
-    setIsModalFormatOpen
   } = useSettings();
+  const { openModal: openFormatModal } = useFormatTask();
+  // With no disk detected there is nothing to format: the button would open a
+  // dialog whose only outcome is a failure nobody can act on.
+  const { state: storageState } = useNodeStorage();
+  const noDrive = storageState === 'no-drive';
 
   const textColor = useColorModeValue('brands.900', 'white');
 
@@ -61,7 +67,7 @@ const ExtraSettingsActions = () => {
     } else if (actionId === 'restore') {
       setIsModalRestoreOpen(true);
     } else if (actionId === 'format') {
-      setIsModalFormatOpen(true);
+      openFormatModal();
     }
   };
 
@@ -106,6 +112,7 @@ const ExtraSettingsActions = () => {
               colorScheme={action.color}
               w="200px"
               id={action.id}
+              isDisabled={action.id === 'format' && noDrive}
               onClick={handleButtonExtraSettings}
             >
               {action.buttonTitle}

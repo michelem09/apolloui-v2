@@ -6,7 +6,10 @@
       "description": "Es gibt ein Problem beim Abrufen von Daten vom Server."
     },
     "hashrate": {
-      "title": "Hashrate der letzten 24 Stunden"
+      "title": "Hashrate der letzten 24 Stunden",
+      "chart": {
+        "title": "Miner-Metriken"
+      }
     },
     "temperatures": {
       "miner": "Miner-Temperatur",
@@ -53,7 +56,8 @@
           "title": "Solo-Pool wird gestoppt",
           "description": "Alles, was auf diesem Gerät mint, wird gleich getrennt."
         }
-      }
+      },
+      "hashrate.chart.title": "Solo-Hashrate-Verlauf"
     },
     "metrics": {
       "no_data": "Noch keine Daten",
@@ -154,7 +158,13 @@
       "connection_refused": "Verbindung verweigert. Ihre Node läuft nicht.",
       "bad_response": "Ungültige Antwort. Versuche es in wenigen Sekunden erneut...",
       "waiting_response": "Warte auf Node-Antwort...",
-      "starting_up": "Ihre Node wird gestartet..."
+      "starting_up": "Ihre Node wird gestartet...",
+      "info": {
+        "title": "Node-Status"
+      },
+      "warning": {
+        "title": "Fehler"
+      }
     },
     "latest_blocks": "Neueste Blöcke",
     "block": {
@@ -180,6 +190,9 @@
       "current_block": "Aktueller Block",
       "blockchain_size": "Blockchain-Größe",
       "disk_free": "Freier Speicher des Nodes"
+    },
+    "warning": {
+      "stale_data": "Daten verzögert"
     }
   },
   "miner": {
@@ -1449,5 +1462,12 @@
     },
     "band": "{band} GHz",
     "band.auto": "Auto"
+  },
+  "chart": {
+    "interval": {
+      "6hours": "Letzte 6 Stunden",
+      "24hours": "Letzte 24 Stunden",
+      "30days": "Letzte 30 Tage"
+    }
   }
 }

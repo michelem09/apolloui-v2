@@ -6,7 +6,10 @@
       "description": "Hay un problema al obtener datos del servidor."
     },
     "hashrate": {
-      "title": "Hashrate de las últimas 24h"
+      "title": "Hashrate de las últimas 24h",
+      "chart": {
+        "title": "Métricas del minero"
+      }
     },
     "temperatures": {
       "miner": "Temperatura del minero",
@@ -53,7 +56,8 @@
           "title": "Deteniendo el pool solo",
           "description": "Todo lo que esté minando en este dispositivo va a desconectarse."
         }
-      }
+      },
+      "hashrate.chart.title": "Historial de hashrate solo"
     },
     "metrics": {
       "no_data": "Aún no hay datos",
@@ -154,7 +158,13 @@
       "connection_refused": "Conexión rechazada. Tu nodo no está en ejecución.",
       "bad_response": "Respuesta incorrecta. Intentando de nuevo en unos segundos...",
       "waiting_response": "Esperando respuesta del nodo...",
-      "starting_up": "Tu nodo está iniciando..."
+      "starting_up": "Tu nodo está iniciando...",
+      "info": {
+        "title": "Estado del nodo"
+      },
+      "warning": {
+        "title": "Error"
+      }
     },
     "latest_blocks": "Últimos Bloques",
     "block": {
@@ -180,6 +190,9 @@
       "current_block": "Bloque actual",
       "blockchain_size": "Tamaño de la blockchain",
       "disk_free": "Espacio libre del nodo"
+    },
+    "warning": {
+      "stale_data": "datos retrasados"
     }
   },
   "miner": {
@@ -1449,5 +1462,12 @@
     },
     "band": "{band} GHz",
     "band.auto": "Auto"
+  },
+  "chart": {
+    "interval": {
+      "6hours": "Últimas 6 horas",
+      "24hours": "Últimas 24 horas",
+      "30days": "Últimos 30 días"
+    }
   }
 }

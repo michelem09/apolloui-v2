@@ -6,7 +6,10 @@
       "description": "There is a problem getting data from the server."
     },
     "hashrate": {
-      "title": "Last 24h Hashrate"
+      "title": "Last 24h Hashrate",
+      "chart": {
+        "title": "Miner Metrics"
+      }
     },
     "temperatures": {
       "miner": "Miner temperature",
@@ -53,7 +56,8 @@
           "title": "Stopping the solo pool",
           "description": "Anything mining to this device is about to be disconnected."
         }
-      }
+      },
+      "hashrate.chart.title": "Solo Hashrate History"
     },
     "metrics": {
       "no_data": "No data yet",
@@ -154,7 +158,13 @@
       "connection_refused": "Connection refused. Your node is not running.",
       "bad_response": "Bad response. Trying again in a few seconds...",
       "waiting_response": "Waiting for node response...",
-      "starting_up": "Your node is starting up..."
+      "starting_up": "Your node is starting up...",
+      "info": {
+        "title": "Node Status"
+      },
+      "warning": {
+        "title": "Error"
+      }
     },
     "latest_blocks": "Latest Blocks",
     "block": {
@@ -180,6 +190,9 @@
       "current_block": "Node Current Block",
       "blockchain_size": "Blockchain Size",
       "disk_free": "Node Disk Free"
+    },
+    "warning": {
+      "stale_data": "data delayed"
     }
   },
   "miner": {
@@ -1449,5 +1462,12 @@
     },
     "band": "{band} GHz",
     "band.auto": "Auto"
+  },
+  "chart": {
+    "interval": {
+      "6hours": "Last 6 hours",
+      "24hours": "Last 24 hours",
+      "30days": "Last 30 days"
+    }
   }
 }

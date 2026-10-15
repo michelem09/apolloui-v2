@@ -70,9 +70,9 @@ const FooterAdmin = () => {
           </Link>
         </Text>
       </Text>
-      <Flex alignItems="center" gap="20px">
+      <Flex alignItems="center" justifyContent="center" flexWrap="wrap" gap="20px">
         <LanguageSelector />
-        <List display='flex'>
+        <List display='flex' flexWrap='wrap' justifyContent='center'>
           {config.footerLinks.map((item, index) => {
             return (
               <ListItem
@@ -82,7 +82,7 @@ const FooterAdmin = () => {
                 }}
                 key={index}
               >
-                <Link fontWeight='500' color={textColor} href={item.url}>
+                <Link fontWeight='500' color={textColor} href={item.url} whiteSpace='nowrap'>
                   <FormattedMessage id={item.anchor} />
                 </Link>
               </ListItem>

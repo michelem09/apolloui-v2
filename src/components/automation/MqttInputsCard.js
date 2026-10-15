@@ -24,7 +24,7 @@ import MqttBrowseModal from './MqttBrowseModal';
  * The broker itself is set in Settings → MQTT (shared with the output side); this
  * card just maps topics to input.<name> signals the rules can react to.
  */
-const MqttInputsCard = () => {
+const MqttInputsCard = ({ onSaved }) => {
   const intl = useIntl();
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
@@ -66,6 +66,10 @@ const MqttInputsCard = () => {
       },
     });
     await refetch();
+    // The saved inputs are input.<name> signals: whoever holds the signal
+    // descriptors (the rule editor's condition list) must reload them, or a new,
+    // renamed or removed input stays out of sync until a page reload.
+    if (onSaved) await onSaved();
   };
 
   const status = config?.status;

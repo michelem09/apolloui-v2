@@ -369,7 +369,7 @@ const Automation = () => {
                 </Flex>
               </GridItem>
               <GridItem>
-                <MqttInputsCard />
+                <MqttInputsCard onSaved={refetch} />
               </GridItem>
             </Grid>
           </TabPanel>

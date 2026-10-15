@@ -39,6 +39,7 @@ import { sendFeedback } from '../redux/slices/feedbackSlice';
 import AutomationStatusCard from '../components/automation/AutomationStatusCard';
 import CurrentConditionsCard from '../components/automation/CurrentConditionsCard';
 import RulesList from '../components/automation/RulesList';
+import { persistRuleOrder } from '../lib/persistRuleOrder';
 import RuleEditorModal from '../components/automation/RuleEditorModal';
 import RuleTemplatesModal from '../components/automation/RuleTemplatesModal';
 import GuardRailsCard from '../components/automation/GuardRailsCard';
@@ -186,18 +187,10 @@ const Automation = () => {
     if (report(result?.Automation?.deleteRule?.error, 'automation.feedback.rule_deleted')) await refetch();
   };
 
-  // Persist the dragged order as priorities (top of the list wins). Only the
-  // rules whose position actually changed are written.
+  // Persist the dragged order as priorities; a refusal is reported, and the list
+  // is refetched either way so it shows what was actually saved.
   const handleReorder = async (orderedRules) => {
-    const updates = orderedRules
-      .map((rule, i) => ({ id: rule.id, priority: (i + 1) * 10 }))
-      .filter(({ id, priority }) => rules.find((r) => r.id === id)?.priority !== priority);
-    if (!updates.length) return;
-
-    for (const u of updates) {
-      // eslint-disable-next-line no-await-in-loop
-      await updateRule({ variables: { id: u.id, input: { priority: u.priority } } });
-    }
+    await persistRuleOrder({ orderedRules, rules, updateRule, report });
     await refetch();
   };
 

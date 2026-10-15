@@ -430,6 +430,10 @@ describe('a rule whose mode this device cannot run', () => {
       <RuleEditorModal isOpen onClose={() => {}} onSave={() => {}} rule={quietRule} descriptors={legacyDescriptors} />
     );
     expect(screen.getByText(/super_eco is not available on this device/)).toBeInTheDocument();
+    // The current mode stays selectable (not silently swapped for the first one),
+    // so opening and saving does not change what the rule says.
+    expect(screen.getByRole('option', { name: /super eco/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /super eco/i }).selected).toBe(true);
   });
 
   it('offers only the descriptor modes in the editor for a new mode rule', () => {

@@ -10,7 +10,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import en from '../../locales/en.json';
 import { flattenMessages } from '../../lib/utils';
 import mqttBrowseReducer, { filterTopics } from '../../redux/slices/mqttBrowseSlice';
-import { CACHED_MQTT_TOPICS_QUERY } from '../../graphql/mqtt';
+import { CACHED_MQTT_TOPICS_QUERY, END_MQTT_BROWSE_QUERY } from '../../graphql/mqtt';
 import MqttBrowseModal from './MqttBrowseModal';
 
 const topic = (over) => ({
@@ -39,25 +39,30 @@ const cachedMock = {
   maxUsageCount: 50,
 };
 
+const endResult = jest.fn(() => ({
+  data: { Mqtt: { __typename: 'MqttActions', endBrowse: { __typename: 'MqttTestOutput', result: { __typename: 'MqttTestResult', ok: true, message: null }, error: null } } },
+}));
+const endMock = { request: { query: END_MQTT_BROWSE_QUERY }, result: (...a) => endResult(...a), maxUsageCount: 50 };
+
 // The card keeps the modal mounted and toggles isOpen, like the real page.
-const Harness = () => {
+const Harness = ({ mapped }) => {
   const [open, setOpen] = useState(true);
   return (
     <>
       <button onClick={() => setOpen(true)}>reopen</button>
-      <MqttBrowseModal isOpen={open} onClose={() => setOpen(false)} brokerInput={() => ({ host: 'b' })} onPick={() => {}} />
+      <MqttBrowseModal isOpen={open} onClose={() => setOpen(false)} brokerInput={() => ({ host: 'b' })} onPick={() => {}} mapped={mapped} />
     </>
   );
 };
 
-const setup = () => {
+const setup = ({ mocks = [cachedMock, endMock], mapped } = {}) => {
   const store = configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } });
   const utils = render(
     <Provider store={store}>
-      <MockedProvider mocks={[cachedMock]} addTypename>
+      <MockedProvider mocks={mocks} addTypename>
         <ChakraProvider>
           <IntlProvider locale="en" messages={flattenMessages(en)}>
-            <Harness />
+            <Harness mapped={mapped} />
           </IntlProvider>
         </ChakraProvider>
       </MockedProvider>
@@ -119,8 +124,64 @@ describe('MqttBrowseModal', () => {
     expect(await screen.findByText('garage/Door')).toBeInTheDocument();
     expect(screen.getByLabelText(FILTER)).toHaveValue('door');
     expect(screen.getByText('Listening to the broker…')).toBeInTheDocument();
-    const remaining = within(document.body).getByText(/^\d+s$/);
-    expect(Number(remaining.textContent.replace('s', ''))).toBeLessThanOrEqual(40);
+    const remaining = within(document.body).getByText(/· \d+s$/);
+    expect(Number(remaining.textContent.match(/(\d+)s$/)[1])).toBeLessThanOrEqual(40);
+  });
+});
+
+describe('MqttBrowseModal, browse session and states', () => {
+  beforeEach(() => endResult.mockClear());
+
+  it('tells the device to stop listening when the modal closes, not before', async () => {
+    setup();
+    await screen.findByText('sun2000/state');
+    await new Promise((r) => setTimeout(r, 20)); // let a previous test's teardown settle
+    endResult.mockClear();
+    expect(endResult).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => expect(endResult).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows the broker refusing # next to the cached list', async () => {
+    const warn = {
+      ...cachedMock,
+      result: {
+        data: { Mqtt: { __typename: 'MqttActions', cachedTopics: { __typename: 'MqttDiscoverOutput', result: { __typename: 'MqttDiscoverResult', ok: true, error: 'The broker does not allow subscribing to all topics (#), so live browsing is unavailable.', topics: TOPICS }, error: null } } },
+      },
+    };
+    setup({ mocks: [warn, endMock] });
+    expect(await screen.findByText(/does not allow subscribing to all topics/)).toBeInTheDocument();
+    expect(screen.getByText('garage/Door')).toBeInTheDocument();
+  });
+
+  it('marks what is already mapped and does not let it be picked again', async () => {
+    const onPick = jest.fn();
+    const store = configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } });
+    render(
+      <Provider store={store}>
+        <MockedProvider mocks={[cachedMock, endMock]} addTypename>
+          <ChakraProvider>
+            <IntlProvider locale="en" messages={flattenMessages(en)}>
+              <MqttBrowseModal
+                isOpen
+                onClose={() => {}}
+                brokerInput={() => ({ host: 'b' })}
+                onPick={onPick}
+                mapped={[{ topic: 'sun2000/state', jsonPath: 'battery.soc' }, { topic: 'garage/Door', jsonPath: '' }]}
+              />
+            </IntlProvider>
+          </ChakraProvider>
+        </MockedProvider>
+      </Provider>
+    );
+    const taken = await screen.findByText(/battery\.soc = 80/);
+    expect(taken).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Already mapped' })).toBeDisabled();
+    await userEvent.click(taken);
+    // The other path of the same topic is still free.
+    await userEvent.click(screen.getByText('active_power = 1234'));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0]).toMatchObject({ topic: 'sun2000/state', jsonPath: 'active_power' });
   });
 });
 
@@ -135,7 +196,7 @@ describe('MqttBrowseModal, remounted', () => {
 
     render(
       <Provider store={store}>
-        <MockedProvider mocks={[cachedMock]} addTypename>
+        <MockedProvider mocks={[cachedMock, endMock]} addTypename>
           <ChakraProvider>
             <IntlProvider locale="en" messages={flattenMessages(en)}>
               <MqttBrowseModal isOpen onClose={() => {}} brokerInput={() => ({ host: 'b' })} onPick={() => {}} />

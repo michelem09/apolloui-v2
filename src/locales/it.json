@@ -1186,6 +1186,7 @@
       "browse_no_value": "ancora nessun valore",
       "browse_no_match": "Nessun topic corrisponde al filtro.",
       "browse_seen": "visto {ago}",
+      "browse_mapped": "Già mappato",
       "inputs_desc": "Mappa i topic del broker a segnali su cui le regole possono reagire.",
       "broker_hint": "Configura prima il broker MQTT in {link}.",
       "broker_link": "Impostazioni → MQTT",

@@ -10,6 +10,9 @@ const initialState = {
   topics: null,
   // Why the cache could not be read (e.g. the broker link is down).
   cacheError: null,
+  // The cache read fine, but the broker refused part of what live browsing needs
+  // (the # subscription): shown next to the list, which is then only what is cached.
+  cacheWarning: null,
   loadedAt: null,
   // The explicit timed scan.
   scan: { running: false, startedAt: null, error: null },
@@ -24,6 +27,7 @@ export const mqttBrowseSlice = createSlice({
     cacheLoaded: (state, action) => {
       state.topics = action.payload.topics;
       state.cacheError = null;
+      state.cacheWarning = action.payload.warning || null;
       state.loadedAt = action.payload.loadedAt;
     },
     cacheFailed: (state, action) => {

@@ -1186,6 +1186,7 @@
       "browse_no_value": "no value yet",
       "browse_no_match": "No topic matches the filter.",
       "browse_seen": "seen {ago}",
+      "browse_mapped": "Already mapped",
       "inputs_desc": "Map broker topics to signals your rules can react to.",
       "broker_hint": "Set up the MQTT broker first in {link}.",
       "broker_link": "Settings → MQTT",

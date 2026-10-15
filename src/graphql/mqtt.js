@@ -73,12 +73,25 @@ export const CACHED_MQTT_TOPICS_QUERY = gql`
   ${ERROR_FRAGMENT}
   query CACHED_MQTT_TOPICS {
     Mqtt {
-      cachedTopics {
+      cachedTopics(lease: true) {
         result {
           ok
           error
           topics { ${TOPIC_FIELDS} }
         }
+        error { ...ErrorFragment }
+      }
+    }
+  }
+`;
+
+// The browse modal closed: the device stops listening to everything on the broker.
+export const END_MQTT_BROWSE_QUERY = gql`
+  ${ERROR_FRAGMENT}
+  query END_MQTT_BROWSE {
+    Mqtt {
+      endBrowse {
+        result { ok message }
         error { ...ErrorFragment }
       }
     }

@@ -127,7 +127,18 @@ const MqttInputsCard = ({ onSaved }) => {
           isOpen={browseOpen}
           onClose={() => setBrowseOpen(false)}
           brokerInput={brokerInput}
-          onPick={(input) => setInputs((list) => [...list, input])}
+          mapped={inputs}
+          onPick={(input) =>
+            setInputs((list) => {
+              // The same topic + field is never mapped twice, and a signal name is
+              // unique (input.<name> is the id a rule selects).
+              if (list.some((x) => x.topic === input.topic && (x.jsonPath || '') === (input.jsonPath || ''))) return list;
+              const taken = new Set(list.map((x) => x.name));
+              let name = input.name;
+              for (let n = 2; taken.has(name); n += 1) name = `${input.name.slice(0, 22)}_${n}`;
+              return [...list, { ...input, name }];
+            })
+          }
         />
 
         {!inputs.length && (

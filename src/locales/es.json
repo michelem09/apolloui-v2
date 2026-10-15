@@ -1186,6 +1186,7 @@
       "browse_no_value": "aún sin valor",
       "browse_no_match": "Ningún topic coincide con el filtro.",
       "browse_seen": "visto {ago}",
+      "browse_mapped": "Ya asignado",
       "inputs_desc": "Asigna topics del broker a señales a las que tus reglas pueden reaccionar.",
       "broker_hint": "Configura primero el broker MQTT en {link}.",
       "broker_link": "Ajustes → MQTT",

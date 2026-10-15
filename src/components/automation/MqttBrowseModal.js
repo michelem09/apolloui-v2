@@ -19,7 +19,7 @@ import {
 import { useApolloClient } from '@apollo/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { useIntl } from 'react-intl';
-import { DISCOVER_MQTT_QUERY, CACHED_MQTT_TOPICS_QUERY } from '../../graphql/mqtt';
+import { DISCOVER_MQTT_QUERY, CACHED_MQTT_TOPICS_QUERY, END_MQTT_BROWSE_QUERY } from '../../graphql/mqtt';
 import {
   cacheFailed,
   cacheLoaded,
@@ -50,14 +50,15 @@ const sanitizeName = (s) => String(s || '').replace(/[^a-zA-Z0-9_]/g, '_').slice
  * Browse the broker: scan for topics (wildcard subscription for a few seconds),
  * then pick one — or a numeric field inside a JSON payload — to add as an input.
  */
-const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
+const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) => {
   const intl = useIntl();
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
+  const trackBg = useColorModeValue('secondaryGray.400', 'whiteAlpha.300');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
 
   const client = useApolloClient();
   const dispatch = useDispatch();
-  const { topics, cacheError, scan, filter } = useSelector((state) => state.mqttBrowse);
+  const { topics, cacheError, cacheWarning, scan, filter } = useSelector((state) => state.mqttBrowse);
   const loading = scan.running;
 
   // The cache read: what the device's own broker connection has seen so far.
@@ -67,18 +68,24 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
       const r = data?.Mqtt?.cachedTopics;
       if (r?.error) return dispatch(cacheFailed(r.error.message));
       if (!r?.result?.ok) return dispatch(cacheFailed(r?.result?.error || ''));
-      return dispatch(cacheLoaded({ topics: r.result.topics, loadedAt: Date.now() }));
+      return dispatch(cacheLoaded({ topics: r.result.topics, loadedAt: Date.now(), warning: r.result.error }));
     } catch (e) {
       return dispatch(cacheFailed(e.message));
     }
   }, [client, dispatch]);
 
+  // Each read renews the device's browse session (it listens to the whole broker
+  // only while someone is looking); closing the modal ends it, and if the browser
+  // just vanishes the device ends it itself after a few minutes.
   useEffect(() => {
     if (!isOpen) return undefined;
     loadCache();
     const id = setInterval(loadCache, CACHE_POLL_MS);
-    return () => clearInterval(id);
-  }, [isOpen, loadCache]);
+    return () => {
+      clearInterval(id);
+      client.query({ query: END_MQTT_BROWSE_QUERY, fetchPolicy: 'no-cache' }).catch(() => {});
+    };
+  }, [isOpen, loadCache, client]);
 
   // The scan duration is fixed (SCAN_SECONDS), so show a real progress bar and a
   // countdown. The start time is in the store, so reopening the modal mid-scan
@@ -121,7 +128,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
   };
 
   const visible = filterTopics(topics, filter);
-  const error = scan.error || cacheError;
+  const error = scan.error || cacheError || cacheWarning;
 
   // "12s ago" / "3 min ago" for a lastSeen timestamp.
   const ago = (iso) => {
@@ -132,7 +139,11 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
     return intl.formatRelativeTime(-Math.round(secs / 3600), 'hour');
   };
 
+  // A topic + field that already is an input cannot be added a second time.
+  const isMapped = (topic, jsonPath) => mapped.some((m) => m.topic === topic && (m.jsonPath || '') === (jsonPath || ''));
+
   const pick = (topic, jsonPath, name, unit) => {
+    if (isMapped(topic, jsonPath)) return;
     // Prefer the resolved field/name as the signal name; fall back to the topic.
     const suggested = jsonPath
       ? sanitizeName(jsonPath.split('.').pop())
@@ -150,16 +161,30 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
         <ModalHeader>{intl.formatMessage({ id: 'automation.mqtt.browse_title' })}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Flex gap="8px" mb="12px">
+          <Flex gap="8px" mb="12px" wrap="wrap">
             <Input
               variant="auth"
               size="sm"
+              flex="1 1 160px"
+              minW="0"
               value={filter}
               onChange={(e) => dispatch(filterChanged(e.target.value))}
               placeholder={intl.formatMessage({ id: 'automation.mqtt.browse_filter' })}
               aria-label={intl.formatMessage({ id: 'automation.mqtt.browse_filter' })}
             />
-            <Button size="sm" variant="brand" onClick={runScan} isDisabled={loading} minW="140px">
+            <Button
+              size="sm"
+              variant="brand"
+              onClick={runScan}
+              isDisabled={loading}
+              flex="0 1 auto"
+              maxW="100%"
+              h="auto"
+              minH="32px"
+              py="6px"
+              whiteSpace="normal"
+              textAlign="center"
+            >
               {intl.formatMessage({ id: 'automation.mqtt.browse_scan' })}
             </Button>
           </Flex>
@@ -175,16 +200,18 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                   {intl.formatMessage({ id: 'automation.mqtt.browse_scanning' })}
                 </Text>
                 <Text fontSize="sm" fontWeight="600" color={subTextColor}>
-                  {remaining}s
+                  {Math.round(progress)}% · {remaining}s
                 </Text>
               </Flex>
+              {/* A visible track and a thicker bar: on a dark or pale card the default
+                  hairline looked empty for the whole minute. */}
               <Progress
                 value={progress}
-                size="sm"
+                height="10px"
                 borderRadius="full"
+                bg={trackBg}
                 colorScheme="brand"
-                hasStripe
-                isAnimated
+                aria-label={intl.formatMessage({ id: 'automation.mqtt.browse_scanning' })}
               />
             </Box>
           )}
@@ -261,8 +288,15 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                   </Box>
                   {/* Resolved sensor or a plain (non-JSON) payload: one-click map. */}
                   {(t.name || !t.jsonPaths || !t.jsonPaths.length) && (
-                    <Button size="xs" variant="light" onClick={() => pick(t.topic, t.jsonPath, t.name, t.unit)}>
-                      {intl.formatMessage({ id: 'automation.mqtt.browse_use' })}
+                    <Button
+                      size="xs"
+                      variant="light"
+                      isDisabled={isMapped(t.topic, t.jsonPath)}
+                      onClick={() => pick(t.topic, t.jsonPath, t.name, t.unit)}
+                    >
+                      {intl.formatMessage({
+                        id: isMapped(t.topic, t.jsonPath) ? 'automation.mqtt.browse_mapped' : 'automation.mqtt.browse_use',
+                      })}
                     </Button>
                   )}
                 </Flex>
@@ -274,12 +308,16 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                       <Badge
                         key={p}
                         as="button"
+                        disabled={isMapped(t.topic, p)}
+                        opacity={isMapped(t.topic, p) ? 0.5 : 1}
+                        title={isMapped(t.topic, p) ? intl.formatMessage({ id: 'automation.mqtt.browse_mapped' }) : undefined}
                         colorScheme="pink"
                         px="8px"
                         py="3px"
                         borderRadius="6px"
                         onClick={() => pick(t.topic, p)}
                       >
+                        {isMapped(t.topic, p) ? '✓ ' : ''}
                         {p}
                         {pathValue(t, p) != null ? ` = ${pathValue(t, p)}` : ''}
                       </Badge>

@@ -207,19 +207,19 @@ describe('GuardRailsCard', () => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:super_eco' }));
     });
 
-    it('stacks in one column at base and goes multi-column only from md', () => {
+    it('is a single vertical list at every width, with no responsive columns', () => {
       renderUI(<GuardRailsCard config={config} minerModes={modes} onSave={() => {}} />);
       const group = screen.getByRole('radiogroup');
-      expect(group).toHaveStyle({ display: 'grid' });
-      // Chakra emits the responsive value as media queries; read the rules back.
+      expect(group).toHaveStyle({ display: 'flex', 'flex-direction': 'column' });
+      // No grid and no media query may turn it into columns.
       const css = [...document.styleSheets]
         .flatMap((sheet) => [...sheet.cssRules])
         .map((r) => r.cssText)
         .join('\n');
       const cls = [...group.classList].find((c) => c.startsWith('css-'));
-      const base = css.match(new RegExp(`\\.${cls}\\s*\\{[^}]*grid-template-columns:\\s*minmax\\(0(px)?, ?1fr\\)`));
-      expect(base).not.toBeNull();
-      expect(css).toMatch(new RegExp(`@media[^{]*min-width: ?48em[^{]*\\{\\s*\\.${cls}\\s*\\{[^}]*auto-fit`));
+      expect(css).not.toMatch(new RegExp(`\\.${cls}[^}]*grid-template-columns`));
+      expect(css).not.toMatch(new RegExp(`@media[^{]*\\{\\s*\\.${cls}\\s*\\{[^}]*(flex-direction|grid)`));
+      expect(radios()).toHaveLength(3);
     });
 
     it('hides the third tile when the device offers no modes', () => {

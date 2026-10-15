@@ -49,7 +49,7 @@ const FallbackTile = ({ tile, checked, onSelect, children }) => {
 
   return (
     <Flex direction="column" gap="8px">
-    <Box as="label" cursor="pointer" display="block" flex="1">
+    <Box as="label" cursor="pointer" display="block">
       <VisuallyHidden
         as="input"
         type="radio"
@@ -62,7 +62,6 @@ const FallbackTile = ({ tile, checked, onSelect, children }) => {
         gap="12px"
         align="flex-start"
         p="14px"
-        h="100%"
         borderWidth="2px"
         borderRadius="16px"
         borderColor={checked ? accent : idleBorder}
@@ -102,13 +101,10 @@ const FallbackTiles = ({ value, onChange, modes }) => {
   };
 
   return (
-    <SimpleGrid
+    <Flex
       role="radiogroup"
       aria-label={intl.formatMessage({ id: 'automation.guards.fallback' })}
-      // This theme's `sm` is 320px, so a `sm` switch would never stack on a phone.
-      // Stack up to md; above that let the card's own width decide (it sits in a
-      // half-width column on xl), never squeezing a tile under ~200px.
-      templateColumns={{ base: 'minmax(0, 1fr)', md: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+      direction="column"
       gap="12px"
     >
       {tiles.map((tile) => {
@@ -133,7 +129,7 @@ const FallbackTiles = ({ value, onChange, modes }) => {
           </FallbackTile>
         );
       })}
-    </SimpleGrid>
+    </Flex>
   );
 };
 

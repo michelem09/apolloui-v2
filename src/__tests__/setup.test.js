@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { print } from 'graphql';
-import { useMutation } from '@apollo/client';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { renderWithProviders } from '../test-utils';
 import Setup from '../pages/setup';
 
@@ -76,5 +76,35 @@ describe('Setup wizard — pools', () => {
     expect(documents).toContain('mutation UPDATE_POOLS');
     expect(documents).toContain('updateAll');
     expect(documents).not.toContain('create (input: $input)');
+  });
+});
+
+// The client runs mutations with errorPolicy 'all': a GraphQL failure resolves
+// with { data, errors } instead of rejecting. The wizard must stop on it, not
+// announce "complete" with the pool unsaved.
+describe('Setup wizard — a GraphQL error on the pool write', () => {
+  afterEach(() => {
+    useMutation.mockImplementation(() => [jest.fn(), {}]);
+    useLazyQuery.mockImplementation(() => [jest.fn(), {}]);
+  });
+
+  it('stops with the error and does not reach the complete step', async () => {
+    const ok = { data: { Auth: { setup: { error: null } } } };
+    useMutation.mockImplementation((doc) => {
+      const text = print(doc);
+      if (text.includes('UPDATE_POOLS')) {
+        return [jest.fn().mockResolvedValue({ data: { Pool: null }, errors: [{ message: 'pool write exploded' }] }), {}];
+      }
+      return [jest.fn().mockResolvedValue(ok), {}];
+    });
+    useLazyQuery.mockImplementation(() => [
+      jest.fn().mockResolvedValue({ data: { Auth: { login: { result: { accessToken: 't' }, error: null } } } }),
+      {},
+    ]);
+
+    await gotoPasswordStep();
+    submitPasswords('longpass1', 'longpass1');
+
+    expect(await screen.findByText(/pool write exploded/)).toBeInTheDocument();
   });
 });

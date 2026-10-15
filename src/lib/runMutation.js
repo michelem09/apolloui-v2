@@ -1,3 +1,5 @@
+import { ApolloError } from '@apollo/client';
+
 /**
  * Run a useMutation() trigger the way the old lazy-query triggers behaved: it
  * never throws, and resolves to { data, error }. A transport or GraphQL-level
@@ -8,7 +10,10 @@
 export async function runMutation(mutate, options) {
   try {
     const result = await mutate(options);
-    return { data: result?.data, error: null };
+    // The client runs mutations with errorPolicy 'all', so a GraphQL failure
+    // RESOLVES with { data, errors } instead of rejecting: surface it as `error`.
+    const error = result?.errors?.length ? new ApolloError({ graphQLErrors: result.errors }) : null;
+    return { data: result?.data, error };
   } catch (error) {
     return { data: undefined, error };
   }

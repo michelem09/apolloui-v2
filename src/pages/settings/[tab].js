@@ -495,13 +495,13 @@ const SettingsTab = () => {
       const settingsResult = await saveSettings({
         variables: { input: safeSettings },
       });
-      const settingsError = settingsResult?.data?.Settings?.update?.error;
+      const settingsError = settingsResult?.error || settingsResult?.data?.Settings?.update?.error;
       if (settingsError) throw new Error(settingsError.message);
 
       const poolsResult = await savePools({
         variables: { input: { pools: safePools } },
       });
-      const poolsError = poolsResult?.data?.Pool?.updateAll?.error;
+      const poolsError = poolsResult?.error || poolsResult?.data?.Pool?.updateAll?.error;
       if (poolsError) throw new Error(poolsError.message);
 
       // Backups taken before saved pools existed simply carry none. One that
@@ -719,9 +719,10 @@ const SettingsTab = () => {
       // overwrite unrelated settings saved elsewhere.
       if (Object.keys(input).length > 0) {
         const settingsResult = await saveSettings({ variables: { input } });
-        if (settingsResult?.data?.Settings?.update?.error) {
+        const settingsErr = settingsResult?.error || settingsResult?.data?.Settings?.update?.error;
+        if (settingsErr) {
           setIsSaving(false);
-          return setErrorForm(settingsResult.data.Settings.update.error.message);
+          return setErrorForm(settingsErr.message);
         }
       }
 
@@ -759,7 +760,7 @@ const SettingsTab = () => {
         const poolsResult = await savePools({
           variables: { input: { pools: poolsInput } },
         });
-        const poolsError = poolsResult?.data?.Pool?.updateAll?.error;
+        const poolsError = poolsResult?.error || poolsResult?.data?.Pool?.updateAll?.error;
         if (poolsError) {
           setIsSaving(false);
           return setErrorForm(poolsError.message);
@@ -816,9 +817,10 @@ const SettingsTab = () => {
         const locResult = await saveAutomationConfig({
           variables: { input: { latitude: settings.latitude ?? null, longitude: settings.longitude ?? null } },
         });
-        if (locResult?.data?.Automation?.updateConfig?.error) {
+        const locErr = locResult?.error || locResult?.data?.Automation?.updateConfig?.error;
+        if (locErr) {
           setIsSaving(false);
-          return setErrorForm(locResult.data.Automation.updateConfig.error.message);
+          return setErrorForm(locErr.message);
         }
         setCurrentSettings((c) => ({
           ...c,

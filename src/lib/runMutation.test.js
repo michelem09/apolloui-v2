@@ -12,4 +12,15 @@ describe('runMutation', () => {
     const out = await runMutation(jest.fn().mockRejectedValue(boom));
     expect(out).toEqual({ data: undefined, error: boom });
   });
+
+  it('reports GraphQL errors that resolve under errorPolicy all as `error`, keeping data', async () => {
+    const mutate = jest.fn().mockResolvedValue({
+      data: { Pool: null },
+      errors: [{ message: 'Cannot return null for non-nullable field' }],
+    });
+    const out = await runMutation(mutate);
+    expect(out.error).not.toBeNull();
+    expect(out.error.message).toMatch(/non-nullable/);
+    expect(out.data).toEqual({ Pool: null });
+  });
 });

@@ -1059,7 +1059,11 @@
       "fallback": "Wenn keine Regel passt",
       "fallback.tooltip": "Was passiert, wenn keine Regel greift. „Nichts ändern“ lässt den Miner in Ruhe.",
       "fallback.keep": "Nichts ändern",
-      "fallback.off": "Miner stoppen"
+      "fallback.off": "Miner stoppen",
+      "fallback.hint": "Legt fest, was der Miner nachts, bei Bewölkung und bei fehlenden Eingangsdaten tut.",
+      "fallback.off.desc": "Der Miner stoppt nachts, bei Bewölkung und wenn Eingangsdaten fehlen.",
+      "fallback.keep.desc": "Der Miner behält seinen Zustand bei, auch wenn er über Nacht im Batteriebetrieb läuft, falls keine Daten mehr eintreffen.",
+      "fallback.current": "Aktuelle Einstellung: {value}. Wähle eine Kachel, um sie zu ersetzen."
     },
     "tariff": {
       "title": "Energiekosten",

@@ -1059,7 +1059,11 @@
       "fallback": "When no rule matches",
       "fallback.tooltip": "What to do when no rule applies. \"Leave as is\" never touches the miner.",
       "fallback.keep": "Leave as is",
-      "fallback.off": "Stop the miner"
+      "fallback.off": "Stop the miner",
+      "fallback.hint": "Decides what the miner does at night, under clouds and when input data is missing.",
+      "fallback.off.desc": "The miner stops at night, under clouds and when input data is missing.",
+      "fallback.keep.desc": "The miner keeps whatever state it was in, even running on battery overnight if data stops arriving.",
+      "fallback.current": "Current setting: {value}. Pick a tile to replace it."
     },
     "tariff": {
       "title": "Energy cost",

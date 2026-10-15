@@ -125,6 +125,54 @@ describe('GuardRailsCard', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ minOnMinutes: 30, maxCyclesPerHour: 2 }));
   });
 
+  describe('fallback tiles', () => {
+    const radios = () => screen.getAllByRole('radio');
+
+    it('renders the stored value as the selected tile', () => {
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'off' }} onSave={() => {}} />);
+      expect(screen.getByRole('radiogroup', { name: 'When no rule matches' })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Stop the miner/ })).toBeChecked();
+      expect(screen.getByRole('radio', { name: /Leave as is/ })).not.toBeChecked();
+    });
+
+    it.each([
+      ['Stop the miner', 'off', 'keep'],
+      ['Leave as is', 'keep', 'off'],
+    ])('clicking "%s" selects it and Save sends %s', async (label, value, initial) => {
+      const onSave = jest.fn();
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: initial }} onSave={onSave} />);
+
+      // The whole tile is the click target, not just the hidden input.
+      await userEvent.click(screen.getByText(label));
+      expect(screen.getByRole('radio', { name: new RegExp(label) })).toBeChecked();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: value }));
+    });
+
+    it('can be driven from the keyboard', async () => {
+      const onSave = jest.fn();
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'keep' }} onSave={onSave} />);
+
+      // Tab lands on the checked radio; the arrow moves to the sibling (native radio group).
+      await userEvent.tab();
+      expect(radios().find((r) => r.checked)).toHaveFocus();
+      await userEvent.keyboard('{ArrowUp}');
+      expect(screen.getByRole('radio', { name: /Stop the miner/ })).toBeChecked();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'off' }));
+    });
+
+    it('leaves a stored on:<mode> value untouched and says so', async () => {
+      const onSave = jest.fn();
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'on:eco' }} onSave={onSave} />);
+      expect(screen.getByText(/Current setting: on:eco/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:eco' }));
+    });
+  });
+
   it('skips an emptied field instead of saving it as 0', async () => {
     const onSave = jest.fn();
     renderUI(<GuardRailsCard config={config} onSave={onSave} />);

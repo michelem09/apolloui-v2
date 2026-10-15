@@ -1059,7 +1059,11 @@
       "fallback": "Se nessuna regola corrisponde",
       "fallback.tooltip": "Cosa fare quando nessuna regola si applica. “Non toccare nulla” lascia il miner com’è.",
       "fallback.keep": "Non toccare nulla",
-      "fallback.off": "Spegni il miner"
+      "fallback.off": "Spegni il miner",
+      "fallback.hint": "Decide cosa fa il miner di notte, con le nuvole e quando mancano i dati in ingresso.",
+      "fallback.off.desc": "Il miner si ferma di notte, con le nuvole e quando mancano i dati in ingresso.",
+      "fallback.keep.desc": "Il miner resta nello stato in cui era, anche acceso a batteria per tutta la notte se i dati smettono di arrivare.",
+      "fallback.current": "Impostazione attuale: {value}. Scegli un riquadro per sostituirla."
     },
     "tariff": {
       "title": "Costo energia",

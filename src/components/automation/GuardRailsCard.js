@@ -1,15 +1,18 @@
 import {
+  Box,
   Button,
   Flex,
   FormControl,
   FormLabel,
+  Icon,
   Input,
-  Select,
   SimpleGrid,
   Text,
   Tooltip,
   useColorModeValue,
+  VisuallyHidden,
 } from '@chakra-ui/react';
+import { MdPowerSettingsNew, MdWarningAmber } from 'react-icons/md';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import Card from '../card/Card';
@@ -23,7 +26,82 @@ const FIELDS = [
   { key: 'overrideMinutes', unit: 'min' },
 ];
 
-const GuardRailsCard = ({ config, minerModes = [], onSave, isSaving }) => {
+// Two choices only, colour-coded on purpose: "off" is the safe one (green),
+// "keep" can leave the miner running on battery overnight (amber).
+const FALLBACK_TILES = [
+  { value: 'off', icon: MdPowerSettingsNew, scheme: 'green' },
+  { value: 'keep', icon: MdWarningAmber, scheme: 'orange' },
+];
+
+// Native radios on purpose (not Chakra's useRadio): same keyboard behaviour for
+// free (shared name = arrow keys), and focus ring via CSS :focus-visible, since
+// useRadio's focus tracking throws under jsdom when two tests mount it.
+const FallbackTile = ({ tile, checked, onSelect }) => {
+  const { value, icon, scheme } = tile;
+  const intl = useIntl();
+  const accent = useColorModeValue(`${scheme}.500`, `${scheme}.300`);
+  const selectedBg = useColorModeValue(`${scheme}.50`, `${scheme}.900`);
+  const idleBorder = useColorModeValue('secondaryGray.400', 'whiteAlpha.300');
+  const titleColor = useColorModeValue('secondaryGray.900', 'white');
+  const bodyColor = useColorModeValue('secondaryGray.700', 'secondaryGray.400');
+
+  return (
+    <Box as="label" cursor="pointer" display="block">
+      <VisuallyHidden
+        as="input"
+        type="radio"
+        name="fallbackAction"
+        value={value}
+        checked={checked}
+        onChange={() => onSelect(value)}
+      />
+      <Flex
+        gap="12px"
+        align="flex-start"
+        p="14px"
+        h="100%"
+        borderWidth="2px"
+        borderRadius="16px"
+        borderColor={checked ? accent : idleBorder}
+        bg={checked ? selectedBg : 'transparent'}
+        opacity={checked ? 1 : 0.85}
+        transition="all 0.15s"
+        _hover={{ borderColor: accent, opacity: 1 }}
+        sx={{ 'input:focus-visible + &': { boxShadow: 'outline' } }}
+      >
+        <Icon as={icon} boxSize="28px" color={accent} flexShrink={0} />
+        <Flex direction="column">
+          <Text color={titleColor} fontWeight="700" fontSize="md">
+            {intl.formatMessage({ id: `automation.guards.fallback.${value}` })}
+          </Text>
+          <Text color={bodyColor} fontSize="sm">
+            {intl.formatMessage({ id: `automation.guards.fallback.${value}.desc` })}
+          </Text>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+};
+
+const FallbackTiles = ({ value, onChange }) => {
+  const intl = useIntl();
+  // A stored "on:<mode>" matches neither tile: nothing is checked and the value
+  // is left untouched until the user picks one.
+  return (
+    <SimpleGrid
+      role="radiogroup"
+      aria-label={intl.formatMessage({ id: 'automation.guards.fallback' })}
+      columns={{ base: 1, sm: 2 }}
+      spacing="12px"
+    >
+      {FALLBACK_TILES.map((tile) => (
+        <FallbackTile key={tile.value} tile={tile} checked={value === tile.value} onSelect={onChange} />
+      ))}
+    </SimpleGrid>
+  );
+};
+
+const GuardRailsCard = ({ config, onSave, isSaving }) => {
   const intl = useIntl();
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
@@ -71,6 +149,31 @@ const GuardRailsCard = ({ config, minerModes = [], onSave, isSaving }) => {
           </Text>
         </Flex>
 
+        {/* The one choice that decides what the miner does at night or without
+            data, so it gets its own prominent block above the numeric fields. */}
+        <Flex direction="column" gap="8px">
+          <Tooltip label={intl.formatMessage({ id: 'automation.guards.fallback.tooltip' })}>
+            <Text color={textColor} fontSize="md" fontWeight="700" w="fit-content">
+              {intl.formatMessage({ id: 'automation.guards.fallback' })}
+            </Text>
+          </Tooltip>
+          <Text color={subTextColor} fontSize="sm">
+            {intl.formatMessage({ id: 'automation.guards.fallback.hint' })}
+          </Text>
+          <FallbackTiles
+            value={draft.fallbackAction}
+            onChange={(v) => setDraft({ ...draft, fallbackAction: v })}
+          />
+          {draft.fallbackAction?.startsWith('on:') && (
+            <Text color={subTextColor} fontSize="xs">
+              {intl.formatMessage(
+                { id: 'automation.guards.fallback.current' },
+                { value: draft.fallbackAction }
+              )}
+            </Text>
+          )}
+        </Flex>
+
         {/* Two even columns, so a longer label like "Min interval (min)" has room
             instead of wrapping in the narrow card. */}
         <SimpleGrid columns={2} spacingX="12px" spacingY="10px">
@@ -92,28 +195,6 @@ const GuardRailsCard = ({ config, minerModes = [], onSave, isSaving }) => {
             </FormControl>
           ))}
 
-          <FormControl gridColumn="span 2">
-            <Tooltip label={intl.formatMessage({ id: 'automation.guards.fallback.tooltip' })}>
-              <FormLabel fontSize="xs" color={subTextColor}>
-                {intl.formatMessage({ id: 'automation.guards.fallback' })}
-              </FormLabel>
-            </Tooltip>
-            <Select
-              variant="auth"
-              size="sm"
-              value={draft.fallbackAction || 'keep'}
-              onChange={(e) => setDraft({ ...draft, fallbackAction: e.target.value })}
-            >
-              <option value="keep">{intl.formatMessage({ id: 'automation.guards.fallback.keep' })}</option>
-              <option value="off">{intl.formatMessage({ id: 'automation.guards.fallback.off' })}</option>
-              {/* Modes come from the same backend source of truth as everywhere else. */}
-              {minerModes.map((mode) => (
-                <option key={mode} value={`on:${mode}`}>
-                  on:{mode}
-                </option>
-              ))}
-            </Select>
-          </FormControl>
         </SimpleGrid>
 
         <Flex justify="flex-end">

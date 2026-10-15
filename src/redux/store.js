@@ -21,6 +21,7 @@ import updateReducer from './slices/updateSlice';
 import servicesReducer from './slices/servicesSlice';
 import logsReducer from './slices/logsSlice';
 import soloReducer from './slices/soloSlice';
+import mqttBrowseReducer from './slices/mqttBrowseSlice';
 
 // Custom middleware
 const feedbackMiddleware = (store) => (next) => (action) => {
@@ -87,6 +88,7 @@ const rootReducer = {
   services: servicesReducer,
   logs: logsReducer,
   solo: soloReducer,
+  mqttBrowse: mqttBrowseReducer,
 };
 
 // Create persisted reducer

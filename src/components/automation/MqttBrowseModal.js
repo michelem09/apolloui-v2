@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -16,18 +16,33 @@ import {
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { useLazyQuery } from '@apollo/client';
+import { useApolloClient } from '@apollo/client';
+import { useDispatch, useSelector } from 'react-redux';
 import { useIntl } from 'react-intl';
-import { DISCOVER_MQTT_QUERY } from '../../graphql/mqtt';
+import { DISCOVER_MQTT_QUERY, CACHED_MQTT_TOPICS_QUERY } from '../../graphql/mqtt';
+import {
+  cacheFailed,
+  cacheLoaded,
+  filterChanged,
+  filterTopics,
+  scanFailed,
+  scanFinished,
+  scanStarted,
+} from '../../redux/slices/mqttBrowseSlice';
 
-// The broker scan runs a fixed wildcard subscription window (kept in sync with the
-// backend cap in services/mqtt/client.js discoverTopics). Long enough to catch an
-// interval publisher (e.g. a ~40s solar bridge) that isn't retained.
+// The explicit scan runs a fixed wildcard subscription window (kept in sync with
+// the backend cap in services/mqtt/client.js discoverTopics). Long enough to catch
+// an interval publisher (e.g. a ~40s solar bridge) that isn't retained. The modal
+// itself opens on the backend's topic cache and does not need it.
 const SCAN_SECONDS = 60;
+// While the modal is open, re-read the cache so values and ages stay current.
+const CACHE_POLL_MS = 5000;
 
 // A short segment name for a topic, sanitized for use as a signal name.
 const nameFromTopic = (topic) =>
   (topic.split('/').filter(Boolean).pop() || 'input').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 24);
+
+const pathValue = (t, path) => (t.pathValues || []).find((x) => x.path === path)?.value ?? null;
 
 const sanitizeName = (s) => String(s || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 24);
 
@@ -40,37 +55,81 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
 
-  const [prefix, setPrefix] = useState('');
-  const [topics, setTopics] = useState(null);
-  const [error, setError] = useState(null);
-  const [discover, { loading }] = useLazyQuery(DISCOVER_MQTT_QUERY, { fetchPolicy: 'no-cache' });
+  const client = useApolloClient();
+  const dispatch = useDispatch();
+  const { topics, cacheError, scan, filter } = useSelector((state) => state.mqttBrowse);
+  const loading = scan.running;
+
+  // The cache read: what the device's own broker connection has seen so far.
+  const loadCache = useCallback(async () => {
+    try {
+      const { data } = await client.query({ query: CACHED_MQTT_TOPICS_QUERY, fetchPolicy: 'no-cache' });
+      const r = data?.Mqtt?.cachedTopics;
+      if (r?.error) return dispatch(cacheFailed(r.error.message));
+      if (!r?.result?.ok) return dispatch(cacheFailed(r?.result?.error || ''));
+      return dispatch(cacheLoaded({ topics: r.result.topics, loadedAt: Date.now() }));
+    } catch (e) {
+      return dispatch(cacheFailed(e.message));
+    }
+  }, [client, dispatch]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    loadCache();
+    const id = setInterval(loadCache, CACHE_POLL_MS);
+    return () => clearInterval(id);
+  }, [isOpen, loadCache]);
 
   // The scan duration is fixed (SCAN_SECONDS), so show a real progress bar and a
-  // countdown instead of an indeterminate spinner — the user knows it takes ~60s
-  // and can watch it advance rather than wonder whether it hung.
-  const [elapsed, setElapsed] = useState(0);
+  // countdown. The start time is in the store, so reopening the modal mid-scan
+  // picks the bar up where it is.
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    if (!loading) {
-      setElapsed(0);
-      return undefined;
-    }
-    const started = Date.now();
-    const id = setInterval(() => setElapsed((Date.now() - started) / 1000), 250);
+    if (!loading) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [loading]);
 
+  const elapsed = loading ? Math.max((now - scan.startedAt) / 1000, 0) : 0;
   // Cap at 99% until the results actually arrive (a hair past SCAN_SECONDS).
   const progress = Math.min((elapsed / SCAN_SECONDS) * 100, 99);
   const remaining = Math.max(Math.ceil(SCAN_SECONDS - elapsed), 0);
 
-  const scan = async (seconds = SCAN_SECONDS) => {
-    setError(null);
-    setTopics(null);
-    const { data } = await discover({ variables: { input: brokerInput(), prefix: prefix || null, seconds } });
-    const r = data?.Mqtt?.discoverTopics;
-    if (r?.error) return setError(r.error.message);
-    if (!r?.result?.ok) return setError(r?.result?.error || intl.formatMessage({ id: 'automation.mqtt.browse_failed' }));
-    setTopics(r.result.topics);
+  // On demand only. The promise belongs to the store, not to this component, so
+  // closing the modal does not lose the scan.
+  const runScan = async () => {
+    if (scan.running) return;
+    dispatch(scanStarted(Date.now()));
+    try {
+      const { data } = await client.query({
+        query: DISCOVER_MQTT_QUERY,
+        variables: { input: brokerInput(), prefix: null, seconds: SCAN_SECONDS },
+        fetchPolicy: 'no-cache',
+      });
+      const r = data?.Mqtt?.discoverTopics;
+      if (r?.error) return dispatch(scanFailed(r.error.message));
+      if (!r?.result?.ok) {
+        return dispatch(scanFailed(r?.result?.error || intl.formatMessage({ id: 'automation.mqtt.browse_failed' })));
+      }
+      // The scan also fed the backend cache; show what it now holds.
+      dispatch(scanFinished());
+      return loadCache();
+    } catch (e) {
+      return dispatch(scanFailed(e.message));
+    }
+  };
+
+  const visible = filterTopics(topics, filter);
+  const error = scan.error || cacheError;
+
+  // "12s ago" / "3 min ago" for a lastSeen timestamp.
+  const ago = (iso) => {
+    if (!iso) return null;
+    const secs = Math.max(Math.round((Date.now() - Date.parse(iso)) / 1000), 0);
+    if (secs < 90) return intl.formatRelativeTime(-secs, 'second');
+    if (secs < 5400) return intl.formatRelativeTime(-Math.round(secs / 60), 'minute');
+    return intl.formatRelativeTime(-Math.round(secs / 3600), 'hour');
   };
 
   const pick = (topic, jsonPath, name, unit) => {
@@ -95,11 +154,12 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
             <Input
               variant="auth"
               size="sm"
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
-              placeholder={intl.formatMessage({ id: 'automation.mqtt.browse_prefix' })}
+              value={filter}
+              onChange={(e) => dispatch(filterChanged(e.target.value))}
+              placeholder={intl.formatMessage({ id: 'automation.mqtt.browse_filter' })}
+              aria-label={intl.formatMessage({ id: 'automation.mqtt.browse_filter' })}
             />
-            <Button size="sm" variant="brand" onClick={() => scan(SCAN_SECONDS)} isLoading={loading} minW="140px">
+            <Button size="sm" variant="brand" onClick={runScan} isDisabled={loading} minW="140px">
               {intl.formatMessage({ id: 'automation.mqtt.browse_scan' })}
             </Button>
           </Flex>
@@ -141,8 +201,14 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
             </Text>
           )}
 
+          {topics && topics.length > 0 && !visible.length && (
+            <Text fontSize="sm" color={subTextColor}>
+              {intl.formatMessage({ id: 'automation.mqtt.browse_no_match' })}
+            </Text>
+          )}
+
           <Flex direction="column" gap="8px">
-            {(topics || []).map((t) => (
+            {visible.map((t) => (
               <Box key={t.name ? `${t.topic}#${t.jsonPath || ''}` : t.topic} bg={rowBg} borderRadius="10px" p="10px 12px">
                 <Flex justify="space-between" align="center" gap="10px" wrap="wrap">
                   <Box minW="0" flex="1">
@@ -172,6 +238,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                         <Text fontSize="xs" color={subTextColor} noOfLines={1} wordBreak="break-all">
                           {t.topic}
                           {t.jsonPath ? ` · ${t.jsonPath}` : ''}
+                          {t.lastSeen ? ` · ${ago(t.lastSeen)}` : ''}
                         </Text>
                       </>
                     ) : (
@@ -182,6 +249,11 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                         {t.sample && (
                           <Text fontSize="xs" color={subTextColor} noOfLines={1}>
                             {t.sample}
+                          </Text>
+                        )}
+                        {t.lastSeen && (
+                          <Text fontSize="xs" color={subTextColor}>
+                            {intl.formatMessage({ id: 'automation.mqtt.browse_seen' }, { ago: ago(t.lastSeen) })}
                           </Text>
                         )}
                       </>
@@ -209,6 +281,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick }) => {
                         onClick={() => pick(t.topic, p)}
                       >
                         {p}
+                        {pathValue(t, p) != null ? ` = ${pathValue(t, p)}` : ''}
                       </Badge>
                     ))}
                   </Flex>

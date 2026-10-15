@@ -50,6 +50,8 @@ export const TEST_MQTT_QUERY = gql`
   }
 `;
 
+const TOPIC_FIELDS = `topic sample jsonPaths pathValues { path value } name unit jsonPath value lastSeen`;
+
 export const DISCOVER_MQTT_QUERY = gql`
   ${ERROR_FRAGMENT}
   query DISCOVER_MQTT($input: MqttConfigInput!, $prefix: String, $seconds: Int) {
@@ -58,7 +60,24 @@ export const DISCOVER_MQTT_QUERY = gql`
         result {
           ok
           error
-          topics { topic sample jsonPaths name unit jsonPath value }
+          topics { ${TOPIC_FIELDS} }
+        }
+        error { ...ErrorFragment }
+      }
+    }
+  }
+`;
+
+// Topics the device's broker connection has already seen — instant, no scan.
+export const CACHED_MQTT_TOPICS_QUERY = gql`
+  ${ERROR_FRAGMENT}
+  query CACHED_MQTT_TOPICS {
+    Mqtt {
+      cachedTopics {
+        result {
+          ok
+          error
+          topics { ${TOPIC_FIELDS} }
         }
         error { ...ErrorFragment }
       }

@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { ChakraProvider } from '@chakra-ui/react';
 import { IntlProvider } from 'react-intl';
 import { MockedProvider } from '@apollo/client/testing';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import mqttBrowseReducer from '../../redux/slices/mqttBrowseSlice';
 
 import en from '../../locales/en.json';
 import { flattenMessages } from '../../lib/utils';
@@ -43,13 +46,15 @@ describe('MqttInputsCard', () => {
   it('tells the page to reload the signal descriptors after saving inputs', async () => {
     const onSaved = jest.fn();
     render(
-      <MockedProvider mocks={mocks} addTypename>
-        <ChakraProvider>
-          <IntlProvider locale="en" messages={flattenMessages(en)}>
-            <MqttInputsCard onSaved={onSaved} />
-          </IntlProvider>
-        </ChakraProvider>
-      </MockedProvider>
+      <Provider store={configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } })}>
+        <MockedProvider mocks={mocks} addTypename>
+          <ChakraProvider>
+            <IntlProvider locale="en" messages={flattenMessages(en)}>
+              <MqttInputsCard onSaved={onSaved} />
+            </IntlProvider>
+          </ChakraProvider>
+        </MockedProvider>
+      </Provider>
     );
 
     await screen.findByDisplayValue('sun/surplus');

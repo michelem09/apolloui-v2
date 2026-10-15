@@ -125,6 +125,17 @@ describe('GuardRailsCard', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ minOnMinutes: 30, maxCyclesPerHour: 2 }));
   });
 
+  it('lets the numeric field labels wrap instead of clamping them', () => {
+    renderUI(<GuardRailsCard config={config} onSave={() => {}} />);
+    // At 390 px a half-width label such as "Tempo minimo acceso (min)" does not fit
+    // on one line; noOfLines/isTruncated would cut it with an ellipsis.
+    const label = screen.getByText('Min on time (min)');
+    const cs = window.getComputedStyle(label);
+    expect(cs.textOverflow).not.toBe('ellipsis');
+    expect(cs.overflow).not.toBe('hidden');
+    expect(cs.webkitLineClamp || cs.getPropertyValue('-webkit-line-clamp')).toBeFalsy();
+  });
+
   describe('fallback tiles', () => {
     const radios = () => screen.getAllByRole('radio');
 

@@ -207,13 +207,14 @@ const GuardRailsCard = ({ config, minerModes = [], onSave, isSaving }) => {
           )}
         </Flex>
 
-        {/* Two even columns, so a longer label like "Min interval (min)" has room
-            instead of wrapping in the narrow card. */}
+        {/* Two even columns. Labels wrap (never truncate: "Tempo minimo acceso (min)"
+            is longer than a half-width card at 390 px), and the label grows so the
+            inputs of a row stay aligned when one label takes two lines. */}
         <SimpleGrid columns={2} spacingX="12px" spacingY="10px">
           {FIELDS.map(({ key, unit }) => (
-            <FormControl key={key}>
+            <FormControl key={key} display="flex" flexDirection="column">
               <Tooltip label={intl.formatMessage({ id: `automation.guards.${key}.tooltip` })}>
-                <FormLabel fontSize="xs" color={subTextColor} noOfLines={1}>
+                <FormLabel fontSize="xs" color={subTextColor} flexGrow={1} mb="4px">
                   {intl.formatMessage({ id: `automation.guards.${key}` })}
                   {unit && ` (${unit})`}
                 </FormLabel>

@@ -1021,7 +1021,7 @@
       "match_any": "Almeno una condizione",
       "safety": "Regola di sicurezza",
       "safety_label": "Vale sempre",
-      "safety_tooltip": "Una regola di sicurezza agisce anche con l’automazione in pausa e scavalca i guard rail. Usala per il surriscaldamento.",
+      "safety_tooltip": "Una regola di sicurezza agisce anche con l’automazione in pausa e scavalca i limiti di protezione. Usala per il surriscaldamento.",
       "conditions": "Condizioni",
       "add_condition": "Aggiungi condizione",
       "remove_condition": "Rimuovi condizione",
@@ -1042,7 +1042,7 @@
       "and": "e"
     },
     "guards": {
-      "title": "Guard rail",
+      "title": "Limiti di protezione",
       "description": "I miner non amano i cicli rapidi, e cambiare modo li riavvia. Questi limiti evitano che un segnale rumoroso logori l’hardware.",
       "minOnMinutes": "Tempo minimo acceso",
       "minOnMinutes.tooltip": "Una volta acceso, il miner resta acceso almeno per questo tempo.",

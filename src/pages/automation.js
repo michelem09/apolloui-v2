@@ -23,7 +23,6 @@ import {
 import { useQuery, useLazyQuery, useSubscription } from '@apollo/client';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
-import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 import { settingsSelector } from '../redux/reselect/settings';
 
 import {
@@ -214,11 +213,9 @@ const Automation = () => {
   // matters: a rule reads a sun signal but no coordinates are set, so that rule
   // can never match (the signal is stale).
   // Single source of truth for the miner modes: the backend descriptor.
-  const allModes = descriptors.find((d) => d.id === 'miner.mode')?.options || [];
-  // The descriptor lists super_eco for every device (the configurator falls back
-  // to eco on Apollo I/II); the fallback tile must not offer it there.
-  const { minerFamily } = useDeviceConfig();
-  const minerModes = minerFamily === 'legacy' ? allModes.filter((m) => m !== 'super_eco') : allModes;
+  // The backend already lists only what this device can run (no super_eco on
+  // Apollo I/II), so nothing is filtered here.
+  const minerModes = descriptors.find((d) => d.id === 'miner.mode')?.options || [];
 
   // The tariff band names currently defined — the "energy.band" condition can
   // only reference one of these, and cannot be added when there are none.

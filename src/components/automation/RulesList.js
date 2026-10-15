@@ -86,6 +86,12 @@ const SortableRule = ({ rule, descriptors, temperatureUnit, activeRuleId, onEdit
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
   const activeBg = useColorModeValue('green.50', 'green.900');
 
+  // The backend lists only the modes this device can run. A rule naming another
+  // one (saved on, or restored from, a different device) is skipped by the engine.
+  const availableModes = descriptors.find((d) => d.id === 'miner.mode')?.options;
+  const modeUnavailable =
+    rule.action?.type === 'mode' && !!availableModes && !availableModes.includes(rule.action.mode);
+
   return (
     <Reorder.Item
       value={rule}
@@ -122,6 +128,11 @@ const SortableRule = ({ rule, descriptors, temperatureUnit, activeRuleId, onEdit
               <Badge colorScheme="red" display="flex" alignItems="center" gap="4px">
                 <MdShield />
                 {intl.formatMessage({ id: 'automation.rules.safety' })}
+              </Badge>
+            )}
+            {modeUnavailable && (
+              <Badge colorScheme="orange" title={intl.formatMessage({ id: 'automation.rules.mode_unavailable_hint' }, { mode: rule.action.mode })}>
+                {intl.formatMessage({ id: 'automation.rules.mode_unavailable' })}
               </Badge>
             )}
             {rule.id === activeRuleId && (

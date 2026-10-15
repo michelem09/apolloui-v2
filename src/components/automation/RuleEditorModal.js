@@ -508,7 +508,7 @@ const RuleEditorModal = ({ isOpen, onClose, onSave, rule, descriptors, bands = [
                     value={draft.action.mode || minerModes[0]}
                     onChange={(e) => setDraft({ ...draft, action: { type: 'mode', mode: e.target.value } })}
                   >
-                    {minerModes.map((mode) => (
+                    {[...minerModes, ...(minerModes.includes(draft.action.mode) || !draft.action.mode ? [] : [draft.action.mode])].map((mode) => (
                       <option key={mode} value={mode}>
                         {intl.formatMessage({ id: `settings.sections.miner.modes.${mode}.title`, defaultMessage: mode })}
                       </option>
@@ -517,6 +517,15 @@ const RuleEditorModal = ({ isOpen, onClose, onSave, rule, descriptors, bands = [
                 </FormControl>
               )}
             </Flex>
+
+            {draft.action.type === 'mode' && draft.action.mode && !minerModes.includes(draft.action.mode) && (
+              <Alert status="warning" borderRadius="10px">
+                <AlertIcon />
+                <AlertDescription fontSize="sm">
+                  {intl.formatMessage({ id: 'automation.editor.mode_unavailable_warning' }, { mode: draft.action.mode })}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {draft.action.type === 'mode' && (
               <Text fontSize="xs" color="orange.400">

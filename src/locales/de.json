@@ -988,6 +988,8 @@
       "empty": "Noch keine Regeln. Füge eine hinzu, damit die Automatisierung handeln kann.",
       "safety": "Sicherheit",
       "active": "Aktiv",
+      "mode_unavailable": "Modus nicht verfügbar",
+      "mode_unavailable_hint": "{mode} ist auf diesem Gerät nicht verfügbar: Die Regel wird übersprungen.",
       "edit": "Regel bearbeiten",
       "delete": "Regel löschen",
       "drag": "Zum Umsortieren ziehen"
@@ -1047,6 +1049,7 @@
       "action_mode": "In Modus laufen",
       "mode": "Modus",
       "mode_restart_warning": "Ein Moduswechsel startet den Miner neu und kostet einige Minuten Ausfallzeit.",
+      "mode_unavailable_warning": "{mode} ist auf diesem Gerät nicht verfügbar, daher wird diese Regel übersprungen. Wähle einen anderen Modus, um sie zu verwenden.",
       "running_only_warning": "{signals} ist nur lesbar, während der Miner läuft — diese Regel könnte ihn also nie wieder einschalten. Nutze es, um den Miner zu stoppen (Übertemperatur), und schalte ihn mit einem auch im ausgeschalteten Zustand verfügbaren Signal ein — Uhrzeit, Sonnenauf-/untergang oder Außentemperatur.",
       "cancel": "Abbrechen",
       "save": "Regel speichern",

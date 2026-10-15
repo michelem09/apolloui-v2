@@ -988,6 +988,8 @@
       "empty": "No rules yet. Add one to let the automation act.",
       "safety": "Safety",
       "active": "In charge",
+      "mode_unavailable": "Mode unavailable",
+      "mode_unavailable_hint": "{mode} is not available on this device: this rule is skipped.",
       "edit": "Edit rule",
       "delete": "Delete rule",
       "drag": "Drag to reorder"
@@ -1047,6 +1049,7 @@
       "action_mode": "Run in mode",
       "mode": "Mode",
       "mode_restart_warning": "Changing mode restarts the miner and costs a few minutes of downtime.",
+      "mode_unavailable_warning": "{mode} is not available on this device, so this rule is skipped. Pick another mode to use it.",
       "running_only_warning": "{signals} can only be read while the miner runs, so this rule could never turn it back on. Use it to stop the miner (over-temperature) instead, and turn the miner on with a signal available while off — time, sunrise/sunset, or outdoor temperature.",
       "cancel": "Cancel",
       "save": "Save rule",

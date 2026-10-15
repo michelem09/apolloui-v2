@@ -393,3 +393,50 @@ describe('EventsTimeline', () => {
     expect(screen.getByRole('button', { name: 'Load more' })).toBeInTheDocument();
   });
 });
+
+// The backend descriptor is the single source of the mode list (device-aware:
+// no super_eco on Apollo I/II). A rule saved with a mode outside it must read as
+// invalid rather than crash or silently look fine.
+describe('a rule whose mode this device cannot run', () => {
+  const modeDescriptor = (options) => ({
+    id: 'miner.mode', type: 'string', widget: 'enum', options, ops: ['==', '!='], supportsHysteresis: false,
+  });
+  const legacyDescriptors = [...descriptors, modeDescriptor(['eco', 'balanced', 'turbo', 'custom'])];
+  const iiiDescriptors = [...descriptors, modeDescriptor(['super_eco', 'eco', 'balanced', 'turbo', 'custom'])];
+  const quietRule = {
+    ...thermalRule,
+    id: 2,
+    name: 'Quiet night',
+    isSafety: false,
+    action: { type: 'mode', mode: 'super_eco' },
+  };
+
+  it('is flagged in the rules list on a device without that mode', () => {
+    renderUI(
+      <RulesList rules={[quietRule]} descriptors={legacyDescriptors} onCreate={() => {}} onEdit={() => {}} onToggle={() => {}} onDelete={() => {}} />
+    );
+    expect(screen.getByText('Mode unavailable')).toBeInTheDocument();
+  });
+
+  it('is not flagged where the mode exists', () => {
+    renderUI(
+      <RulesList rules={[quietRule]} descriptors={iiiDescriptors} onCreate={() => {}} onEdit={() => {}} onToggle={() => {}} onDelete={() => {}} />
+    );
+    expect(screen.queryByText('Mode unavailable')).not.toBeInTheDocument();
+  });
+
+  it('warns in the editor instead of silently showing another mode', () => {
+    renderUI(
+      <RuleEditorModal isOpen onClose={() => {}} onSave={() => {}} rule={quietRule} descriptors={legacyDescriptors} />
+    );
+    expect(screen.getByText(/super_eco is not available on this device/)).toBeInTheDocument();
+  });
+
+  it('offers only the descriptor modes in the editor for a new mode rule', () => {
+    renderUI(
+      <RuleEditorModal isOpen onClose={() => {}} onSave={() => {}} rule={{ ...quietRule, action: { type: 'mode', mode: 'eco' } }} descriptors={legacyDescriptors} />
+    );
+    expect(screen.queryByText(/is not available on this device/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /super eco/i })).not.toBeInTheDocument();
+  });
+});

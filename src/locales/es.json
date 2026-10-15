@@ -988,6 +988,8 @@
       "empty": "Aún no hay reglas. Añade una para que la automatización actúe.",
       "safety": "Seguridad",
       "active": "Al mando",
+      "mode_unavailable": "Modo no disponible",
+      "mode_unavailable_hint": "{mode} no está disponible en este dispositivo: la regla se omite.",
       "edit": "Editar regla",
       "delete": "Eliminar regla",
       "drag": "Arrastra para reordenar"
@@ -1047,6 +1049,7 @@
       "action_mode": "Funcionar en modo",
       "mode": "Modo",
       "mode_restart_warning": "Cambiar de modo reinicia el miner y cuesta unos minutos de parada.",
+      "mode_unavailable_warning": "{mode} no está disponible en este dispositivo, así que la regla se omite. Elige otro modo para usarla.",
       "running_only_warning": "{signals} solo se puede leer mientras el miner está en marcha, así que esta regla nunca podría volver a encenderlo. Úsalo para apagar el miner (sobretemperatura), y enciéndelo con una señal disponible también apagado — hora, amanecer/atardecer o temperatura exterior.",
       "cancel": "Cancelar",
       "save": "Guardar regla",

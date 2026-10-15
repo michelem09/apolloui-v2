@@ -175,6 +175,7 @@ describe('GuardRailsCard', () => {
       const select = screen.getByRole('combobox', { name: 'Miner mode' });
       expect(select).toHaveValue('super_eco');
 
+      expect(screen.getByRole('option', { name: 'SUPER ECO' })).toHaveAttribute('value', 'super_eco');
       await userEvent.selectOptions(select, 'balanced');
       await userEvent.click(screen.getByRole('button', { name: 'Save' }));
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:balanced' }));

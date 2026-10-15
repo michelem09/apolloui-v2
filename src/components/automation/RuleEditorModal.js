@@ -510,7 +510,7 @@ const RuleEditorModal = ({ isOpen, onClose, onSave, rule, descriptors, bands = [
                   >
                     {minerModes.map((mode) => (
                       <option key={mode} value={mode}>
-                        {mode}
+                        {intl.formatMessage({ id: `settings.sections.miner.modes.${mode}.title`, defaultMessage: mode })}
                       </option>
                     ))}
                   </Select>

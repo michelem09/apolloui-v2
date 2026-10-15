@@ -122,7 +122,7 @@ const FallbackTiles = ({ value, onChange, modes }) => {
               >
                 {modes.map((m) => (
                   <option key={m} value={m}>
-                    {m}
+                    {intl.formatMessage({ id: `settings.sections.miner.modes.${m}.title`, defaultMessage: m })}
                   </option>
                 ))}
               </Select>

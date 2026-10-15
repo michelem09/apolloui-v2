@@ -25,9 +25,10 @@ export const GET_POOLS_QUERY = gql`
   }
 `;
 
-export const SET_POOLS_QUERY = gql`
+// Writes are mutations: a query is re-executed by Apollo on a re-render.
+export const SET_POOLS_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SET_POOLS ($input: PoolCreateInput!) {
+  mutation SET_POOLS ($input: PoolCreateInput!) {
     Pool {
       create (input: $input) {
         result {
@@ -49,9 +50,9 @@ export const SET_POOLS_QUERY = gql`
   }
 `;
 
-export const UPDATE_POOLS_QUERY = gql`
+export const UPDATE_POOLS_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query UPDATE_POOLS ($input: PoolUpdateAllInput!) {
+  mutation UPDATE_POOLS ($input: PoolUpdateAllInput!) {
     Pool {
       updateAll(input: $input) {
         result {

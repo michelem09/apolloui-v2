@@ -10,7 +10,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import en from '../../locales/en.json';
 import { flattenMessages } from '../../lib/utils';
 import mqttBrowseReducer, { filterTopics } from '../../redux/slices/mqttBrowseSlice';
-import { CACHED_MQTT_TOPICS_QUERY, END_MQTT_BROWSE_QUERY } from '../../graphql/mqtt';
+import { CACHED_MQTT_TOPICS_QUERY, RENEW_MQTT_BROWSE_MUTATION, END_MQTT_BROWSE_MUTATION } from '../../graphql/mqtt';
 import MqttBrowseModal from './MqttBrowseModal';
 
 const topic = (over) => ({
@@ -39,10 +39,15 @@ const cachedMock = {
   maxUsageCount: 50,
 };
 
-const endResult = jest.fn(() => ({
-  data: { Mqtt: { __typename: 'MqttActions', endBrowse: { __typename: 'MqttTestOutput', result: { __typename: 'MqttTestResult', ok: true, message: null }, error: null } } },
+const renewResult = jest.fn(() => ({
+  data: { Mqtt: { __typename: 'MqttMutations', renewBrowse: { __typename: 'MqttTestOutput', result: { __typename: 'MqttTestResult', ok: true, message: null }, error: null } } },
 }));
-const endMock = { request: { query: END_MQTT_BROWSE_QUERY }, result: (...a) => endResult(...a), maxUsageCount: 50 };
+const renewMock = { request: { query: RENEW_MQTT_BROWSE_MUTATION }, result: (...a) => renewResult(...a), maxUsageCount: 50 };
+
+const endResult = jest.fn(() => ({
+  data: { Mqtt: { __typename: 'MqttMutations', endBrowse: { __typename: 'MqttTestOutput', result: { __typename: 'MqttTestResult', ok: true, message: null }, error: null } } },
+}));
+const endMock = { request: { query: END_MQTT_BROWSE_MUTATION }, result: (...a) => endResult(...a), maxUsageCount: 50 };
 
 // The card keeps the modal mounted and toggles isOpen, like the real page.
 const Harness = ({ mapped }) => {
@@ -55,7 +60,7 @@ const Harness = ({ mapped }) => {
   );
 };
 
-const setup = ({ mocks = [cachedMock, endMock], mapped } = {}) => {
+const setup = ({ mocks = [cachedMock, renewMock, endMock], mapped } = {}) => {
   const store = configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } });
   const utils = render(
     <Provider store={store}>
@@ -130,7 +135,16 @@ describe('MqttBrowseModal', () => {
 });
 
 describe('MqttBrowseModal, browse session and states', () => {
-  beforeEach(() => endResult.mockClear());
+  beforeEach(() => {
+    endResult.mockClear();
+    renewResult.mockClear();
+  });
+
+  it('renews the browse session with a mutation when it reads the cache', async () => {
+    setup();
+    await screen.findByText('sun2000/state');
+    expect(renewResult).toHaveBeenCalled();
+  });
 
   it('tells the device to stop listening when the modal closes, not before', async () => {
     setup();
@@ -149,7 +163,7 @@ describe('MqttBrowseModal, browse session and states', () => {
         data: { Mqtt: { __typename: 'MqttActions', cachedTopics: { __typename: 'MqttDiscoverOutput', result: { __typename: 'MqttDiscoverResult', ok: true, error: 'The broker does not allow subscribing to all topics (#), so live browsing is unavailable.', topics: TOPICS }, error: null } } },
       },
     };
-    setup({ mocks: [warn, endMock] });
+    setup({ mocks: [warn, renewMock, endMock] });
     expect(await screen.findByText(/does not allow subscribing to all topics/)).toBeInTheDocument();
     expect(screen.getByText('garage/Door')).toBeInTheDocument();
   });
@@ -159,7 +173,7 @@ describe('MqttBrowseModal, browse session and states', () => {
     const store = configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } });
     render(
       <Provider store={store}>
-        <MockedProvider mocks={[cachedMock, endMock]} addTypename>
+        <MockedProvider mocks={[cachedMock, renewMock, endMock]} addTypename>
           <ChakraProvider>
             <IntlProvider locale="en" messages={flattenMessages(en)}>
               <MqttBrowseModal
@@ -196,7 +210,7 @@ describe('MqttBrowseModal, remounted', () => {
 
     render(
       <Provider store={store}>
-        <MockedProvider mocks={[cachedMock, endMock]} addTypename>
+        <MockedProvider mocks={[cachedMock, renewMock, endMock]} addTypename>
           <ChakraProvider>
             <IntlProvider locale="en" messages={flattenMessages(en)}>
               <MqttBrowseModal isOpen onClose={() => {}} brokerInput={() => ({ host: 'b' })} onPick={() => {}} />

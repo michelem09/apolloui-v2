@@ -26,9 +26,10 @@ export const GET_MQTT_QUERY = gql`
   }
 `;
 
-export const SET_MQTT_QUERY = gql`
+// A mutation, not a query: a re-render must never re-save the config.
+export const SET_MQTT_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SET_MQTT($input: MqttConfigInput!) {
+  mutation SET_MQTT($input: MqttConfigInput!) {
     Mqtt {
       updateConfig(input: $input) {
         result { ${MQTT_FIELDS} }
@@ -68,12 +69,13 @@ export const DISCOVER_MQTT_QUERY = gql`
   }
 `;
 
-// Topics the device's broker connection has already seen — instant, no scan.
+// Topics the device's broker connection has already seen — instant, no scan, and a
+// pure read: it does not keep the browse session alive (RENEW_MQTT_BROWSE does).
 export const CACHED_MQTT_TOPICS_QUERY = gql`
   ${ERROR_FRAGMENT}
   query CACHED_MQTT_TOPICS {
     Mqtt {
-      cachedTopics(lease: true) {
+      cachedTopics {
         result {
           ok
           error
@@ -85,10 +87,24 @@ export const CACHED_MQTT_TOPICS_QUERY = gql`
   }
 `;
 
-// The browse modal closed: the device stops listening to everything on the broker.
-export const END_MQTT_BROWSE_QUERY = gql`
+// Start or renew the browse session: while it lives the device listens to
+// everything on the broker. The modal calls it on open and on every poll.
+export const RENEW_MQTT_BROWSE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query END_MQTT_BROWSE {
+  mutation RENEW_MQTT_BROWSE {
+    Mqtt {
+      renewBrowse {
+        result { ok message }
+        error { ...ErrorFragment }
+      }
+    }
+  }
+`;
+
+// The browse modal closed: the device stops listening to everything on the broker.
+export const END_MQTT_BROWSE_MUTATION = gql`
+  ${ERROR_FRAGMENT}
+  mutation END_MQTT_BROWSE {
     Mqtt {
       endBrowse {
         result { ok message }

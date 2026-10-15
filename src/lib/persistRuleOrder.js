@@ -14,7 +14,10 @@ export async function persistRuleOrder({ orderedRules, rules, updateRule, report
   for (const u of updates) {
     // eslint-disable-next-line no-await-in-loop
     const { data: result } = await updateRule({ variables: { id: u.id, input: { priority: u.priority } } });
-    if (!report(result?.Automation?.updateRule?.error)) return false;
+    // No payload = the request itself failed (the error link already toasted it):
+    // stop here too, or the remaining writes would carry on over a broken link.
+    if (!result?.Automation?.updateRule) return false;
+    if (!report(result.Automation.updateRule.error)) return false;
   }
   return true;
 }

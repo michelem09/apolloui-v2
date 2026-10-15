@@ -19,7 +19,12 @@ import {
 import { useApolloClient } from '@apollo/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { useIntl } from 'react-intl';
-import { DISCOVER_MQTT_QUERY, CACHED_MQTT_TOPICS_QUERY, END_MQTT_BROWSE_QUERY } from '../../graphql/mqtt';
+import {
+  DISCOVER_MQTT_QUERY,
+  CACHED_MQTT_TOPICS_QUERY,
+  RENEW_MQTT_BROWSE_MUTATION,
+  END_MQTT_BROWSE_MUTATION,
+} from '../../graphql/mqtt';
 import {
   cacheFailed,
   cacheLoaded,
@@ -64,9 +69,13 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) 
   const { topics, cacheError, cacheWarning, scan, filter } = useSelector((state) => state.mqttBrowse);
   const loading = scan.running;
 
-  // The cache read: what the device's own broker connection has seen so far.
+  // The cache read: what the device's own broker connection has seen so far. The
+  // read itself is a pure query; keeping the browse session alive is a separate
+  // mutation, sent first so the device is listening before it answers. A failed
+  // renew is not fatal: the read below reports a disconnected broker by itself.
   const loadCache = useCallback(async () => {
     try {
+      await client.mutate({ mutation: RENEW_MQTT_BROWSE_MUTATION }).catch(() => {});
       const { data } = await client.query({ query: CACHED_MQTT_TOPICS_QUERY, fetchPolicy: 'no-cache' });
       const r = data?.Mqtt?.cachedTopics;
       if (r?.error) return dispatch(cacheFailed(r.error.message));
@@ -77,7 +86,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) 
     }
   }, [client, dispatch]);
 
-  // Each read renews the device's browse session (it listens to the whole broker
+  // Each poll renews the device's browse session (it listens to the whole broker
   // only while someone is looking); closing the modal ends it, and if the browser
   // just vanishes the device ends it itself after a few minutes.
   useEffect(() => {
@@ -86,7 +95,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) 
     const id = setInterval(loadCache, CACHE_POLL_MS);
     return () => {
       clearInterval(id);
-      client.query({ query: END_MQTT_BROWSE_QUERY, fetchPolicy: 'no-cache' }).catch(() => {});
+      client.mutate({ mutation: END_MQTT_BROWSE_MUTATION }).catch(() => {});
     };
   }, [isOpen, loadCache, client]);
 

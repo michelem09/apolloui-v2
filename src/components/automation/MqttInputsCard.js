@@ -12,13 +12,14 @@ import {
 } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { useEffect, useState } from 'react';
-import { useQuery, useLazyQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { useIntl } from 'react-intl';
 import { useDispatch } from 'react-redux';
 import { sendFeedback } from '../../redux/slices/feedbackSlice';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import Card from '../card/Card';
-import { GET_MQTT_QUERY, SET_MQTT_QUERY } from '../../graphql/mqtt';
+import { GET_MQTT_QUERY, SET_MQTT_MUTATION } from '../../graphql/mqtt';
+import { runMutation } from '../../lib/runMutation';
 import MqttBrowseModal from './MqttBrowseModal';
 
 /**
@@ -34,7 +35,7 @@ const MqttInputsCard = ({ onSaved }) => {
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
 
   const { data, refetch } = useQuery(GET_MQTT_QUERY, { fetchPolicy: 'network-only' });
-  const [saveMqtt, { loading: saving }] = useLazyQuery(SET_MQTT_QUERY, { fetchPolicy: 'no-cache' });
+  const [saveMqtt, { loading: saving }] = useMutation(SET_MQTT_MUTATION);
 
   const config = data?.Mqtt?.config?.result;
   const brokerSet = !!(config?.enabled && config?.host);
@@ -71,7 +72,7 @@ const MqttInputsCard = ({ onSaved }) => {
   const setInput = (i, patch) => setInputs((list) => list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
 
   const save = async () => {
-    const { data: saved } = await saveMqtt({
+    const { data: saved, error: failed } = await runMutation(saveMqtt, {
       variables: {
         input: {
           inputs: inputs
@@ -80,6 +81,9 @@ const MqttInputsCard = ({ onSaved }) => {
         },
       },
     });
+    // The transport error was already toasted by the Apollo error link; just do not
+    // go on as if it had saved (no refetch, no descriptor reload).
+    if (failed || !saved) return;
     // A refused save (e.g. a duplicate name) must be seen, not swallowed.
     const refused = saved?.Mqtt?.updateConfig?.error;
     if (refused) {

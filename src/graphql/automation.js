@@ -108,9 +108,11 @@ export const GET_AUTOMATION_QUERY = gql`
   }
 `;
 
-export const SET_AUTOMATION_CONFIG_QUERY = gql`
+// The writes are mutations, not queries: Apollo re-executes a query on a re-render,
+// and a phantom re-fire must never create a rule or change the config.
+export const SET_AUTOMATION_CONFIG_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SET_AUTOMATION_CONFIG($input: AutomationConfigInput!) {
+  mutation SET_AUTOMATION_CONFIG($input: AutomationConfigInput!) {
     Automation {
       updateConfig(input: $input) {
         result { ${CONFIG_FIELDS} }
@@ -120,9 +122,9 @@ export const SET_AUTOMATION_CONFIG_QUERY = gql`
   }
 `;
 
-export const CREATE_AUTOMATION_RULE_QUERY = gql`
+export const CREATE_AUTOMATION_RULE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query CREATE_AUTOMATION_RULE($input: AutomationRuleInput!) {
+  mutation CREATE_AUTOMATION_RULE($input: AutomationRuleInput!) {
     Automation {
       createRule(input: $input) {
         result { ${RULE_FIELDS} }
@@ -132,9 +134,9 @@ export const CREATE_AUTOMATION_RULE_QUERY = gql`
   }
 `;
 
-export const UPDATE_AUTOMATION_RULE_QUERY = gql`
+export const UPDATE_AUTOMATION_RULE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query UPDATE_AUTOMATION_RULE($id: Int!, $input: AutomationRuleInput!) {
+  mutation UPDATE_AUTOMATION_RULE($id: Int!, $input: AutomationRuleInput!) {
     Automation {
       updateRule(id: $id, input: $input) {
         result { ${RULE_FIELDS} }
@@ -144,9 +146,9 @@ export const UPDATE_AUTOMATION_RULE_QUERY = gql`
   }
 `;
 
-export const DELETE_AUTOMATION_RULE_QUERY = gql`
+export const DELETE_AUTOMATION_RULE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query DELETE_AUTOMATION_RULE($id: Int!) {
+  mutation DELETE_AUTOMATION_RULE($id: Int!) {
     Automation {
       deleteRule(id: $id) {
         error { ...ErrorFragment }
@@ -155,9 +157,9 @@ export const DELETE_AUTOMATION_RULE_QUERY = gql`
   }
 `;
 
-export const CLEAR_AUTOMATION_OVERRIDE_QUERY = gql`
+export const CLEAR_AUTOMATION_OVERRIDE_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query CLEAR_AUTOMATION_OVERRIDE {
+  mutation CLEAR_AUTOMATION_OVERRIDE {
     Automation {
       clearOverride {
         result { ${CONFIG_FIELDS} }

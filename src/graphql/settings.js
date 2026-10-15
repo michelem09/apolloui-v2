@@ -44,9 +44,10 @@ export const GET_SETTINGS_QUERY = gql`
   }
 `;
 
-export const SET_SETTINGS_QUERY = gql`
+// A mutation: a query is re-executed by Apollo on a re-render.
+export const SET_SETTINGS_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SET_SETTINGS($input: SettingsUpdateInput!) {
+  mutation SET_SETTINGS($input: SettingsUpdateInput!) {
     Settings {
       update(input: $input) {
         result {

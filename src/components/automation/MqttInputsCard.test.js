@@ -10,7 +10,7 @@ import mqttBrowseReducer from '../../redux/slices/mqttBrowseSlice';
 import en from '../../locales/en.json';
 import { flattenMessages } from '../../lib/utils';
 import MqttInputsCard from './MqttInputsCard';
-import { GET_MQTT_QUERY, SET_MQTT_QUERY, CACHED_MQTT_TOPICS_QUERY, END_MQTT_BROWSE_QUERY } from '../../graphql/mqtt';
+import { GET_MQTT_QUERY, SET_MQTT_MUTATION, CACHED_MQTT_TOPICS_QUERY, RENEW_MQTT_BROWSE_MUTATION, END_MQTT_BROWSE_MUTATION } from '../../graphql/mqtt';
 
 const config = {
   __typename: 'MqttConfig',
@@ -29,13 +29,13 @@ const config = {
   },
   inputs: [{ __typename: 'MqttInput', name: 'surplus', topic: 'sun/surplus', jsonPath: null, unit: 'W' }],
 };
-const ok = (key) => ({ data: { Mqtt: { [key]: { __typename: 'MqttConfigOutput', result: config, error: null } } } });
+const ok = (key) => ({ data: { Mqtt: { __typename: key === 'config' ? 'MqttActions' : 'MqttMutations', [key]: { __typename: 'MqttConfigOutput', result: config, error: null } } } });
 
 const mocks = [
   { request: { query: GET_MQTT_QUERY }, result: ok('config'), maxUsageCount: 5 },
   {
     request: {
-      query: SET_MQTT_QUERY,
+      query: SET_MQTT_MUTATION,
       variables: { input: { inputs: [{ name: 'surplus', topic: 'sun/surplus', jsonPath: null, unit: 'W' }] } },
     },
     result: ok('updateConfig'),
@@ -73,14 +73,19 @@ describe('MqttInputsCard', () => {
       result: { data: { Mqtt: { __typename: 'MqttActions', cachedTopics: { __typename: 'MqttDiscoverOutput', error: null, result: { __typename: 'MqttDiscoverResult', ok: true, error: null, topics: [t('a/state', 'battery.soc'), t('b/state', 'battery.soc')] } } } } },
       maxUsageCount: 20,
     };
+    const renew = {
+      request: { query: RENEW_MQTT_BROWSE_MUTATION },
+      result: { data: { Mqtt: { __typename: 'MqttMutations', renewBrowse: { __typename: 'MqttTestOutput', error: null, result: { __typename: 'MqttTestResult', ok: true, message: null } } } } },
+      maxUsageCount: 20,
+    };
     const end = {
-      request: { query: END_MQTT_BROWSE_QUERY },
-      result: { data: { Mqtt: { __typename: 'MqttActions', endBrowse: { __typename: 'MqttTestOutput', error: null, result: { __typename: 'MqttTestResult', ok: true, message: null } } } } },
+      request: { query: END_MQTT_BROWSE_MUTATION },
+      result: { data: { Mqtt: { __typename: 'MqttMutations', endBrowse: { __typename: 'MqttTestOutput', error: null, result: { __typename: 'MqttTestResult', ok: true, message: null } } } } },
       maxUsageCount: 20,
     };
     render(
       <Provider store={configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } })}>
-        <MockedProvider mocks={[...mocks, cached, end]} addTypename>
+        <MockedProvider mocks={[...mocks, cached, renew, end]} addTypename>
           <ChakraProvider>
             <IntlProvider locale="en" messages={flattenMessages(en)}>
               <MqttInputsCard />
@@ -122,7 +127,7 @@ describe('MqttInputsCard', () => {
           addTypename
           mocks={[
             { request: { query: GET_MQTT_QUERY }, result: { data: { Mqtt: { __typename: 'MqttActions', config: { __typename: 'MqttConfigOutput', result: dupConfig, error: null } } } }, maxUsageCount: 5 },
-            { request: { query: SET_MQTT_QUERY, variables: { input: { inputs: [{ name: 'battery_soc', topic: 'sun2000/state', jsonPath: 'battery.soc', unit: '%' }] } } }, result: saved },
+            { request: { query: SET_MQTT_MUTATION, variables: { input: { inputs: [{ name: 'battery_soc', topic: 'sun2000/state', jsonPath: 'battery.soc', unit: '%' }] } } }, result: saved },
           ]}
         >
           <ChakraProvider>

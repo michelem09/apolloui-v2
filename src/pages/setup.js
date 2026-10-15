@@ -6,10 +6,11 @@ import { useIntl } from 'react-intl';
 
 import { MINER_RESTART_QUERY } from '../graphql/miner';
 import { NODE_START_MUTATION } from '../graphql/node';
-import { AUTH_LOGIN_QUERY, SAVE_SETUP_QUERY } from '../graphql/auth';
-import { UPDATE_POOLS_QUERY } from '../graphql/pools';
-import { SET_SETTINGS_QUERY } from '../graphql/settings';
+import { AUTH_LOGIN_QUERY, SAVE_SETUP_MUTATION } from '../graphql/auth';
+import { UPDATE_POOLS_MUTATION } from '../graphql/pools';
+import { SET_SETTINGS_MUTATION } from '../graphql/settings';
 import { isValidBitcoinAddress, presetPools } from '../lib/utils';
+import { runMutation } from '../lib/runMutation';
 import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 
 // Components
@@ -54,21 +55,22 @@ const Setup = () => {
     { onError: () => {} }
   );
 
-  const [saveSetup, { data: dataSaveSetup, error: errorSaveSetup, loading: loadingSaveSetup }] =
-    useLazyQuery(SAVE_SETUP_QUERY, { fetchPolicy: 'no-cache' });
+  // The writes are mutations (a query would be re-run by a re-render). runMutation
+  // keeps the old lazy-query contract: resolve to { data, error }, never throw.
+  const [saveSetupMutation, { data: dataSaveSetup, error: errorSaveSetup, loading: loadingSaveSetup }] =
+    useMutation(SAVE_SETUP_MUTATION);
+  const saveSetup = (o) => runMutation(saveSetupMutation, o);
 
   const [signin, { data: dataSignin, error: errorSignin, loading: loadingSignin }] = useLazyQuery(
     AUTH_LOGIN_QUERY,
     { fetchPolicy: 'no-cache' }
   );
 
-  const [savePools] = useLazyQuery(UPDATE_POOLS_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
+  const [savePoolsMutation] = useMutation(UPDATE_POOLS_MUTATION);
+  const savePools = (o) => runMutation(savePoolsMutation, o);
 
-  const [saveSettings] = useLazyQuery(SET_SETTINGS_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
+  const [saveSettingsMutation] = useMutation(SET_SETTINGS_MUTATION);
+  const saveSettings = (o) => runMutation(saveSettingsMutation, o);
 
   useEffect(() => {
     if (dataSaveSetup?.Auth?.setup?.error)
@@ -173,6 +175,11 @@ const Setup = () => {
         const saveSetupResult = await saveSetup({
           variables: { input: { password } },
         });
+        // The request itself failed (network): stop, do not carry on to a login.
+        if (saveSetupResult.error) {
+          setError(saveSetupResult.error.message);
+          return;
+        }
         const setupError = saveSetupResult?.data?.Auth?.setup?.error;
         // A prior partial attempt may already have committed the account.
         // In that case, authenticate and resume the unfinished writes.
@@ -214,7 +221,7 @@ const Setup = () => {
           },
         },
       });
-      const poolError = poolResult?.data?.Pool?.updateAll?.error;
+      const poolError = poolResult.error || poolResult?.data?.Pool?.updateAll?.error;
       if (poolError) {
         setError(poolError.message);
         return;
@@ -225,7 +232,7 @@ const Setup = () => {
         const settingsResult = await saveSettings({
           variables: { input: { nodeEnableSoloMining: true } },
         });
-        const settingsError = settingsResult?.data?.Settings?.update?.error;
+        const settingsError = settingsResult.error || settingsResult?.data?.Settings?.update?.error;
         if (settingsError) {
           setError(settingsError.message);
           return;

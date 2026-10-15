@@ -33,7 +33,7 @@ const MqttSettingsCard = ({ value, onChange, status, deviceId }) => {
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
 
-  const [testMqtt, { loading: testing }] = useLazyQuery(TEST_MQTT_QUERY, { fetchPolicy: 'no-cache' });
+  const [testMqtt, { loading: testing }] = useLazyQuery(TEST_MQTT_QUERY, { fetchPolicy: 'no-cache' }); // a probe: persists nothing, stays a query
   const [testResult, setTestResult] = useState(null);
 
   const v = value || { enabled: false, host: '', port: 1883, username: '', password: '', tls: false, output: { enabled: false, control: true, exports: {} } };

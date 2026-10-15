@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { print } from 'graphql';
-import { useLazyQuery } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { renderWithProviders } from '../test-utils';
 import Setup from '../pages/setup';
 
@@ -68,10 +68,12 @@ describe('Setup wizard — pools', () => {
   it('replaces the pool set rather than adding to it', () => {
     renderWithProviders(<Setup />);
 
-    const documents = useLazyQuery.mock.calls
+    // The pool write is a mutation, not a lazy query.
+    const documents = useMutation.mock.calls
       .map(([document]) => (document ? print(document) : ''))
       .join('\n');
 
+    expect(documents).toContain('mutation UPDATE_POOLS');
     expect(documents).toContain('updateAll');
     expect(documents).not.toContain('create (input: $input)');
   });

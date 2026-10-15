@@ -33,9 +33,10 @@ export const AUTH_STATUS_QUERY = gql`
   }
 `;
 
-export const SAVE_SETUP_QUERY = gql`
+// Writes are mutations: a query is re-executed by Apollo on a re-render.
+export const SAVE_SETUP_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query Auth ($input: AuthSetupInput!) {
+  mutation SAVE_SETUP ($input: AuthSetupInput!) {
     Auth {
       setup (input: $input) {
         error {
@@ -46,9 +47,9 @@ export const SAVE_SETUP_QUERY = gql`
   }
 `;
 
-export const CHANGE_PASSWORD_QUERY = gql`
+export const CHANGE_PASSWORD_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query Auth ($input: AuthChangePasswordInput!) {
+  mutation CHANGE_PASSWORD ($input: AuthChangePasswordInput!) {
     Auth {
       changePassword (input: $input) {
         error {

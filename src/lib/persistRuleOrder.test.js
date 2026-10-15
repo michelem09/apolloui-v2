@@ -33,4 +33,11 @@ describe('persistRuleOrder', () => {
     expect(report).toHaveBeenCalledWith(failure.data.Automation.updateRule.error);
     expect(updateRule).toHaveBeenCalledTimes(1);
   });
+
+  it('stops when the request itself failed (no payload)', async () => {
+    const updateRule = jest.fn().mockResolvedValue({ data: undefined, error: new Error('Failed to fetch') });
+    const report = makeReport();
+    expect(await persistRuleOrder({ orderedRules: swapped, rules, updateRule, report })).toBe(false);
+    expect(updateRule).toHaveBeenCalledTimes(1);
+  });
 });

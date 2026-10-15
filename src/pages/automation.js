@@ -20,18 +20,18 @@ import {
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { useQuery, useLazyQuery, useSubscription } from '@apollo/client';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
 import { settingsSelector } from '../redux/reselect/settings';
 
 import {
   GET_AUTOMATION_QUERY,
-  SET_AUTOMATION_CONFIG_QUERY,
-  CREATE_AUTOMATION_RULE_QUERY,
-  UPDATE_AUTOMATION_RULE_QUERY,
-  DELETE_AUTOMATION_RULE_QUERY,
-  CLEAR_AUTOMATION_OVERRIDE_QUERY,
+  SET_AUTOMATION_CONFIG_MUTATION,
+  CREATE_AUTOMATION_RULE_MUTATION,
+  UPDATE_AUTOMATION_RULE_MUTATION,
+  DELETE_AUTOMATION_RULE_MUTATION,
+  CLEAR_AUTOMATION_OVERRIDE_MUTATION,
   AUTOMATION_SUBSCRIPTION,
 } from '../graphql/automation';
 import { sendFeedback } from '../redux/slices/feedbackSlice';
@@ -46,6 +46,7 @@ import GuardRailsCard from '../components/automation/GuardRailsCard';
 import TariffCard from '../components/automation/TariffCard';
 import MqttInputsCard from '../components/automation/MqttInputsCard';
 import EventsTimeline from '../components/automation/EventsTimeline';
+import { runMutation } from '../lib/runMutation';
 
 const Automation = () => {
   const intl = useIntl();
@@ -118,21 +119,18 @@ const Automation = () => {
     },
   });
 
-  const [saveConfig, { loading: savingConfig }] = useLazyQuery(SET_AUTOMATION_CONFIG_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
-  const [createRule, { loading: creating }] = useLazyQuery(CREATE_AUTOMATION_RULE_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
-  const [updateRule, { loading: updating }] = useLazyQuery(UPDATE_AUTOMATION_RULE_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
-  const [deleteRule, { loading: deleting }] = useLazyQuery(DELETE_AUTOMATION_RULE_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
-  const [clearOverride, { loading: clearing }] = useLazyQuery(CLEAR_AUTOMATION_OVERRIDE_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
+  // Writes are mutations (never re-fired by a re-render). runMutation keeps the
+  // old "resolve to { data, error }, never throw" contract the handlers rely on.
+  const [saveConfigMutation, { loading: savingConfig }] = useMutation(SET_AUTOMATION_CONFIG_MUTATION);
+  const [createRuleMutation, { loading: creating }] = useMutation(CREATE_AUTOMATION_RULE_MUTATION);
+  const [updateRuleMutation, { loading: updating }] = useMutation(UPDATE_AUTOMATION_RULE_MUTATION);
+  const [deleteRuleMutation, { loading: deleting }] = useMutation(DELETE_AUTOMATION_RULE_MUTATION);
+  const [clearOverrideMutation, { loading: clearing }] = useMutation(CLEAR_AUTOMATION_OVERRIDE_MUTATION);
+  const saveConfig = (o) => runMutation(saveConfigMutation, o);
+  const createRule = (o) => runMutation(createRuleMutation, o);
+  const updateRule = (o) => runMutation(updateRuleMutation, o);
+  const deleteRule = (o) => runMutation(deleteRuleMutation, o);
+  const clearOverride = (o) => runMutation(clearOverrideMutation, o);
 
   const isSaving = savingConfig || creating || updating || deleting || clearing;
 
@@ -161,6 +159,8 @@ const Automation = () => {
 
   const handleSaveConfig = async (input, successId = 'automation.feedback.saved') => {
     const { data: result } = await saveConfig({ variables: { input } });
+    // No payload = the request itself failed (already toasted): not a success.
+    if (!result) return;
     if (report(result?.Automation?.updateConfig?.error, successId)) await refetch();
   };
 
@@ -173,6 +173,7 @@ const Automation = () => {
     const { data: result } = id
       ? await updateRule({ variables: { id, input: payloadInput } })
       : await createRule({ variables: { input: payloadInput } });
+    if (!result) return;
 
     const payload = id ? result?.Automation?.updateRule : result?.Automation?.createRule;
     if (!report(payload?.error, 'automation.feedback.rule_saved')) return;
@@ -184,6 +185,7 @@ const Automation = () => {
 
   const handleDeleteRule = async (rule) => {
     const { data: result } = await deleteRule({ variables: { id: rule.id } });
+    if (!result) return;
     if (report(result?.Automation?.deleteRule?.error, 'automation.feedback.rule_deleted')) await refetch();
   };
 
@@ -196,6 +198,7 @@ const Automation = () => {
 
   const handleClearOverride = async () => {
     const { data: result } = await clearOverride();
+    if (!result) return;
     if (report(result?.Automation?.clearOverride?.error, 'automation.feedback.resumed')) await refetch();
   };
 

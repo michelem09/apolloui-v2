@@ -28,15 +28,16 @@ import { NodeIcon } from '../../components/UI/Icons/NodeIcon';
 import { SystemIcon } from '../../components/UI/Icons/SystemIcon';
 import { MdSettings, MdHistory, MdWifiTethering } from 'react-icons/md';
 import { GrUserWorker } from 'react-icons/gr';
-import { GET_SETTINGS_QUERY, SET_SETTINGS_QUERY } from '../../graphql/settings';
-import { GET_POOLS_QUERY, UPDATE_POOLS_QUERY } from '../../graphql/pools';
+import { GET_SETTINGS_QUERY, SET_SETTINGS_MUTATION } from '../../graphql/settings';
+import { GET_POOLS_QUERY, UPDATE_POOLS_MUTATION } from '../../graphql/pools';
 import { MINER_RESTART_QUERY } from '../../graphql/miner';
 import { MCU_TIMEZONE_QUERY, MCU_SET_TIMEZONE_MUTATION } from '../../graphql/mcu';
 import {
   GET_AUTOMATION_CONFIG_QUERY,
-  SET_AUTOMATION_CONFIG_QUERY,
+  SET_AUTOMATION_CONFIG_MUTATION,
 } from '../../graphql/automation';
-import { GET_MQTT_QUERY, SET_MQTT_QUERY } from '../../graphql/mqtt';
+import { GET_MQTT_QUERY, SET_MQTT_MUTATION } from '../../graphql/mqtt';
+import { runMutation } from '../../lib/runMutation';
 import { sendFeedback } from '../../redux/slices/feedbackSlice';
 import { SettingsProvider } from '../../components/settings/context/SettingsContext';
 import PoolsTab from '../../components/settings/tabs/PoolsTab';
@@ -56,7 +57,7 @@ import {
   isCompatibleBitcoinAddress,
 } from '../../lib/utils';
 import { mcuSelector } from '../../redux/reselect/mcu';
-import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
+import { CHANGE_PASSWORD_MUTATION } from '../../graphql/auth';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
@@ -185,23 +186,23 @@ const SettingsTab = () => {
     refetch: refetchPools,
   } = useQuery(GET_POOLS_QUERY);
 
-  const [saveSettings, { loading: loadingSave }] = useLazyQuery(
-    SET_SETTINGS_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
+  // Every write below is a mutation (a query would be re-run by a re-render).
+  // runMutation keeps the old lazy-query contract the save handler reads:
+  // resolve to { data, error }, never throw.
+  const [saveSettingsMutation, { loading: loadingSave }] = useMutation(SET_SETTINGS_MUTATION);
+  const saveSettings = (o) => runMutation(saveSettingsMutation, o);
 
-  const [savePools, { loading: loadingSavePools }] = useLazyQuery(
-    UPDATE_POOLS_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
+  const [savePoolsMutation, { loading: loadingSavePools }] = useMutation(UPDATE_POOLS_MUTATION);
+  const savePools = (o) => runMutation(savePoolsMutation, o);
 
   const [restartMiner, { loading: loadingMinerRestart }] = useLazyQuery(
     MINER_RESTART_QUERY,
     { fetchPolicy: 'no-cache' }
   );
 
-  const [changeLockPassword, { loading: changeLockPasswordLoading }] =
-    useLazyQuery(CHANGE_PASSWORD_QUERY, { fetchPolicy: 'no-cache' });
+  const [changeLockPasswordMutation, { loading: changeLockPasswordLoading }] =
+    useMutation(CHANGE_PASSWORD_MUTATION);
+  const changeLockPassword = (o) => runMutation(changeLockPasswordMutation, o);
 
   // Timezone is a system setting (timedatectl), not a row in the settings table,
   // but it rides the same save/discard bar as the temperature unit: the current
@@ -230,16 +231,17 @@ const SettingsTab = () => {
     { fetchPolicy: 'no-cache' }
   );
 
-  const [saveAutomationConfig, { loading: loadingSaveLocation }] = useLazyQuery(
-    SET_AUTOMATION_CONFIG_QUERY,
-    { fetchPolicy: 'no-cache' }
+  const [saveAutomationConfigMutation, { loading: loadingSaveLocation }] = useMutation(
+    SET_AUTOMATION_CONFIG_MUTATION
   );
+  const saveAutomationConfig = (o) => runMutation(saveAutomationConfigMutation, o);
 
   const automationConfig = dataAutomation?.Automation?.config?.result;
 
   // System-level MQTT (broker + output), edited here and riding the same save bar.
   const { data: dataMqtt, refetch: refetchMqtt } = useQuery(GET_MQTT_QUERY, { fetchPolicy: 'no-cache' });
-  const [saveMqtt] = useLazyQuery(SET_MQTT_QUERY, { fetchPolicy: 'no-cache' });
+  const [saveMqttMutation] = useMutation(SET_MQTT_MUTATION);
+  const saveMqtt = (o) => runMutation(saveMqttMutation, o);
   const mqttConfig = dataMqtt?.Mqtt?.config?.result;
 
   // MQTT rides the save bar but is kept in its OWN state, decoupled from the big

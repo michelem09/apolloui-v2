@@ -1063,7 +1063,10 @@
       "fallback.hint": "Decide qué hace el minero de noche, con nubes y cuando faltan los datos de entrada.",
       "fallback.off.desc": "El minero se detiene de noche, con nubes y cuando faltan los datos de entrada.",
       "fallback.keep.desc": "El minero mantiene el estado en que estaba, incluso funcionando con batería toda la noche si dejan de llegar datos.",
-      "fallback.current": "Ajuste actual: {value}. Elige un recuadro para sustituirlo."
+      "fallback.on": "Iniciar el minero en un modo",
+      "fallback.on.desc": "Cuando ninguna regla se aplica, el minero funciona en el modo elegido.",
+      "fallback.on.mode": "Modo del minero",
+      "fallback.current": "Ajuste actual: {value} (no disponible en este dispositivo). Elige un recuadro para sustituirlo."
     },
     "tariff": {
       "title": "Coste de la energía",

@@ -6,13 +6,14 @@ import {
   FormLabel,
   Icon,
   Input,
+  Select,
   SimpleGrid,
   Text,
   Tooltip,
   useColorModeValue,
   VisuallyHidden,
 } from '@chakra-ui/react';
-import { MdPowerSettingsNew, MdWarningAmber } from 'react-icons/md';
+import { MdPlayCircleOutline, MdPowerSettingsNew, MdWarningAmber } from 'react-icons/md';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import Card from '../card/Card';
@@ -26,17 +27,18 @@ const FIELDS = [
   { key: 'overrideMinutes', unit: 'min' },
 ];
 
-// Two choices only, colour-coded on purpose: "off" is the safe one (green),
-// "keep" can leave the miner running on battery overnight (amber).
+// Colour-coded on purpose: "off" is the safe one (green), "keep" can leave the
+// miner running on battery overnight (amber), "on" runs a chosen mode (blue).
 const FALLBACK_TILES = [
   { value: 'off', icon: MdPowerSettingsNew, scheme: 'green' },
   { value: 'keep', icon: MdWarningAmber, scheme: 'orange' },
+  { value: 'on', icon: MdPlayCircleOutline, scheme: 'blue' },
 ];
 
 // Native radios on purpose (not Chakra's useRadio): same keyboard behaviour for
 // free (shared name = arrow keys), and focus ring via CSS :focus-visible, since
 // useRadio's focus tracking throws under jsdom when two tests mount it.
-const FallbackTile = ({ tile, checked, onSelect }) => {
+const FallbackTile = ({ tile, checked, onSelect, children }) => {
   const { value, icon, scheme } = tile;
   const intl = useIntl();
   const accent = useColorModeValue(`${scheme}.500`, `${scheme}.300`);
@@ -46,7 +48,8 @@ const FallbackTile = ({ tile, checked, onSelect }) => {
   const bodyColor = useColorModeValue('secondaryGray.700', 'secondaryGray.400');
 
   return (
-    <Box as="label" cursor="pointer" display="block">
+    <Flex direction="column" gap="8px">
+    <Box as="label" cursor="pointer" display="block" flex="1">
       <VisuallyHidden
         as="input"
         type="radio"
@@ -80,28 +83,58 @@ const FallbackTile = ({ tile, checked, onSelect }) => {
         </Flex>
       </Flex>
     </Box>
+    {children}
+    </Flex>
   );
 };
 
-const FallbackTiles = ({ value, onChange }) => {
+const FallbackTiles = ({ value, onChange, modes }) => {
   const intl = useIntl();
-  // A stored "on:<mode>" matches neither tile: nothing is checked and the value
-  // is left untouched until the user picks one.
+  const onMode = value?.startsWith('on:') ? value.slice(3) : null;
+  // A stored "on:<mode>" whose mode is not offered on this device checks no tile:
+  // the value stays untouched until the user picks one.
+  const modeKnown = onMode !== null && modes.includes(onMode);
+  const tiles = modes.length ? FALLBACK_TILES : FALLBACK_TILES.filter((t) => t.value !== 'on');
+
+  const select = (v) => {
+    // Modes are listed most conservative first, so the first one is the default.
+    onChange(v === 'on' ? `on:${modeKnown ? onMode : modes[0]}` : v);
+  };
+
   return (
     <SimpleGrid
       role="radiogroup"
       aria-label={intl.formatMessage({ id: 'automation.guards.fallback' })}
-      columns={{ base: 1, sm: 2 }}
+      columns={{ base: 1, md: tiles.length }}
       spacing="12px"
     >
-      {FALLBACK_TILES.map((tile) => (
-        <FallbackTile key={tile.value} tile={tile} checked={value === tile.value} onSelect={onChange} />
-      ))}
+      {tiles.map((tile) => {
+        const checked = tile.value === 'on' ? modeKnown : value === tile.value;
+        return (
+          <FallbackTile key={tile.value} tile={tile} checked={checked} onSelect={select}>
+            {tile.value === 'on' && checked && (
+              <Select
+                variant="auth"
+                size="sm"
+                aria-label={intl.formatMessage({ id: 'automation.guards.fallback.on.mode' })}
+                value={onMode}
+                onChange={(e) => onChange(`on:${e.target.value}`)}
+              >
+                {modes.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FallbackTile>
+        );
+      })}
     </SimpleGrid>
   );
 };
 
-const GuardRailsCard = ({ config, onSave, isSaving }) => {
+const GuardRailsCard = ({ config, minerModes = [], onSave, isSaving }) => {
   const intl = useIntl();
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
@@ -163,8 +196,9 @@ const GuardRailsCard = ({ config, onSave, isSaving }) => {
           <FallbackTiles
             value={draft.fallbackAction}
             onChange={(v) => setDraft({ ...draft, fallbackAction: v })}
+            modes={minerModes}
           />
-          {draft.fallbackAction?.startsWith('on:') && (
+          {draft.fallbackAction?.startsWith('on:') && !minerModes.includes(draft.fallbackAction.slice(3)) && (
             <Text color={subTextColor} fontSize="xs">
               {intl.formatMessage(
                 { id: 'automation.guards.fallback.current' },

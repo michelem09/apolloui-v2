@@ -164,12 +164,51 @@ describe('GuardRailsCard', () => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'off' }));
     });
 
-    it('leaves a stored on:<mode> value untouched and says so', async () => {
+    const modes = ['super_eco', 'eco', 'balanced', 'turbo', 'custom'];
+
+    it('third tile: picking it and a mode saves on:<mode>, defaulting to the first mode', async () => {
       const onSave = jest.fn();
-      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'on:eco' }} onSave={onSave} />);
-      expect(screen.getByText(/Current setting: on:eco/)).toBeInTheDocument();
+      renderUI(<GuardRailsCard config={config} minerModes={modes} onSave={onSave} />);
+      expect(screen.queryByRole('combobox', { name: 'Miner mode' })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByText('Start the miner in a mode'));
+      const select = screen.getByRole('combobox', { name: 'Miner mode' });
+      expect(select).toHaveValue('super_eco');
+
+      await userEvent.selectOptions(select, 'balanced');
       await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:eco' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:balanced' }));
+    });
+
+    it('a saved on:super_eco renders the third tile selected with that mode', () => {
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'on:super_eco' }} minerModes={modes} onSave={() => {}} />);
+      expect(screen.getByRole('radio', { name: /Start the miner in a mode/ })).toBeChecked();
+      expect(screen.getByRole('combobox', { name: 'Miner mode' })).toHaveValue('super_eco');
+      expect(screen.queryByText(/Current setting/)).not.toBeInTheDocument();
+    });
+
+    it('a saved mode that is not in the list checks no tile, keeps the value and says so', async () => {
+      const onSave = jest.fn();
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'on:super_eco' }} minerModes={['eco', 'turbo']} onSave={onSave} />);
+      radios().forEach((r) => expect(r).not.toBeChecked());
+      expect(screen.getByText(/Current setting: on:super_eco/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:super_eco' }));
+    });
+
+    it('keyboard reaches the third tile with the arrow keys', async () => {
+      const onSave = jest.fn();
+      renderUI(<GuardRailsCard config={{ ...config, fallbackAction: 'keep' }} minerModes={modes} onSave={onSave} />);
+      await userEvent.tab();
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByRole('radio', { name: /Start the miner in a mode/ })).toBeChecked();
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fallbackAction: 'on:super_eco' }));
+    });
+
+    it('hides the third tile when the device offers no modes', () => {
+      renderUI(<GuardRailsCard config={config} minerModes={[]} onSave={() => {}} />);
+      expect(radios()).toHaveLength(2);
     });
   });
 

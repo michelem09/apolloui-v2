@@ -1063,7 +1063,10 @@
       "fallback.hint": "Decide cosa fa il miner di notte, con le nuvole e quando mancano i dati in ingresso.",
       "fallback.off.desc": "Il miner si ferma di notte, con le nuvole e quando mancano i dati in ingresso.",
       "fallback.keep.desc": "Il miner resta nello stato in cui era, anche acceso a batteria per tutta la notte se i dati smettono di arrivare.",
-      "fallback.current": "Impostazione attuale: {value}. Scegli un riquadro per sostituirla."
+      "fallback.on": "Avvia il miner in una modalità",
+      "fallback.on.desc": "Quando nessuna regola si applica, il miner funziona nella modalità scelta.",
+      "fallback.on.mode": "Modalità del miner",
+      "fallback.current": "Impostazione attuale: {value} (non disponibile su questo device). Scegli un riquadro per sostituirla."
     },
     "tariff": {
       "title": "Costo energia",

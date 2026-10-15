@@ -1063,7 +1063,10 @@
       "fallback.hint": "Legt fest, was der Miner nachts, bei Bewölkung und bei fehlenden Eingangsdaten tut.",
       "fallback.off.desc": "Der Miner stoppt nachts, bei Bewölkung und wenn Eingangsdaten fehlen.",
       "fallback.keep.desc": "Der Miner behält seinen Zustand bei, auch wenn er über Nacht im Batteriebetrieb läuft, falls keine Daten mehr eintreffen.",
-      "fallback.current": "Aktuelle Einstellung: {value}. Wähle eine Kachel, um sie zu ersetzen."
+      "fallback.on": "Miner in einem Modus starten",
+      "fallback.on.desc": "Wenn keine Regel greift, läuft der Miner im gewählten Modus.",
+      "fallback.on.mode": "Miner-Modus",
+      "fallback.current": "Aktuelle Einstellung: {value} (auf diesem Gerät nicht verfügbar). Wähle eine Kachel, um sie zu ersetzen."
     },
     "tariff": {
       "title": "Energiekosten",

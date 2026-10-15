@@ -14,6 +14,8 @@ import NextLink from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQuery, useLazyQuery } from '@apollo/client';
 import { useIntl } from 'react-intl';
+import { useDispatch } from 'react-redux';
+import { sendFeedback } from '../../redux/slices/feedbackSlice';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import Card from '../card/Card';
 import { GET_MQTT_QUERY, SET_MQTT_QUERY } from '../../graphql/mqtt';
@@ -26,6 +28,7 @@ import MqttBrowseModal from './MqttBrowseModal';
  */
 const MqttInputsCard = ({ onSaved }) => {
   const intl = useIntl();
+  const dispatch = useDispatch();
   const textColor = useColorModeValue('secondaryGray.900', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
@@ -41,7 +44,19 @@ const MqttInputsCard = ({ onSaved }) => {
 
   useEffect(() => {
     if (!config) return;
-    setInputs((config.inputs || []).map((i) => ({ name: i.name, topic: i.topic, jsonPath: i.jsonPath || '', unit: i.unit || '' })));
+    // A config saved before duplicates were refused may hold the same name (or the
+    // same topic + field) twice: show each once, and the next Save stores it clean.
+    const names = new Set();
+    const sources = new Set();
+    const clean = [];
+    for (const i of config.inputs || []) {
+      const source = `${i.topic}\u0000${i.jsonPath || ''}`;
+      if (names.has(i.name) || sources.has(source)) continue;
+      names.add(i.name);
+      sources.add(source);
+      clean.push({ name: i.name, topic: i.topic, jsonPath: i.jsonPath || '', unit: i.unit || '' });
+    }
+    setInputs(clean);
   }, [config]);
 
   // Broker connection for Browse — the backend fills in the stored password.
@@ -56,7 +71,7 @@ const MqttInputsCard = ({ onSaved }) => {
   const setInput = (i, patch) => setInputs((list) => list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
 
   const save = async () => {
-    await saveMqtt({
+    const { data: saved } = await saveMqtt({
       variables: {
         input: {
           inputs: inputs
@@ -65,6 +80,12 @@ const MqttInputsCard = ({ onSaved }) => {
         },
       },
     });
+    // A refused save (e.g. a duplicate name) must be seen, not swallowed.
+    const refused = saved?.Mqtt?.updateConfig?.error;
+    if (refused) {
+      dispatch(sendFeedback({ message: refused.message, type: 'error' }));
+      return;
+    }
     await refetch();
     // The saved inputs are input.<name> signals: whoever holds the signal
     // descriptors (the rule editor's condition list) must reload them, or a new,

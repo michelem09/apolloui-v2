@@ -53,7 +53,10 @@ const sanitizeName = (s) => String(s || '').replace(/[^a-zA-Z0-9_]/g, '_').slice
 const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) => {
   const intl = useIntl();
   const rowBg = useColorModeValue('secondaryGray.300', 'whiteAlpha.100');
+  // Fill and track from tokens with real contrast in both modes (the app's dark
+  // mode is Chakra's color mode, not prefers-color-scheme).
   const trackBg = useColorModeValue('secondaryGray.400', 'whiteAlpha.300');
+  const fillBg = useColorModeValue('brand.500', 'white');
   const subTextColor = useColorModeValue('secondaryGray.600', 'secondaryGray.400');
 
   const client = useApolloClient();
@@ -210,6 +213,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) 
                 height="10px"
                 borderRadius="full"
                 bg={trackBg}
+                sx={{ '& > div': { bg: fillBg } }}
                 colorScheme="brand"
                 aria-label={intl.formatMessage({ id: 'automation.mqtt.browse_scanning' })}
               />
@@ -248,7 +252,7 @@ const MqttBrowseModal = ({ isOpen, onClose, brokerInput, onPick, mapped = [] }) 
                             {t.name}
                           </Text>
                           {t.value != null ? (
-                            <Text fontSize="sm" fontWeight="700" color="green.400">
+                            <Text fontSize="sm" fontWeight="700" color="green.400" whiteSpace="nowrap">
                               {t.value}
                               {t.unit ? ` ${t.unit}` : ''}
                             </Text>

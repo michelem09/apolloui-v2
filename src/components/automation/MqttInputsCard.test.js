@@ -105,4 +105,59 @@ describe('MqttInputsCard', () => {
     expect(screen.getByDisplayValue('soc_2')).toBeInTheDocument();
     expect(screen.getAllByDisplayValue('soc')).toHaveLength(1);
   });
+
+  it('shows an old config with duplicate inputs once, and saves it clean', async () => {
+    const dupConfig = {
+      ...config,
+      inputs: [
+        { __typename: 'MqttInput', name: 'battery_soc', topic: 'sun2000/state', jsonPath: 'battery.soc', unit: '%' },
+        { __typename: 'MqttInput', name: 'battery_soc', topic: 'sun2000/state', jsonPath: 'battery.soc', unit: '%' },
+      ],
+    };
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const saved = jest.fn(() => ({ data: { Mqtt: { __typename: 'MqttActions', updateConfig: { __typename: 'MqttConfigOutput', result: dupConfig, error: null } } } }));
+    render(
+      <Provider store={configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } })}>
+        <MockedProvider
+          addTypename
+          mocks={[
+            { request: { query: GET_MQTT_QUERY }, result: { data: { Mqtt: { __typename: 'MqttActions', config: { __typename: 'MqttConfigOutput', result: dupConfig, error: null } } } }, maxUsageCount: 5 },
+            { request: { query: SET_MQTT_QUERY, variables: { input: { inputs: [{ name: 'battery_soc', topic: 'sun2000/state', jsonPath: 'battery.soc', unit: '%' }] } } }, result: saved },
+          ]}
+        >
+          <ChakraProvider>
+            <IntlProvider locale="en" messages={flattenMessages(en)}>
+              <MqttInputsCard />
+            </IntlProvider>
+          </ChakraProvider>
+        </MockedProvider>
+      </Provider>
+    );
+    await screen.findByDisplayValue('battery_soc');
+    expect(screen.getAllByDisplayValue('battery_soc')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(saved).toHaveBeenCalled());
+    expect(errors.mock.calls.some((c) => /same key/.test(String(c[0])))).toBe(false);
+    errors.mockRestore();
+  });
+
+  it('does not announce a save the backend refused', async () => {
+    const onSaved = jest.fn();
+    const refusedResult = { data: { Mqtt: { __typename: 'MqttActions', updateConfig: { __typename: 'MqttConfigOutput', result: null, error: { __typename: 'Error', message: 'Duplicate input name "surplus"', type: null, severity: null, reasons: null } } } } };
+    render(
+      <Provider store={configureStore({ reducer: { mqttBrowse: mqttBrowseReducer } })}>
+        <MockedProvider addTypename mocks={[mocks[0], { ...mocks[1], result: refusedResult }]}>
+          <ChakraProvider>
+            <IntlProvider locale="en" messages={flattenMessages(en)}>
+              <MqttInputsCard onSaved={onSaved} />
+            </IntlProvider>
+          </ChakraProvider>
+        </MockedProvider>
+      </Provider>
+    );
+    await screen.findByDisplayValue('sun/surplus');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSaved).not.toHaveBeenCalled();
+  });
 });

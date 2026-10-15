@@ -116,8 +116,9 @@ describe('RuleEditorModal — per-widget condition inputs', () => {
 describe('RuleEditorModal — miner modes from the backend descriptor', () => {
   it('lists exactly the modes the descriptor declares', () => {
     open(ruleWith({ signal: 'sun.isDay', op: '==', value: 'true' }));
+    // Labels are the translated mode names; values stay the raw modes.
     for (const mode of ['eco', 'balanced', 'turbo', 'custom']) {
-      expect(screen.getByRole('option', { name: mode })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: mode.toUpperCase() })).toHaveAttribute('value', mode);
     }
   });
 

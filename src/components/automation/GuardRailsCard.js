@@ -105,8 +105,11 @@ const FallbackTiles = ({ value, onChange, modes }) => {
     <SimpleGrid
       role="radiogroup"
       aria-label={intl.formatMessage({ id: 'automation.guards.fallback' })}
-      columns={{ base: 1, md: tiles.length }}
-      spacing="12px"
+      // This theme's `sm` is 320px, so a `sm` switch would never stack on a phone.
+      // Stack up to md; above that let the card's own width decide (it sits in a
+      // half-width column on xl), never squeezing a tile under ~200px.
+      templateColumns={{ base: 'minmax(0, 1fr)', md: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+      gap="12px"
     >
       {tiles.map((tile) => {
         const checked = tile.value === 'on' ? modeKnown : value === tile.value;

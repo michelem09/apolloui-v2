@@ -63,7 +63,8 @@ import usePoolProfiles from '../../hooks/usePoolProfiles';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
 import { savePendingPools } from '../../lib/savePendingPools';
 import { applyTimezone } from '../../lib/applyTimezone';
-import { callFailure, runSteps, serviceFailureIdOf } from '../../lib/callFailure';
+import { runSteps } from '../../lib/callFailure';
+import { runRestarts } from '../../lib/runRestarts';
 import { isUnauthenticated } from '../../lib/authRefusal';
 
 // These writes report their failure themselves (the form's inline alert, or the
@@ -864,41 +865,17 @@ const SettingsTab = () => {
 
       setPoolToSave({ primary: emptySave, backup: emptySave });
 
-      // Restarts. On v2.2 the backend applies node and solo (ckpool) changes itself
-      // when the settings are saved (_applyServiceLifecycle), so the UI restarts
-      // only the miner: asking for a node/solo restart as well made two restarts of
-      // the same service. A restart that was refused is reported as such:
-      // announcing "Restarting miner..." over a failed call told the user the new
-      // settings were taking effect when they were not.
-      const restartingMiner = async (message) => {
-        const result = await restartMiner();
-        const failure = callFailure(result);
-        if (failure) {
-          // The backend no longer publishes a transition it refused, so there is
-          // nothing for the status toasts to announce here.
-          dispatch(
-            sendFeedback({ message: failure, messageId: serviceFailureIdOf(result), type: 'error' })
-          );
-          return false;
-        }
-        dispatch(sendFeedback({ message, type: 'info' }));
-        return true;
-      };
-
-      if (type === 'miner') {
-        await restartingMiner('Restarting miner...');
-      } else if (type === 'node') {
-        dispatch(
-          sendFeedback({
-            message: 'Node configuration applied.',
-            type: 'success',
-          })
-        );
-      } else if (type === 'both') {
-        await restartingMiner('Node configuration applied; restarting miner...');
-      } else if (!timezoneFeedback.some((m) => m.type === 'error')) {
-        // Not after a step that failed: the error toast says what did not
-        // happen, and "saved" on top of it says the opposite.
+      // Restarts, if the change needs them: only the miner's (on v2.2 the backend
+      // restarts node and ckpool itself when the settings are saved). Only a
+      // refusal is reported (see runRestarts). Then "saved" — but not on top of a step that failed: the
+      // error toast says what did not happen, and "saved" beside it says the
+      // opposite.
+      const restartedOk = await runRestarts({
+        type,
+        restartMiner: () => restartMiner(),
+        dispatch,
+      });
+      if (restartedOk && !timezoneFeedback.some((m) => m.type === 'error')) {
         dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
       }
 

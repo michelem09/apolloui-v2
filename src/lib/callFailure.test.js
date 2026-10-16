@@ -53,7 +53,7 @@ describe.each([
   ])('stops on %s: nothing after it runs', async (_label, failure) => {
     const after = jest.fn();
     const out = await runSteps(stepsWith(failure, after));
-    expect(out).toEqual({ ok: false, step: name, message: 'Refused' });
+    expect(out).toEqual({ ok: false, step: name, message: 'Refused', messageId: null });
     expect(after).not.toHaveBeenCalled();
   });
 
@@ -63,7 +63,7 @@ describe.each([
     steps.find((s) => s.name === name).run = async () => {
       throw new Error('boom');
     };
-    expect(await runSteps(steps)).toEqual({ ok: false, step: name, message: 'boom' });
+    expect(await runSteps(steps)).toEqual({ ok: false, step: name, message: 'boom', messageId: null });
     expect(after).not.toHaveBeenCalled();
   });
 });
@@ -87,6 +87,24 @@ it('a restore stops after a failed settings write', async () => {
   ]);
   expect(out.ok).toBe(false);
   expect(savePools).not.toHaveBeenCalled();
+});
+
+it('a service refusal inside a save step carries the id of its localised text', async () => {
+  const out = await runSteps([
+    {
+      name: 'settings',
+      run: async () => ({
+        data: {
+          Settings: {
+            update: {
+              error: { message: 'Could not restart the Bitcoin node', type: 'SERVICE_COMMAND_FAILED', path: 'node.restart' },
+            },
+          },
+        },
+      }),
+    },
+  ]);
+  expect(out).toMatchObject({ ok: false, step: 'settings', messageId: 'service_error.node.restart' });
 });
 
 describe('serviceFailureIdOf', () => {

@@ -786,7 +786,13 @@ const SettingsTab = () => {
       ]);
       if (!saved.ok) {
         setIsSaving(false);
-        return setErrorForm(saved.message);
+        // A restart the device refused while applying the settings is worded in the
+        // user's language, like the service buttons.
+        return setErrorForm(
+          saved.messageId
+            ? intl.formatMessage({ id: saved.messageId, defaultMessage: saved.message })
+            : saved.message
+        );
       }
       if (changePassword) setIsChanged(false);
 

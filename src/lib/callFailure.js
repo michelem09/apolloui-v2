@@ -45,10 +45,12 @@ export const runSteps = async (steps) => {
     try {
       result = await run();
     } catch (error) {
-      return { ok: false, step: name, message: error.message || String(error) };
+      return { ok: false, step: name, message: error.message || String(error), messageId: null };
     }
     const message = callFailure(result);
-    if (message) return { ok: false, step: name, message };
+    // messageId: the localised text, when the backend says which service action
+    // was refused (see serviceFailureIdOf).
+    if (message) return { ok: false, step: name, message, messageId: serviceFailureIdOf(result) };
   }
   return { ok: true };
 };

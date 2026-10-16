@@ -66,6 +66,7 @@ import { applyTimezone } from '../../lib/applyTimezone';
 import { runSteps } from '../../lib/callFailure';
 import { runRestarts } from '../../lib/runRestarts';
 import { isUnauthenticated } from '../../lib/authRefusal';
+import { saveFailureText } from '../../lib/saveFailureText';
 
 // These writes report their failure themselves (the form's inline alert, or the
 // restore's own message): the global toast for the same error would repeat it.
@@ -787,12 +788,10 @@ const SettingsTab = () => {
       if (!saved.ok) {
         setIsSaving(false);
         // A restart the device refused while applying the settings is worded in the
-        // user's language, like the service buttons.
-        return setErrorForm(
-          saved.messageId
-            ? intl.formatMessage({ id: saved.messageId, defaultMessage: saved.message })
-            : saved.message
-        );
+        // user's language, and says the settings were not saved (the backend rolled
+        // them back). The form keeps the edited values and the save bar stays lit:
+        // the user can fix the cause and press Save again, nothing is lost.
+        return setErrorForm(saveFailureText(saved, intl.formatMessage));
       }
       if (changePassword) setIsChanged(false);
 

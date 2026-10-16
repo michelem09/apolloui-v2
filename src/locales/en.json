@@ -718,7 +718,8 @@
         "invalid_address": "Please add a valid Bitcoin address",
         "incompatible_address": "Warning: P2WSH and P2TR Bitcoin address are not valid for SOLO mining. Please add a different Bitcoin address"
       }
-    }
+    },
+    "not_saved_reason": "Settings not saved: {reason}"
   },
   "block_found": {
     "congratulations": "CONGRATULATIONS!",
@@ -1488,6 +1489,10 @@
       "start": "Could not start the solo pool.",
       "stop": "Could not stop the solo pool.",
       "restart": "Could not restart the solo pool."
+    },
+    "tor": {
+      "enable": "Could not enable Tor.",
+      "disable": "Could not disable Tor."
     }
   }
 }

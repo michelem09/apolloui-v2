@@ -718,7 +718,8 @@
         "invalid_address": "Bitte fügen Sie eine gültige Bitcoin-Adresse hinzu",
         "incompatible_address": "Warnung: P2WSH- und P2TR-Bitcoin-Adresse sind für SOLO-Mining nicht gültig. Bitte fügen Sie eine andere Bitcoin-Adresse hinzu"
       }
-    }
+    },
+    "not_saved_reason": "Einstellungen nicht gespeichert: {reason}"
   },
   "block_found": {
     "congratulations": "HERZLICHEN GLÜCKWUNSCH!",
@@ -1488,6 +1489,10 @@
       "start": "Solo-Pool konnte nicht gestartet werden.",
       "stop": "Solo-Pool konnte nicht gestoppt werden.",
       "restart": "Solo-Pool konnte nicht neu gestartet werden."
+    },
+    "tor": {
+      "enable": "Tor konnte nicht aktiviert werden.",
+      "disable": "Tor konnte nicht deaktiviert werden."
     }
   }
 }

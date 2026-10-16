@@ -718,7 +718,8 @@
         "invalid_address": "Aggiungi un indirizzo Bitcoin valido",
         "incompatible_address": "Attenzione: gli indirizzi Bitcoin P2WSH e P2TR non sono validi per il solo mining. Aggiungi un indirizzo Bitcoin diverso"
       }
-    }
+    },
+    "not_saved_reason": "Impostazioni non salvate: {reason}"
   },
   "block_found": {
     "congratulations": "COMPLIMENTI!",
@@ -1488,6 +1489,10 @@
       "start": "Impossibile avviare il pool solo.",
       "stop": "Impossibile fermare il pool solo.",
       "restart": "Impossibile riavviare il pool solo."
+    },
+    "tor": {
+      "enable": "Impossibile attivare Tor.",
+      "disable": "Impossibile disattivare Tor."
     }
   }
 }

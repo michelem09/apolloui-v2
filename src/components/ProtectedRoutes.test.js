@@ -1,10 +1,10 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { useSession } from 'next-auth/react';
 import { useLazyQuery } from '@apollo/client';
 import { AUTH_STATUS_QUERY } from '../graphql/auth';
 import { GET_POOLS_QUERY } from '../graphql/pools';
-import ProtectedRoute from './ProtectedRoutes';
+import ProtectedRoute, { STATUS_RETRY_DELAYS_MS } from './ProtectedRoutes';
 
 jest.mock('next-auth/react', () => ({ useSession: jest.fn() }));
 jest.mock('../contexts/DeviceConfigContext', () => ({ useDeviceType: () => 'miner' }));
@@ -16,9 +16,9 @@ jest.mock('@apollo/client', () => ({
 const setupData = (status) => ({ Auth: { status: { result: { status } } } });
 const poolsWithValid = { Pool: { list: { result: { pools: [{ url: 'stratum+tcp://p:1', username: 'w' }] } } } };
 
-const mockLazy = ({ setup, pools }) => {
+const mockLazy = ({ setup, pools, setupError, getStatus }) => {
   useLazyQuery.mockImplementation((query) => {
-    if (query === AUTH_STATUS_QUERY) return [jest.fn(), { data: setup }];
+    if (query === AUTH_STATUS_QUERY) return [getStatus || jest.fn(), { data: setup, error: setupError }];
     if (query === GET_POOLS_QUERY) return [jest.fn(), { data: pools }];
     return [jest.fn(), {}];
   });
@@ -55,5 +55,164 @@ describe('ProtectedRoute redirects', () => {
     const router = makeRouter({ pathname: '/overview' });
     renderGuard(router);
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/signin'));
+  });
+
+  it('does not send a signed-in user to the pools page when the pools read failed', async () => {
+    useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+    // A refused read comes back as partial data with the list nulled out.
+    mockLazy({ setup: setupData('done'), pools: { Pool: null } });
+    const router = makeRouter({ pathname: '/overview' });
+    renderGuard(router);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(router.push).not.toHaveBeenCalledWith(expect.stringContaining('/settings'));
+  });
+
+  it('sends a signed-out user to /signin when the status query itself failed', async () => {
+    useSession.mockReturnValue({ status: 'unauthenticated', data: null });
+    mockLazy({ setup: undefined, setupError: new Error('boom'), pools: undefined });
+    const router = makeRouter({ pathname: '/overview' });
+    renderGuard(router);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/signin'));
+  });
+
+  it('does not loop on /signin when the status query failed', async () => {
+    useSession.mockReturnValue({ status: 'unauthenticated', data: null });
+    mockLazy({ setup: undefined, setupError: new Error('boom'), pools: undefined });
+    const router = makeRouter({ pathname: '/signin' });
+    renderGuard(router);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  describe('a status payload that carries an error and no result', () => {
+    const unknown = { Auth: { status: { result: null, error: { message: 'db busy' } } } };
+
+    it('does not send an already-configured device to /setup', async () => {
+      useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+      mockLazy({ setup: unknown, pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/overview' });
+      renderGuard(router);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it('sends a signed-out visitor to /signin, once', async () => {
+      useSession.mockReturnValue({ status: 'unauthenticated', data: null });
+      mockLazy({ setup: unknown, pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/overview' });
+      renderGuard(router);
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith('/signin'));
+      expect(router.push).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a signed-in user past the sign-in page, and does not bounce them back', async () => {
+      useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+      mockLazy({ setup: unknown, pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/signin' });
+      renderGuard(router);
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith('/overview'));
+      expect(router.push).not.toHaveBeenCalledWith('/signin');
+    });
+
+    it('still sends a genuinely pending device to /setup', async () => {
+      useSession.mockReturnValue({ status: 'unauthenticated', data: null });
+      mockLazy({ setup: setupData('pending'), pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/overview' });
+      renderGuard(router);
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith('/setup'));
+    });
+
+    it('goes to /setup when the status that first failed later answers pending, without a reload', async () => {
+      useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+      mockLazy({ setup: unknown, pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/overview' });
+      const view = renderGuard(router);
+      await new Promise((r) => setTimeout(r, 30));
+      expect(router.push).not.toHaveBeenCalled();
+
+      mockLazy({ setup: setupData('pending'), pools: poolsWithValid });
+      view.rerender(
+        <ProtectedRoute router={router}>
+          <div>child</div>
+        </ProtectedRoute>
+      );
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith('/setup'));
+    });
+
+    it('evaluates each (session, setup) pair once: re-renders with the same answer do not redirect again', async () => {
+      useSession.mockReturnValue({ status: 'unauthenticated', data: null });
+      mockLazy({ setup: setupData('done'), pools: poolsWithValid });
+      const router = makeRouter({ pathname: '/overview' });
+      const view = renderGuard(router);
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith('/signin'));
+      for (let i = 0; i < 3; i += 1) {
+        mockLazy({ setup: setupData('done'), pools: poolsWithValid });
+        view.rerender(
+          <ProtectedRoute router={{ ...router }}>
+            <div>child</div>
+          </ProtectedRoute>
+        );
+      }
+      await new Promise((r) => setTimeout(r, 30));
+      expect(router.push).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('a status query that failed and is not asked again by navigation', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('is retried, further apart each time, and no more than the bounded number of times', async () => {
+      useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+      const getStatus = jest.fn();
+      mockLazy({ setup: undefined, setupError: new Error('boom'), pools: undefined, getStatus });
+      renderGuard(makeRouter({ pathname: '/overview' }));
+
+      // The mount's own request, then the retries.
+      expect(getStatus).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(STATUS_RETRY_DELAYS_MS[0] - 1);
+      });
+      expect(getStatus).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1);
+      });
+      expect(getStatus).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(STATUS_RETRY_DELAYS_MS[1]);
+      });
+      expect(getStatus).toHaveBeenCalledTimes(3);
+
+      // Far past every delay: it stops, it does not go on for ever. One step at a
+      // time, so each attempt gets to re-arm the next (React batches inside act).
+      for (let i = 0; i < 12; i += 1) {
+        await act(async () => {
+          await jest.advanceTimersByTimeAsync(60 * 1000);
+        });
+      }
+      expect(getStatus).toHaveBeenCalledTimes(1 + STATUS_RETRY_DELAYS_MS.length);
+    });
+
+    it('stops retrying once an answer arrives, and the answer is acted on', async () => {
+      useSession.mockReturnValue({ status: 'authenticated', data: { user: { name: 'token' } } });
+      const getStatus = jest.fn();
+      mockLazy({ setup: undefined, setupError: new Error('boom'), pools: undefined, getStatus });
+      const router = makeRouter({ pathname: '/overview' });
+      const view = renderGuard(router);
+
+      mockLazy({ setup: setupData('pending'), pools: poolsWithValid, getStatus });
+      view.rerender(
+        <ProtectedRoute router={router}>
+          <div>child</div>
+        </ProtectedRoute>
+      );
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      });
+
+      expect(router.push).toHaveBeenCalledWith('/setup');
+      expect(getStatus).toHaveBeenCalledTimes(1); // the mount's; no retry after the answer
+    });
   });
 });

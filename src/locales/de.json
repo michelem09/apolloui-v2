@@ -1267,7 +1267,7 @@
     }
   },
   "backend_offline": {
-    "title": "Backend offline",
+    "title": "Backend nicht erreichbar",
     "description": "Der Apollo-API-Dienst ist nicht erreichbar. Prüfe, ob das Backend läuft und dein Gerät im selben Netzwerk ist.",
     "reconnecting": "Verbindung wird wiederhergestellt…",
     "troubleshooting": "Fehlerbehebung",
@@ -1471,6 +1471,23 @@
       "6hours": "Letzte 6 Stunden",
       "24hours": "Letzte 24 Stunden",
       "30days": "Letzte 30 Tage"
+    }
+  },
+  "service_error": {
+    "miner": {
+      "start": "Miner konnte nicht gestartet werden.",
+      "stop": "Miner konnte nicht gestoppt werden.",
+      "restart": "Miner konnte nicht neu gestartet werden."
+    },
+    "node": {
+      "start": "Bitcoin-Node konnte nicht gestartet werden.",
+      "stop": "Bitcoin-Node konnte nicht gestoppt werden.",
+      "restart": "Bitcoin-Node konnte nicht neu gestartet werden."
+    },
+    "solo": {
+      "start": "Solo-Pool konnte nicht gestartet werden.",
+      "stop": "Solo-Pool konnte nicht gestoppt werden.",
+      "restart": "Solo-Pool konnte nicht neu gestartet werden."
     }
   }
 }

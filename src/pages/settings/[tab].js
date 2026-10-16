@@ -63,6 +63,12 @@ import usePoolProfiles from '../../hooks/usePoolProfiles';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
 import { savePendingPools } from '../../lib/savePendingPools';
 import { applyTimezone } from '../../lib/applyTimezone';
+import { callFailure, runSteps, serviceFailureIdOf } from '../../lib/callFailure';
+import { isUnauthenticated } from '../../lib/authRefusal';
+
+// These writes report their failure themselves (the form's inline alert, or the
+// restore's own message): the global toast for the same error would repeat it.
+const SILENT = { silentErrors: true };
 
 const RESTORABLE_SETTINGS_FIELDS = [
   'agree',
@@ -469,7 +475,7 @@ const SettingsTab = () => {
         })
       );
     } catch (error) {
-      dispatch(sendFeedback({ message: error.toString(), type: 'error' }));
+      dispatch(sendFeedback({ message: error.message || String(error), type: 'error' }));
     }
   };
 
@@ -492,17 +498,13 @@ const SettingsTab = () => {
       const safeSettings = _.pick(settings, RESTORABLE_SETTINGS_FIELDS);
       const safePools = pools.map((pool) => _.omit(pool, ['__typename']));
 
-      const settingsResult = await saveSettings({
-        variables: { input: safeSettings },
-      });
-      const settingsError = settingsResult?.error || settingsResult?.data?.Settings?.update?.error;
-      if (settingsError) throw new Error(settingsError.message);
-
-      const poolsResult = await savePools({
-        variables: { input: { pools: safePools } },
-      });
-      const poolsError = poolsResult?.error || poolsResult?.data?.Pool?.updateAll?.error;
-      if (poolsError) throw new Error(poolsError.message);
+      // A failed write stops the restore: reporting "Restore done" over a
+      // configuration that was only half written is worse than an error.
+      const written = await runSteps([
+        { name: 'settings', run: () => saveSettings({ variables: { input: safeSettings }, context: SILENT }) },
+        { name: 'pools', run: () => savePools({ variables: { input: { pools: safePools } }, context: SILENT }) },
+      ]);
+      if (!written.ok) throw new Error(written.message);
 
       // Backups taken before saved pools existed simply carry none. One that
       // cannot be written back is reported rather than thrown: the settings
@@ -534,7 +536,7 @@ const SettingsTab = () => {
       setIsSaving(false);
     } catch (error) {
       setIsSaving(false);
-      dispatch(sendFeedback({ message: error.toString(), type: 'error' }));
+      dispatch(sendFeedback({ message: error.message || String(error), type: 'error' }));
     }
   };
 
@@ -717,14 +719,9 @@ const SettingsTab = () => {
 
       // Submit only fields changed in this editor so a stale tab cannot
       // overwrite unrelated settings saved elsewhere.
-      if (Object.keys(input).length > 0) {
-        const settingsResult = await saveSettings({ variables: { input } });
-        const settingsErr = settingsResult?.error || settingsResult?.data?.Settings?.update?.error;
-        if (settingsErr) {
-          setIsSaving(false);
-          return setErrorForm(settingsErr.message);
-        }
-      }
+      const settingsStep = Object.keys(input).length > 0
+        ? [{ name: 'settings', run: () => saveSettings({ variables: { input }, context: SILENT }) }]
+        : [];
 
       // updateAll replaces the whole table, so the array IS the intent: leaving the
       // backup out of it is how switching it off removes it.
@@ -756,37 +753,41 @@ const SettingsTab = () => {
           index: 2,
         });
       }
-      if (!_.isEqual(poolsInput, currentPools)) {
-        const poolsResult = await savePools({
-          variables: { input: { pools: poolsInput } },
-        });
-        const poolsError = poolsResult?.error || poolsResult?.data?.Pool?.updateAll?.error;
-        if (poolsError) {
-          setIsSaving(false);
-          return setErrorForm(poolsError.message);
-        }
-      }
+      const poolsStep = !_.isEqual(poolsInput, currentPools)
+        ? [{ name: 'pools', run: () => savePools({ variables: { input: { pools: poolsInput } }, context: SILENT }) }]
+        : [];
 
-      // Handle password change if needed
-      if (
+      const changePassword =
         settings.lockPassword &&
         settings.verifyLockpassword &&
-        settings.lockPassword === settings.verifyLockpassword
-      ) {
-        console.log('Changing password');
-        const passwordResult = await changeLockPassword({
-          variables: { input: { password: settings.lockPassword } },
-        });
-        // The backend refuses some passwords (line breaks, NUL): say so instead
-        // of letting the bar clear as if the change had been applied.
-        const passwordError =
-          passwordResult?.data?.Auth?.changePassword?.error || passwordResult?.error;
-        if (passwordError) {
-          setIsSaving(false);
-          return setErrorForm(passwordError.message);
-        }
-        setIsChanged(false);
+        settings.lockPassword === settings.verifyLockpassword;
+
+      // Each write must have gone through before the next, and before any restart:
+      // the calls do not reject on a GraphQL error, so a save that failed would
+      // otherwise carry on to restart the miner and report it.
+      // The backend refuses some passwords (line breaks, NUL): say so instead of
+      // letting the bar clear as if the change had been applied.
+      const saved = await runSteps([
+        ...settingsStep,
+        ...poolsStep,
+        ...(changePassword
+          ? [
+              {
+                name: 'password',
+                run: () =>
+                  changeLockPassword({
+                    variables: { input: { password: settings.lockPassword } },
+                    context: SILENT,
+                  }),
+              },
+            ]
+          : []),
+      ]);
+      if (!saved.ok) {
+        setIsSaving(false);
+        return setErrorForm(saved.message);
       }
+      if (changePassword) setIsChanged(false);
 
       // Timezone: a plain save, no restart of its own. Extracted for the same
       // reason as the pool step below, and it never throws either — a zone the
@@ -863,14 +864,29 @@ const SettingsTab = () => {
 
       setPoolToSave({ primary: emptySave, backup: emptySave });
 
-      // Handle restarts based on type
+      // Restarts. On v2.2 the backend applies node and solo (ckpool) changes itself
+      // when the settings are saved (_applyServiceLifecycle), so the UI restarts
+      // only the miner: asking for a node/solo restart as well made two restarts of
+      // the same service. A restart that was refused is reported as such:
+      // announcing "Restarting miner..." over a failed call told the user the new
+      // settings were taking effect when they were not.
+      const restartingMiner = async (message) => {
+        const result = await restartMiner();
+        const failure = callFailure(result);
+        if (failure) {
+          // The backend no longer publishes a transition it refused, so there is
+          // nothing for the status toasts to announce here.
+          dispatch(
+            sendFeedback({ message: failure, messageId: serviceFailureIdOf(result), type: 'error' })
+          );
+          return false;
+        }
+        dispatch(sendFeedback({ message, type: 'info' }));
+        return true;
+      };
+
       if (type === 'miner') {
-        const restartResult = await restartMiner();
-        const restartError = restartResult?.data?.Miner?.restart?.error;
-        if (restartError) throw new Error(restartError.message);
-        dispatch(
-          sendFeedback({ message: 'Restarting miner...', type: 'info' })
-        );
+        await restartingMiner('Restarting miner...');
       } else if (type === 'node') {
         dispatch(
           sendFeedback({
@@ -879,16 +895,10 @@ const SettingsTab = () => {
           })
         );
       } else if (type === 'both') {
-        const restartResult = await restartMiner();
-        const restartError = restartResult?.data?.Miner?.restart?.error;
-        if (restartError) throw new Error(restartError.message);
-        dispatch(
-          sendFeedback({
-            message: 'Node configuration applied; restarting miner...',
-            type: 'info',
-          })
-        );
-      } else {
+        await restartingMiner('Node configuration applied; restarting miner...');
+      } else if (!timezoneFeedback.some((m) => m.type === 'error')) {
+        // Not after a step that failed: the error toast says what did not
+        // happen, and "saved" on top of it says the opposite.
         dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
       }
 
@@ -901,7 +911,7 @@ const SettingsTab = () => {
       setIsSaving(false);
     } catch (error) {
       setIsSaving(false);
-      dispatch(sendFeedback({ message: error.toString(), type: 'error' }));
+      dispatch(sendFeedback({ message: error.message || String(error), type: 'error' }));
     }
   };
 
@@ -917,6 +927,17 @@ const SettingsTab = () => {
 
   // Errors
   if (errorQuerySettings || errorQueryPools) {
+    // A refused token is settled elsewhere (the session is ended, or the read is
+    // retried once the stored token catches up): show that something is under
+    // way, not the raw error.
+    const queryError = errorQuerySettings || errorQueryPools;
+    if (queryError.graphQLErrors?.some(isUnauthenticated)) {
+      return (
+        <Flex justify="center" py="40px">
+          <Spinner />
+        </Flex>
+      );
+    }
     return (
       <Alert borderRadius="8px" status="error" variant="subtle">
         <Flex>
@@ -924,7 +945,7 @@ const SettingsTab = () => {
           <Flex direction="column">
             <AlertTitle mr="12px">Error</AlertTitle>
             <AlertDescription>
-              {errorQuerySettings?.toString() || errorQueryPools?.toString()}
+              {(errorQuerySettings || errorQueryPools).message}
             </AlertDescription>
           </Flex>
         </Flex>

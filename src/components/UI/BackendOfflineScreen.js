@@ -22,11 +22,17 @@ function getHealthUrl() {
   return getBackendUrl('/health');
 }
 
-// Elapsed seconds counter — updates every second while visible.
+// Elapsed seconds since the screen appeared. Measured against the clock, not by
+// counting ticks: a background tab runs a 1 s interval about once a minute, and a
+// counter of ticks then stood still at "19s" while the backend stayed down.
 function useElapsed() {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    const startedAt = Date.now();
+    const id = setInterval(
+      () => setSeconds(Math.floor((Date.now() - startedAt) / 1000)),
+      1000
+    );
     return () => clearInterval(id);
   }, []);
   return seconds;
@@ -127,7 +133,7 @@ export default function BackendOfflineScreen({ onRetry, updating = false }) {
           borderColor="whiteAlpha.100"
         >
           <HStack spacing={3}>
-            <Spinner size="sm" color="orange.400" speed="0.9s" />
+            <Spinner size="sm" color="orange.400" speed="0.9s" label={t('reconnecting')} />
             <Text color="whiteAlpha.700" fontSize="sm">
               {t('reconnecting')}
             </Text>
@@ -138,6 +144,8 @@ export default function BackendOfflineScreen({ onRetry, updating = false }) {
             borderRadius="md"
             fontSize="xs"
             px={2}
+            // Chakra badges are upper-case: "1m 5s" read as "1M 5S".
+            textTransform="none"
           >
             {formatElapsed(elapsed)}
           </Badge>

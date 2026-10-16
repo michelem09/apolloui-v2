@@ -63,4 +63,52 @@ describe('apollo error link reporting', () => {
     await act(async () => new Promise((r) => setTimeout(r, 100)));
     expect(store.getState().feedback.seq).toBe(0);
   });
+
+  it('hands an unauthenticated error to the session handler with its operation', () => {
+    const onUnauthenticated = jest.fn();
+    const operation = { operationName: 'GetPools' };
+    reportLinkErrors(
+      { operation, graphQLErrors: [{ message: 'You must be authenticated', extensions: { code: 'UNAUTHENTICATED' } }] },
+      jest.fn(),
+      onUnauthenticated
+    );
+    expect(onUnauthenticated).toHaveBeenCalledWith(operation);
+  });
+
+  it('does not toast for an operation whose caller shows the error itself', async () => {
+    const store = setup();
+    const operation = { operationName: 'SavePools', getContext: () => ({ silentErrors: true }) };
+    report(store, { operation, graphQLErrors: [{ message: 'Invalid pool' }] });
+    await act(async () => new Promise((r) => setTimeout(r, 100)));
+    expect(store.getState().feedback.seq).toBe(0);
+  });
+
+  it('does not take a message that merely says "authenticated" for a refused token', async () => {
+    const store = setup();
+    const onUnauthenticated = jest.fn();
+    act(() =>
+      reportLinkErrors(
+        { operation: { operationName: 'Op' }, graphQLErrors: [{ message: 'Profile not authenticated' }] },
+        store.dispatch,
+        onUnauthenticated
+      )
+    );
+    expect(onUnauthenticated).not.toHaveBeenCalled();
+    expect(await screen.findByText('Profile not authenticated')).toBeVisible();
+  });
+
+  it('turns a refused service command into the localisable message, with no shell text', async () => {
+    const store = setup();
+    report(store, {
+      graphQLErrors: [
+        {
+          message: 'Could not restart the miner',
+          extensions: { code: 'SERVICE_COMMAND_FAILED', service: 'miner', action: 'restart' },
+        },
+      ],
+    });
+    expect(await screen.findByText('Could not restart the miner.')).toBeVisible();
+    expect(store.getState().feedback.messageId).toBe('service_error.miner.restart');
+    expect(screen.queryByText(/sudo|systemctl/)).not.toBeInTheDocument();
+  });
 });

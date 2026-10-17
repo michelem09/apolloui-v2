@@ -220,9 +220,11 @@ export const MINER_STATS_QUERY = gql`
   }
 `;
 
-export const MINER_STOP_QUERY = gql`
+// Mutations, not queries: Apollo re-executes queries on a re-render, and a
+// phantom re-fire would stop or restart the miner with no click.
+export const MINER_STOP_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MINER_STOP {
+  mutation MINER_STOP {
     Miner {
       stop {
         error {
@@ -233,9 +235,9 @@ export const MINER_STOP_QUERY = gql`
   }
 `;
 
-export const MINER_START_QUERY = gql`
+export const MINER_START_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MINER_START {
+  mutation MINER_START {
     Miner {
       start {
         error {
@@ -246,9 +248,9 @@ export const MINER_START_QUERY = gql`
   }
 `;
 
-export const MINER_RESTART_QUERY = gql`
+export const MINER_RESTART_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query MINER_RESTART {
+  mutation MINER_RESTART {
     Miner {
       restart {
         error {
@@ -259,9 +261,9 @@ export const MINER_RESTART_QUERY = gql`
   }
 `;
 
-export const RESET_BLOCK_FOUND_QUERY = gql`
+export const RESET_BLOCK_FOUND_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query RESET_BLOCK_FOUND {
+  mutation RESET_BLOCK_FOUND {
     Miner {
       resetBlockFoundFlag {
         error {

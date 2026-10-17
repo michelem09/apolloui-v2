@@ -12,23 +12,24 @@ import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useLazyQuery, useMutation } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
 
 import AdminNavbarLinks from './NavbarLinksAdmin';
 import NavbarSeconday from './NavbarSecondary';
 import {
-  MINER_RESTART_QUERY,
-  MINER_START_QUERY,
-  MINER_STOP_QUERY,
+  MINER_RESTART_MUTATION,
+  MINER_START_MUTATION,
+  MINER_STOP_MUTATION,
 } from '../../graphql/miner';
 import { NODE_START_MUTATION, NODE_STOP_MUTATION } from '../../graphql/node';
-import { SOLO_START_QUERY, SOLO_STOP_QUERY, SOLO_RESTART_QUERY } from '../../graphql/solo';
+import { SOLO_START_MUTATION, SOLO_STOP_MUTATION, SOLO_RESTART_MUTATION } from '../../graphql/solo';
 import { minerSelector } from '../../redux/reselect/miner';
 import { settingsSelector } from '../../redux/reselect/settings';
 import { MCU_REBOOT_MUTATION, MCU_SHUTDOWN_MUTATION } from '../../graphql/mcu';
 import { runSystemAction } from '../../lib/systemAction';
+import { runMutation } from '../../lib/runMutation';
 import { SidebarResponsive } from '../sidebar/Sidebar';
 import { servicesSelector } from '../../redux/reselect/services';
 import StatusTransitionFeedback from '../UI/StatusTransitionFeedback';
@@ -53,13 +54,16 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
   const { data: servicesStatus } = useSelector(servicesSelector, shallowEqual);
 
   // Miner actions
-  const [startMiner] =
-    useLazyQuery(MINER_START_QUERY, { fetchPolicy: 'no-cache' });
+  // Mutations, wrapped in runMutation so each trigger keeps resolving to
+  // { data, error } without throwing, as the lazy-query triggers did.
+  const [startMinerMutation] = useMutation(MINER_START_MUTATION);
+  const startMiner = (o) => runMutation(startMinerMutation, o);
 
-  const [stopMiner] =
-    useLazyQuery(MINER_STOP_QUERY, { fetchPolicy: 'no-cache' });
+  const [stopMinerMutation] = useMutation(MINER_STOP_MUTATION);
+  const stopMiner = (o) => runMutation(stopMinerMutation, o);
 
-  const [restartMiner] = useLazyQuery(MINER_RESTART_QUERY, { fetchPolicy: 'no-cache' });
+  const [restartMinerMutation] = useMutation(MINER_RESTART_MUTATION);
+  const restartMiner = (o) => runMutation(restartMinerMutation, o);
 
   // Node actions. Mutations now — onError noop so the calls below cannot reject
   // unhandled; how each one ended is read from its result (see handleSystemAction).
@@ -70,13 +74,14 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
     useMutation(NODE_STOP_MUTATION, { onError: () => {} });
 
   // Solo actions
-  const [startSolo] =
-    useLazyQuery(SOLO_START_QUERY, { fetchPolicy: 'no-cache' });
+  const [startSoloMutation] = useMutation(SOLO_START_MUTATION);
+  const startSolo = (o) => runMutation(startSoloMutation, o);
 
-  const [stopSolo] =
-    useLazyQuery(SOLO_STOP_QUERY, { fetchPolicy: 'no-cache' });
+  const [stopSoloMutation] = useMutation(SOLO_STOP_MUTATION);
+  const stopSolo = (o) => runMutation(stopSoloMutation, o);
 
-  const [restartSolo] = useLazyQuery(SOLO_RESTART_QUERY, { fetchPolicy: 'no-cache' });
+  const [restartSoloMutation] = useMutation(SOLO_RESTART_MUTATION);
+  const restartSolo = (o) => runMutation(restartSoloMutation, o);
 
   // MCU actions
   const [rebootMcu] =

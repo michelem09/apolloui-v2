@@ -4,7 +4,7 @@ import { useLazyQuery, useMutation } from '@apollo/client';
 import { useColorModeValue, useDisclosure } from '@chakra-ui/react';
 import { useIntl } from 'react-intl';
 
-import { MINER_RESTART_QUERY } from '../graphql/miner';
+import { MINER_RESTART_MUTATION } from '../graphql/miner';
 import { NODE_START_MUTATION } from '../graphql/node';
 import { AUTH_LOGIN_QUERY, SAVE_SETUP_MUTATION } from '../graphql/auth';
 import { UPDATE_POOLS_MUTATION } from '../graphql/pools';
@@ -43,10 +43,8 @@ const Setup = () => {
 
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const [restartMiner, { loading: loadingMinerRestart }] = useLazyQuery(
-    MINER_RESTART_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
+  const [restartMinerMutation, { loading: loadingMinerRestart }] = useMutation(MINER_RESTART_MUTATION);
+  const restartMiner = (o) => runMutation(restartMinerMutation, o);
 
   // Mutation — onError noop so the fire-and-forget call cannot reject
   // unhandled; errors surface via the hook's error state like the lazy query.

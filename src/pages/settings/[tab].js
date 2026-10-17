@@ -30,7 +30,7 @@ import { MdSettings, MdHistory, MdWifiTethering } from 'react-icons/md';
 import { GrUserWorker } from 'react-icons/gr';
 import { GET_SETTINGS_QUERY, SET_SETTINGS_MUTATION } from '../../graphql/settings';
 import { GET_POOLS_QUERY, UPDATE_POOLS_MUTATION } from '../../graphql/pools';
-import { MINER_RESTART_QUERY } from '../../graphql/miner';
+import { MINER_RESTART_MUTATION } from '../../graphql/miner';
 import { MCU_TIMEZONE_QUERY, MCU_SET_TIMEZONE_MUTATION } from '../../graphql/mcu';
 import {
   GET_AUTOMATION_CONFIG_QUERY,
@@ -203,10 +203,8 @@ const SettingsTab = () => {
   const [savePoolsMutation, { loading: loadingSavePools }] = useMutation(UPDATE_POOLS_MUTATION);
   const savePools = (o) => runMutation(savePoolsMutation, o);
 
-  const [restartMiner, { loading: loadingMinerRestart }] = useLazyQuery(
-    MINER_RESTART_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
+  const [restartMinerMutation, { loading: loadingMinerRestart }] = useMutation(MINER_RESTART_MUTATION);
+  const restartMiner = (o) => runMutation(restartMinerMutation, o);
 
   const [changeLockPasswordMutation, { loading: changeLockPasswordLoading }] =
     useMutation(CHANGE_PASSWORD_MUTATION);

@@ -87,9 +87,10 @@ export const SOLO_STATS_QUERY = gql`
   }
 `;
 
-export const SOLO_START_QUERY = gql`
+// Mutations, not queries (see MINER_STOP_MUTATION).
+export const SOLO_START_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SOLO_START {
+  mutation SOLO_START {
     Solo {
       start {
         success
@@ -101,9 +102,9 @@ export const SOLO_START_QUERY = gql`
   }
 `;
 
-export const SOLO_STOP_QUERY = gql`
+export const SOLO_STOP_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SOLO_STOP {
+  mutation SOLO_STOP {
     Solo {
       stop {
         success
@@ -115,9 +116,9 @@ export const SOLO_STOP_QUERY = gql`
   }
 `;
 
-export const SOLO_RESTART_QUERY = gql`
+export const SOLO_RESTART_MUTATION = gql`
   ${ERROR_FRAGMENT}
-  query SOLO_RESTART {
+  mutation SOLO_RESTART {
     Solo {
       restart {
         success

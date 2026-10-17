@@ -13,9 +13,9 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { useLazyQuery } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { useDispatch } from 'react-redux';
-import { RESET_BLOCK_FOUND_QUERY } from '../../graphql/miner';
+import { RESET_BLOCK_FOUND_MUTATION } from '../../graphql/miner';
 import { sendFeedback } from '../../redux/slices/feedbackSlice';
 import { FaBitcoin, FaTrophy } from 'react-icons/fa';
 import { GiPartyPopper } from 'react-icons/gi';
@@ -31,8 +31,7 @@ const BlockFoundCelebration = ({ blockFound }) => {
   const borderColor = useColorModeValue('yellow.500', 'yellow.600');
   const textColor = useColorModeValue('yellow.800', 'yellow.200');
 
-  const [resetBlockFound, { loading }] = useLazyQuery(RESET_BLOCK_FOUND_QUERY, {
-    fetchPolicy: 'no-cache',
+  const [resetBlockFound, { loading }] = useMutation(RESET_BLOCK_FOUND_MUTATION, {
     onCompleted: () => {
       toast({
         title: intl.formatMessage({ id: 'block_found.reset.title' }),

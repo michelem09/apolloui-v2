@@ -45,6 +45,7 @@ import ActiveBadge from '../components/apollo/ActiveBadge';
 import PanelGrid from '../components/UI/PanelGrid';
 import moment from '../lib/moment';
 import { reportFailure } from '../lib/reportFailure';
+import { runMutation } from '../lib/runMutation';
 import _ from 'lodash';
 import { BlocksIcon } from '../components/UI/Icons/BlocksIcon';
 import {
@@ -64,8 +65,8 @@ import { InfoIcon } from '@chakra-ui/icons';
 import SoloMiningDrawer from '../components/apollo/SoloMiningDrawer';
 import SoloMiningStatus from '../components/UI/SoloMiningStatus';
 import ColorBars from '../components/UI/ColorBars';
-import { useLazyQuery } from '@apollo/client';
-import { SOLO_START_QUERY } from '../graphql/solo';
+import { useMutation } from '@apollo/client';
+import { SOLO_START_MUTATION } from '../graphql/solo';
 import { useDeviceType } from '../contexts/DeviceConfigContext';
 
 const SoloMining = () => {
@@ -100,10 +101,8 @@ const SoloMining = () => {
   );
 
   // Solo service actions
-  const [startSolo, { loading: loadingSoloStart }] = useLazyQuery(
-    SOLO_START_QUERY,
-    { fetchPolicy: 'no-cache' }
-  );
+  const [startSoloMutation, { loading: loadingSoloStart }] = useMutation(SOLO_START_MUTATION);
+  const startSolo = (o) => runMutation(startSoloMutation, o);
 
   const handleStartSolo = async () => {
     reportFailure(dispatch, await startSolo());

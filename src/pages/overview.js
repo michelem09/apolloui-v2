@@ -21,6 +21,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { reportFailure } from '../lib/reportFailure';
+import { runMutation } from '../lib/runMutation';
 import CardSkeleton from '../components/UI/CardSkeleton';
 import { useSelector, shallowEqual } from 'react-redux';
 import Card from '../components/card/Card';
@@ -63,8 +64,8 @@ import HashrateChart, { INTERVAL_CONFIG } from '../components/apollo/HashrateCha
 import MinerMetricsGrid from '../components/apollo/MinerMetricsGrid';
 import AutomationOverviewCard from '../components/automation/AutomationOverviewCard';
 import { MdOfflineBolt, MdPowerSettingsNew, MdPlayArrow } from 'react-icons/md';
-import { useLazyQuery } from '@apollo/client';
-import { SOLO_START_QUERY } from '../graphql/solo';
+import { useMutation } from '@apollo/client';
+import { SOLO_START_MUTATION } from '../graphql/solo';
 import { GiDiamondTrophy } from 'react-icons/gi';
 import CountUp from 'react-countup';
 import { useDeviceType } from '../contexts/DeviceConfigContext';
@@ -204,9 +205,8 @@ const Overview = () => {
 
   // Starting the pool was only ever offered on the Solo page, so the Overview
   // could tell you the thing was off and leave you to go and find the switch.
-  const [startSolo, { loading: startingSolo }] = useLazyQuery(SOLO_START_QUERY, {
-    fetchPolicy: 'no-cache',
-  });
+  const [startSoloMutation, { loading: startingSolo }] = useMutation(SOLO_START_MUTATION);
+  const startSolo = (o) => runMutation(startSoloMutation, o);
 
   // The three ways the pool can be anything other than running, told apart once
   // so the card renders one shape instead of three near-identical ones.

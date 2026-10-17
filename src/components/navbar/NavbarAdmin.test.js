@@ -47,7 +47,7 @@ const routes = [
   route('/node', 'node'),
 ];
 
-const okPayload = (ns, field) => ({ data: { [ns]: { [field]: { success: true, error: null } } } });
+const okPayload = (ns, field) => ({ data: { [ns]: { [field]: { error: null } } } });
 
 const mockFor = (document, ns, field, calls) => ({
   request: { query: document },

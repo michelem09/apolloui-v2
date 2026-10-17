@@ -31,8 +31,24 @@ const BlockFoundCelebration = ({ blockFound }) => {
   const borderColor = useColorModeValue('yellow.500', 'yellow.600');
   const textColor = useColorModeValue('yellow.800', 'yellow.200');
 
+  const reportResetFailure = (message) => {
+    dispatch(
+      sendFeedback({
+        message: intl.formatMessage({ id: 'block_found.reset.error' }, { error: message }),
+        type: 'error',
+      })
+    );
+  };
+
   const [resetBlockFound, { loading }] = useMutation(RESET_BLOCK_FOUND_MUTATION, {
-    onCompleted: () => {
+    onCompleted: (data) => {
+      // A refusal comes back inside the payload with the call itself "completed":
+      // the flag is still set, so say so and keep the celebration open.
+      const payloadError = data?.Miner?.resetBlockFoundFlag?.error;
+      if (payloadError) {
+        reportResetFailure(payloadError.message);
+        return;
+      }
       toast({
         title: intl.formatMessage({ id: 'block_found.reset.title' }),
         description: intl.formatMessage({ id: 'block_found.reset.description' }),
@@ -42,14 +58,7 @@ const BlockFoundCelebration = ({ blockFound }) => {
       });
       setShowCelebration(false);
     },
-    onError: (error) => {
-      dispatch(
-        sendFeedback({
-          message: intl.formatMessage({ id: 'block_found.reset.error' }, { error: error.message }),
-          type: 'error',
-        })
-      );
-    },
+    onError: (error) => reportResetFailure(error.message),
   });
 
   useEffect(() => {

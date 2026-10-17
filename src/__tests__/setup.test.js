@@ -4,9 +4,12 @@ import { useLazyQuery, useMutation } from '@apollo/client';
 import { renderWithProviders } from '../test-utils';
 import Setup from '../pages/setup';
 
-jest.mock('next/router', () => ({ useRouter: () => ({ reload: jest.fn() }) }));
+const mockReplace = jest.fn();
+jest.mock('next/router', () => ({ useRouter: () => ({ reload: jest.fn(), replace: mockReplace }) }));
+// The miner restart only runs on a Solo Node when a USB hashboard is plugged in.
+let mockHasUsbMiners = false;
 jest.mock('../contexts/DeviceConfigContext', () => ({
-  useDeviceConfig: () => ({ deviceType: 'solo-node' }),
+  useDeviceConfig: () => ({ deviceType: 'solo-node', hasUsbMiners: mockHasUsbMiners }),
 }));
 jest.mock('@apollo/client', () => ({
   ...jest.requireActual('@apollo/client'),
@@ -106,5 +109,51 @@ describe('Setup wizard — a GraphQL error on the pool write', () => {
     submitPasswords('longpass1', 'longpass1');
 
     expect(await screen.findByText(/pool write exploded/)).toBeInTheDocument();
+  });
+});
+
+
+// The last step restarts the miner and then leaves for /signin. A call that
+// fails outright (UNAUTHENTICATED, network) arrives as `error`, not inside the
+// payload: it used to be ignored and the wizard went on as if the miner had
+// restarted.
+describe('Setup wizard — starting mining', () => {
+  afterEach(() => {
+    mockHasUsbMiners = false;
+    useMutation.mockImplementation(() => [jest.fn(), {}]);
+    useLazyQuery.mockImplementation(() => [jest.fn(), {}]);
+  });
+
+  const reachCompleteStep = async (restartResult) => {
+    mockHasUsbMiners = true;
+    const restart = jest.fn().mockResolvedValue(restartResult);
+    const ok = { data: { Auth: { setup: { error: null } }, Pool: { updateAll: { error: null } }, Node: { start: { error: null } } } };
+    useMutation.mockImplementation((doc) => {
+      const text = print(doc);
+      if (text.includes('MINER_RESTART')) return [restart, {}];
+      return [jest.fn().mockResolvedValue(ok), {}];
+    });
+    useLazyQuery.mockImplementation(() => [
+      jest.fn().mockResolvedValue({ data: { Auth: { login: { result: { accessToken: 't' }, error: null } } } }),
+      {},
+    ]);
+    await gotoPasswordStep();
+    submitPasswords('longpass1', 'longpass1');
+    // the complete step's only button
+    fireEvent.click(await screen.findByRole('button', { name: /start/i }));
+    return restart;
+  };
+
+  it('stays on the wizard with the message when the restart call itself fails', async () => {
+    const restart = await reachCompleteStep({ data: undefined, errors: [{ message: 'not authenticated' }] });
+    await waitFor(() => expect(restart).toHaveBeenCalled());
+    expect(await screen.findByText(/not authenticated/)).toBeInTheDocument();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('goes to /signin when the restart is clean', async () => {
+    const restart = await reachCompleteStep({ data: { Miner: { restart: { error: null } } } });
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/signin'));
+    expect(restart).toHaveBeenCalled();
   });
 });

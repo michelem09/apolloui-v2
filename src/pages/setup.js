@@ -46,12 +46,10 @@ const Setup = () => {
   const [restartMinerMutation, { loading: loadingMinerRestart }] = useMutation(MINER_RESTART_MUTATION);
   const restartMiner = (o) => runMutation(restartMinerMutation, o);
 
-  // Mutation — onError noop so the fire-and-forget call cannot reject
-  // unhandled; errors surface via the hook's error state like the lazy query.
-  const [startNode, { loading: loadingNodeStart }] = useMutation(
-    NODE_START_MUTATION,
-    { onError: () => {} }
-  );
+  // runMutation, like the other writes here: a failed call resolves to { error }
+  // (read by handleStartMining) instead of rejecting.
+  const [startNodeMutation, { loading: loadingNodeStart }] = useMutation(NODE_START_MUTATION);
+  const startNode = (o) => runMutation(startNodeMutation, o);
 
   // The writes are mutations (a query would be re-run by a re-render). runMutation
   // keeps the old lazy-query contract: resolve to { data, error }, never throw.
@@ -247,7 +245,7 @@ const Setup = () => {
     try {
       setError(null);
       const nodeResult = await startNode();
-      const nodeError = nodeResult?.data?.Node?.start?.error;
+      const nodeError = nodeResult.error || nodeResult?.data?.Node?.start?.error;
       if (nodeError) throw new Error(nodeError.message);
 
       // The Solo Node has no internal board, but it still runs apollo-miner for
@@ -255,7 +253,10 @@ const Setup = () => {
       // launch — so it needs the restart too whenever one is plugged in.
       if (!isSoloNode || hasUsbMiners) {
         const minerResult = await restartMiner();
-        const minerError = minerResult?.data?.Miner?.restart?.error;
+        // A call that failed outright (UNAUTHENTICATED, network) is `error`, not a
+        // payload error: reading only the payload went on to /signin as if the
+        // miner had restarted.
+        const minerError = minerResult.error || minerResult?.data?.Miner?.restart?.error;
         if (minerError) throw new Error(minerError.message);
       }
       // Go straight to signin — where the guard sends a completed setup anyway.

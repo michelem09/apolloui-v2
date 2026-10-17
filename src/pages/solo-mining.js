@@ -104,7 +104,10 @@ const SoloMining = () => {
   const [startSoloMutation, { loading: loadingSoloStart }] = useMutation(SOLO_START_MUTATION);
   const startSolo = (o) => runMutation(startSoloMutation, o);
 
+  // SoloMiningStatus receives this as onStart but renders no start button today;
+  // guarded anyway, since a mutation (unlike a query) is not de-duplicated.
   const handleStartSolo = async () => {
+    if (loadingSoloStart) return;
     reportFailure(dispatch, await startSolo());
   };
 

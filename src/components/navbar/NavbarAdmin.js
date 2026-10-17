@@ -56,31 +56,31 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
   // Miner actions
   // Mutations, wrapped in runMutation so each trigger keeps resolving to
   // { data, error } without throwing, as the lazy-query triggers did.
-  const [startMinerMutation] = useMutation(MINER_START_MUTATION);
+  const [startMinerMutation, { loading: startMinerLoading }] = useMutation(MINER_START_MUTATION);
   const startMiner = (o) => runMutation(startMinerMutation, o);
 
-  const [stopMinerMutation] = useMutation(MINER_STOP_MUTATION);
+  const [stopMinerMutation, { loading: stopMinerLoading }] = useMutation(MINER_STOP_MUTATION);
   const stopMiner = (o) => runMutation(stopMinerMutation, o);
 
-  const [restartMinerMutation] = useMutation(MINER_RESTART_MUTATION);
+  const [restartMinerMutation, { loading: restartMinerLoading }] = useMutation(MINER_RESTART_MUTATION);
   const restartMiner = (o) => runMutation(restartMinerMutation, o);
 
   // Node actions. Mutations now — onError noop so the calls below cannot reject
   // unhandled; how each one ended is read from its result (see handleSystemAction).
-  const [startNode] =
+  const [startNode, { loading: startNodeLoading }] =
     useMutation(NODE_START_MUTATION, { onError: () => {} });
 
-  const [stopNode] =
+  const [stopNode, { loading: stopNodeLoading }] =
     useMutation(NODE_STOP_MUTATION, { onError: () => {} });
 
   // Solo actions
-  const [startSoloMutation] = useMutation(SOLO_START_MUTATION);
+  const [startSoloMutation, { loading: startSoloLoading }] = useMutation(SOLO_START_MUTATION);
   const startSolo = (o) => runMutation(startSoloMutation, o);
 
-  const [stopSoloMutation] = useMutation(SOLO_STOP_MUTATION);
+  const [stopSoloMutation, { loading: stopSoloLoading }] = useMutation(SOLO_STOP_MUTATION);
   const stopSolo = (o) => runMutation(stopSoloMutation, o);
 
-  const [restartSoloMutation] = useMutation(SOLO_RESTART_MUTATION);
+  const [restartSoloMutation, { loading: restartSoloLoading }] = useMutation(SOLO_RESTART_MUTATION);
   const restartSolo = (o) => runMutation(restartSoloMutation, o);
 
   // MCU actions
@@ -88,6 +88,17 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
     useMutation(MCU_REBOOT_MUTATION, { onError: () => {} });
 
   const [shutdownMcu] = useMutation(MCU_SHUTDOWN_MUTATION, { onError: () => {} });
+
+  // A mutation, unlike a query, is not de-duplicated by Apollo: two clicks are
+  // two network calls, and a second restart while the first is still running
+  // (an Apollo III enumerating its boards) is not harmless. So while a
+  // service's own start/stop/restart is in flight its buttons are busy and
+  // handleSystemAction ignores a repeat for that service.
+  const busy = {
+    Miner: startMinerLoading || stopMinerLoading || restartMinerLoading,
+    Solo: startSoloLoading || stopSoloLoading || restartSoloLoading,
+    Node: startNodeLoading || stopNodeLoading,
+  };
 
   useEffect(() => {
     window.addEventListener('scroll', changeNavbar);
@@ -98,6 +109,9 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
   }, []);
 
   const handleSystemAction = async (action) => {
+    const service = action.match(/(Miner|Solo|Node)$/)?.[1];
+    if (service && busy[service]) return;
+
     let title;
     let description;
     let call;
@@ -300,6 +314,7 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
                 type={'miner'}
                 handleSystemAction={handleSystemAction}
                 minerOnline={servicesStatus?.miner?.status}
+                busy={busy.Miner}
               />
             </Box>
           )}
@@ -310,6 +325,7 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
                 type={'solo'}
                 handleSystemAction={handleSystemAction}
                 soloOnline={servicesStatus?.solo?.status}
+                busy={busy.Solo}
               />
             </Box>
           )}
@@ -320,6 +336,7 @@ const AdminNavbar = ({ secondary, message, routes, ...props }) => {
                 type={'node'}
                 handleSystemAction={handleSystemAction}
                 nodeOnline={servicesStatus?.node?.status}
+                busy={busy.Node}
               />
             </Box>
           )}

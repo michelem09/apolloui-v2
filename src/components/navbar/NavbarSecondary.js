@@ -16,6 +16,7 @@ const NavbarSeconday = ({
   nodeOnline,
   minerOnline,
   soloOnline, // Add solo service status
+  busy = false, // this service's own start/stop/restart is in flight
 }) => {
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
@@ -48,6 +49,7 @@ const NavbarSeconday = ({
                 me="6px"
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('stopMiner')}
+              isLoading={busy}
               >
                 <Flex
                   align="center"
@@ -78,6 +80,7 @@ const NavbarSeconday = ({
                 me="6px"
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('restartMiner')}
+                isLoading={busy}
                 isDisabled={minerOnline === 'pending'}
               >
                 <Flex
@@ -112,6 +115,7 @@ const NavbarSeconday = ({
               me="6px"
               bgColor={badgeBox}
               onClick={() => handleSystemAction('startMiner')}
+              isLoading={busy}
               isDisabled={minerOnline === 'pending'}
             >
               <Flex
@@ -151,6 +155,7 @@ const NavbarSeconday = ({
                 me="6px"
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('stopSolo')}
+              isLoading={busy}
               >
                 <Flex
                   align="center"
@@ -181,6 +186,7 @@ const NavbarSeconday = ({
                 me="6px"
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('restartSolo')}
+                isLoading={busy}
                 isDisabled={soloOnline === 'pending'}
               >
                 <Flex
@@ -215,6 +221,7 @@ const NavbarSeconday = ({
               me="6px"
               bgColor={badgeBox}
               onClick={() => handleSystemAction('startSolo')}
+              isLoading={busy}
               isDisabled={soloOnline === 'pending'}
             >
               <Flex
@@ -253,6 +260,7 @@ const NavbarSeconday = ({
               me="6px"
               bgColor={badgeBox}
               onClick={() => handleSystemAction('stopNode')}
+            isLoading={busy}
             >
               <Flex
                 align="center"
@@ -285,6 +293,7 @@ const NavbarSeconday = ({
               me="6px"
               bgColor={badgeBox}
               onClick={() => handleSystemAction('startNode')}
+              isLoading={busy}
               isDisabled={nodeOnline === 'pending'}
             >
               <Flex

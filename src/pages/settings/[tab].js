@@ -60,7 +60,9 @@ import { mcuSelector } from '../../redux/reselect/mcu';
 import { CHANGE_PASSWORD_MUTATION } from '../../graphql/auth';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
+import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
+import { buildPoolsInput } from '../../lib/poolsInput';
 import { savePendingPools } from '../../lib/savePendingPools';
 import { applyTimezone } from '../../lib/applyTimezone';
 import { runSteps } from '../../lib/callFailure';
@@ -103,8 +105,20 @@ const SettingsTab = () => {
   const deviceType = useDeviceType();
   const router = useRouter();
   const dispatch = useDispatch();
-  const [settings, setSettings] = useState({ initial: true });
-  const [currentSettings, setCurrentSettings] = useState();
+  const {
+    settings,
+    setSettings,
+    currentSettings,
+    setCurrentSettings,
+    loadSettings,
+    seedTimezone,
+    markSaved,
+    requestReplace,
+    settle,
+    forgetPasswordPair,
+  } = useSettingsDraft();
+  // Bumped once a save/restore has refetched; see the effect that settles the draft.
+  const [reloadSettled, setReloadSettled] = useState(0);
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
   // Saved pools, and the pending "keep this one" the action bar offers. A pool
@@ -313,8 +327,9 @@ const SettingsTab = () => {
         : { enabled: false, url: '', username: '', password: 'x', index: 2 };
 
     const finalSettings = { ...settingsData, pool: poolToUse, backupPool: backupPoolToUse };
-    setSettings(finalSettings);
-    setCurrentSettings(finalSettings);
+    // Not a plain setSettings: a choice made before this answer arrived must
+    // survive it (see useSettingsDraft).
+    loadSettings(finalSettings);
   }, [
     loadingSettings,
     loadingPools,
@@ -323,16 +338,23 @@ const SettingsTab = () => {
     errorQuerySettings,
     errorQueryPools,
     deviceType,
+    loadSettings,
   ]);
+
+  // After the load above (declared later, so it runs after it in the same commit):
+  // a save or restore whose refetch brought nothing new never loaded, and its
+  // flag must not wait for the next unrelated arrival.
+  useEffect(() => {
+    if (reloadSettled) settle();
+  }, [reloadSettled, settle]);
 
   // Seed the current system timezone into both baselines once it arrives, so
   // picking a different one lights up the save bar and picking the current one
   // does not. Patches instead of rebuilding, so it never wipes a pending edit.
   useEffect(() => {
     if (!systemTimezone || !currentSettings || currentSettings.timezone) return;
-    setSettings((s) => ({ ...s, timezone: systemTimezone }));
-    setCurrentSettings((s) => ({ ...s, timezone: systemTimezone }));
-  }, [systemTimezone, currentSettings]);
+    seedTimezone(systemTimezone);
+  }, [systemTimezone, currentSettings, seedTimezone]);
 
   // Same for the device location, seeded once from the automation config. The
   // `_seeded` flag lets a value of null (no location set) still count as a
@@ -345,9 +367,12 @@ const SettingsTab = () => {
       longitude: automationConfig.longitude ?? null,
       _locationSeeded: true,
     });
-    setSettings(patch);
+    // A reload keeps the working copy's own location edit (see useSettingsDraft)
+    // but rebuilds the baseline without it: re-seed the baseline always, the
+    // working copy only if it has never been seeded.
+    setSettings((s) => (s._locationSeeded ? s : patch(s)));
     setCurrentSettings(patch);
-  }, [automationConfig, currentSettings]);
+  }, [automationConfig, currentSettings, setSettings, setCurrentSettings]);
 
   // Seed the MQTT draft + baseline once the config arrives (own state, not merged
   // into `settings`).
@@ -521,8 +546,11 @@ const SettingsTab = () => {
         if (!kept.ok) poolsNotRestored += 1;
       }
 
+      // The restored values replace the working copy, pending edits included.
+      requestReplace();
       await refetchSettings();
       await refetchPools();
+      setReloadSettled((n) => n + 1);
       setIsModalRestoreOpen(false);
       dispatch(
         sendFeedback({
@@ -610,52 +638,20 @@ const SettingsTab = () => {
         nodeAllowLan,
         nodeSoftware,
         powerLedOff,
-        pool,
-        backupPool,
         btcsig,
         startdiff,
         mindiff,
       } = settings;
 
-      // Ensure pool exists with default values
-      const poolData = pool || {};
-      const { enabled, url, username, password, index } = poolData;
-
-      // Additional check for required pool fields
-      if (!url) {
+      // Trimmed and checked in one place (lib/poolsInput), so the rules are
+      // testable without this page.
+      const built = buildPoolsInput(settings);
+      if (built.error) {
         setIsSaving(false);
-        return setErrorForm('Pool URL is required');
+        return setErrorForm(built.error);
       }
-
-      if (!username) {
-        setIsSaving(false);
-        return setErrorForm('Pool username/wallet address is required');
-      }
-
-      // Validations
-      if (!url.match(/^(stratum\+tcp:\/\/)?[a-zA-Z0-9.-]+:[0-9]+$/)) {
-        setIsSaving(false);
-        return setErrorForm('Invalid pool URL');
-      }
-
-      // The backup pool goes onto the same command line as the primary, so it
-      // gets the same checks. Without them an empty worker produced a bare
-      // `-user2` and a URL without a port was silently dropped, so failover the
-      // user had configured never reached the miner.
-      if (backupPool?.enabled) {
-        if (!backupPool.url) {
-          setIsSaving(false);
-          return setErrorForm('Backup pool URL is required');
-        }
-        if (!backupPool.url.match(/^(stratum\+tcp:\/\/)?[a-zA-Z0-9.-]+:[0-9]+$/)) {
-          setIsSaving(false);
-          return setErrorForm('Invalid backup pool URL');
-        }
-        if (!backupPool.username) {
-          setIsSaving(false);
-          return setErrorForm('Backup pool username/wallet address is required');
-        }
-      }
+      const { pools: builtPools } = built;
+      const { username } = built.pool;
 
       // Additional validation for solo mining
       if (nodeEnableSoloMining) {
@@ -704,37 +700,15 @@ const SettingsTab = () => {
         (value, key) => !_.isEqual(value, currentSettings?.[key])
       );
 
-      // Indices are the priority order the miner reads — generate() sorts by them
-      // and takes the first as primary. Keeping whatever index the primary
-      // happened to be stored with was a real hazard: the seeded pool carries
-      // index 99, so adding a backup at 2 made the backup sort first and take all
-      // the hashrate, paying out to the wrong address.
-      const poolInput = {
-        enabled: enabled !== undefined ? enabled : true, // Default to true if not set
-        url,
-        username,
-        password: password ?? null,
-        index: 1,
-      };
-
       // Submit only fields changed in this editor so a stale tab cannot
       // overwrite unrelated settings saved elsewhere.
       const settingsStep = Object.keys(input).length > 0
         ? [{ name: 'settings', run: () => saveSettings({ variables: { input }, context: SILENT }) }]
         : [];
 
-      // updateAll replaces the whole table, so the array IS the intent: leaving the
-      // backup out of it is how switching it off removes it.
-      const poolsInput = [poolInput];
-      if (backupPool?.enabled && backupPool.url) {
-        poolsInput.push({
-          enabled: true,
-          url: backupPool.url,
-          username: backupPool.username,
-          password: backupPool.password ?? null,
-          index: 2,
-        });
-      }
+      // The array IS the intent (updateAll replaces the whole table, see
+      // lib/poolsInput); a missing password goes out as null.
+      const poolsInput = builtPools.map((p) => ({ ...p, password: p.password ?? null }));
 
       // Only write the pools when they changed: the pool set is rewritten as a
       // whole, so an untouched one would be replaced by itself for nothing.
@@ -767,6 +741,9 @@ const SettingsTab = () => {
       // otherwise carry on to restart the miner and report it.
       // The backend refuses some passwords (line breaks, NUL): say so instead of
       // letting the bar clear as if the change had been applied.
+      // What the device answers to the reload below is the truth for these
+      // fields; an edit made while it is in flight is not (see useSettingsDraft).
+      markSaved(settings);
       const saved = await runSteps([
         ...settingsStep,
         ...poolsStep,
@@ -784,6 +761,7 @@ const SettingsTab = () => {
           : []),
       ]);
       if (!saved.ok) {
+        markSaved(null);
         setIsSaving(false);
         // A restart the device refused while applying the settings is worded in the
         // user's language, and says the settings were not saved (the backend rolled
@@ -791,7 +769,13 @@ const SettingsTab = () => {
         // the user can fix the cause and press Save again, nothing is lost.
         return setErrorForm(saveFailureText(saved, intl.formatMessage));
       }
-      if (changePassword) setIsChanged(false);
+      if (changePassword) {
+        // Applied: the pair leaves the working copy and the section's own fields,
+        // else the reload keeps it (the device does not carry it back) and every
+        // later save would change the password again.
+        forgetPasswordPair();
+        setIsChanged(false);
+      }
 
       // Timezone: a plain save, no restart of its own. Extracted for the same
       // reason as the pool step below, and it never throws either — a zone the
@@ -837,6 +821,7 @@ const SettingsTab = () => {
 
       await refetchSettings();
       await refetchPools();
+      setReloadSettled((n) => n + 1);
 
       // Keeping the pool is a side errand of saving, so it reports separately
       // and never fails the save: the settings are already applied by here, and
@@ -890,6 +875,7 @@ const SettingsTab = () => {
 
       setIsSaving(false);
     } catch (error) {
+      markSaved(null);
       setIsSaving(false);
       dispatch(sendFeedback({ message: error.message || String(error), type: 'error' }));
     }

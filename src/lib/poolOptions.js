@@ -99,3 +99,11 @@ const POOL_FIELDS = ['url', 'username', 'password'];
 
 export const poolFieldsChanged = (before, after) =>
   POOL_FIELDS.some((field) => (before?.[field] ?? '') !== (after?.[field] ?? ''));
+
+// A URL or worker pasted with a space at an edge used to be refused as an
+// invalid pool (Settings) or stored as typed (setup). Only these two fields are
+// cut: a password may legitimately begin or end with a space.
+export const trimEdges = (value) => (typeof value === 'string' ? value.trim() : value);
+
+export const trimPoolEdges = (pool) =>
+  pool ? { ...pool, url: trimEdges(pool.url), username: trimEdges(pool.username) } : pool;

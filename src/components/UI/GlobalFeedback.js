@@ -71,8 +71,11 @@ const GlobalFeedback = () => {
         duration: kind.duration,
         isClosable: true,
         render: ({ onClose }) => (
+          // No role of its own: Chakra already wraps every toast in
+          // role="status", and a nested role="alert" made one toast two live
+          // regions (announced twice, and counted twice by anything that
+          // looks for roles).
           <Box
-            role="alert"
             bg={style.current.bg}
             borderColor={style.current.borderColor}
             borderWidth="1px"

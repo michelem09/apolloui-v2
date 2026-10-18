@@ -8,6 +8,7 @@ const SimpleCard = ({
   textColor,
   secondaryTextColor,
   icon,
+  info,
   ...rest
 }) => {
   return (
@@ -46,6 +47,9 @@ const SimpleCard = ({
                   >
                     {title}
                   </FormLabel>
+                  {/* Beside the label, not inside it: a button nested in a
+                      label becomes part of the label's accessible name. */}
+                  {info && <Flex align='center' mb='6px'>{info}</Flex>}
                 </Flex>
               )}
               {description && (

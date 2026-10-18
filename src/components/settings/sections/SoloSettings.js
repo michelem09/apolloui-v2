@@ -17,6 +17,7 @@ import { MdInfo } from 'react-icons/md';
 import { GrUserWorker } from 'react-icons/gr';
 import PanelCard from '../../UI/PanelCard';
 import SimpleCard from '../../UI/SimpleCard';
+import InfoPopover from '../../UI/InfoPopover';
 import SimpleSwitchSettingsItem from '../../UI/SimpleSwitchSettingsItem';
 import { useSettings } from '../context/SettingsContext';
 import { isValidBitcoinAddress, isCompatibleBitcoinAddress } from '../../../lib/utils';
@@ -34,10 +35,17 @@ const SoloSettings = () => {
   const { settings, setSettings, setErrorForm } = useSettings();
   const textColor = useColorModeValue('brands.900', 'white');
   const inputTextColor = useColorModeValue('gray.900', 'gray.300');
-  const infoBgColor = useColorModeValue('blue.50', 'blue.900');
-  const infoBorderColor = useColorModeValue('blue.200', 'blue.700');
-  const infoIconColor = useColorModeValue('blue.500', 'blue.300');
-  const infoTextColor = useColorModeValue('blue.700', 'blue.200');
+  const warnBgColor = useColorModeValue('blue.50', 'blue.900');
+  const warnBorderColor = useColorModeValue('blue.200', 'blue.700');
+  const warnIconColor = useColorModeValue('blue.500', 'blue.300');
+  const warnTextColor = useColorModeValue('blue.700', 'blue.200');
+
+  // Names the "i" button for screen readers after the field it explains.
+  const infoLabel = (titleKey) =>
+    intl.formatMessage(
+      { id: 'settings.sections.solo.info_label' },
+      { field: intl.formatMessage({ id: `settings.sections.solo.${titleKey}` }) }
+    );
 
   // Get solo mining mode settings
   const [soloMiningMode, setSoloMiningMode] = useState({
@@ -227,28 +235,19 @@ const SoloSettings = () => {
                   value={settings.pool?.username || ''}
                   onChange={handleSoloMiningChange}
                 />
+                {/* Stays open, unlike the other explanations: it warns against
+                    exchange addresses, and a missed warning here costs coins. */}
                 <Flex
                   mt="4"
                   p="4"
-                  bg={infoBgColor}
+                  bg={warnBgColor}
                   borderRadius="md"
                   border="1px solid"
-                  borderColor={infoBorderColor}
+                  borderColor={warnBorderColor}
                   align="flex-start"
                 >
-                  <Icon
-                    as={MdInfo}
-                    w="20px"
-                    h="20px"
-                    color={infoIconColor}
-                    mr="3"
-                    mt="1"
-                    flexShrink={0}
-                  />
-                  <Text
-                    fontSize="sm"
-                    color={infoTextColor}
-                  >
+                  <Icon as={MdInfo} w="20px" h="20px" color={warnIconColor} mr="3" mt="1" flexShrink={0} />
+                  <Text fontSize="sm" color={warnTextColor}>
                     {intl.formatMessage({ id: 'settings.sections.solo.wallet_info' })}
                   </Text>
                 </Flex>
@@ -277,7 +276,15 @@ const SoloSettings = () => {
         </SimpleCard>
       )}
 
-      <SimpleCard title={intl.formatMessage({ id: 'settings.sections.solo.btc_signature' })} textColor={textColor}>
+      <SimpleCard
+        title={intl.formatMessage({ id: 'settings.sections.solo.btc_signature' })}
+        info={
+          <InfoPopover label={infoLabel('btc_signature')}>
+            {intl.formatMessage({ id: 'settings.sections.solo.btc_signature_info' })}
+          </InfoPopover>
+        }
+        textColor={textColor}
+      >
         <InputGroup>
           <InputLeftAddon>{btcsigPrefix}</InputLeftAddon>
           <Input
@@ -293,34 +300,17 @@ const SoloSettings = () => {
           />
           <InputRightAddon>{btcsigSuffix}</InputRightAddon>
         </InputGroup>
-        <Flex
-          mt="4"
-          p="4"
-          bg={infoBgColor}
-          borderRadius="md"
-          border="1px solid"
-          borderColor={infoBorderColor}
-          align="flex-start"
-        >
-          <Icon
-            as={MdInfo}
-            w="20px"
-            h="20px"
-            color={infoIconColor}
-            mr="3"
-            mt="1"
-            flexShrink={0}
-          />
-          <Text
-            fontSize="sm"
-            color={infoTextColor}
-          >
-            {intl.formatMessage({ id: 'settings.sections.solo.btc_signature_info' })}
-          </Text>
-        </Flex>
       </SimpleCard>
 
-      <SimpleCard title={intl.formatMessage({ id: 'settings.sections.solo.startdiff' })} textColor={textColor}>
+      <SimpleCard
+        title={intl.formatMessage({ id: 'settings.sections.solo.startdiff' })}
+        info={
+          <InfoPopover label={infoLabel('startdiff')}>
+            {intl.formatMessage({ id: 'settings.sections.solo.startdiff_info' })}
+          </InfoPopover>
+        }
+        textColor={textColor}
+      >
         <Input
           color={inputTextColor}
           name="startdiff"
@@ -333,34 +323,17 @@ const SoloSettings = () => {
           value={settings.startdiff || ''}
           onChange={handleStartdiffChange}
         />
-        <Flex
-          mt="4"
-          p="4"
-          bg={infoBgColor}
-          borderRadius="md"
-          border="1px solid"
-          borderColor={infoBorderColor}
-          align="flex-start"
-        >
-          <Icon
-            as={MdInfo}
-            w="20px"
-            h="20px"
-            color={infoIconColor}
-            mr="3"
-            mt="1"
-            flexShrink={0}
-          />
-          <Text
-            fontSize="sm"
-            color={infoTextColor}
-          >
-            {intl.formatMessage({ id: 'settings.sections.solo.startdiff_info' })}
-          </Text>
-        </Flex>
       </SimpleCard>
 
-      <SimpleCard title={intl.formatMessage({ id: 'settings.sections.solo.mindiff' })} textColor={textColor}>
+      <SimpleCard
+        title={intl.formatMessage({ id: 'settings.sections.solo.mindiff' })}
+        info={
+          <InfoPopover label={infoLabel('mindiff')}>
+            {intl.formatMessage({ id: 'settings.sections.solo.mindiff_info' })}
+          </InfoPopover>
+        }
+        textColor={textColor}
+      >
         <Input
           color={inputTextColor}
           name="mindiff"
@@ -373,31 +346,6 @@ const SoloSettings = () => {
           value={settings.mindiff || ''}
           onChange={handleMindiffChange}
         />
-        <Flex
-          mt="4"
-          p="4"
-          bg={infoBgColor}
-          borderRadius="md"
-          border="1px solid"
-          borderColor={infoBorderColor}
-          align="flex-start"
-        >
-          <Icon
-            as={MdInfo}
-            w="20px"
-            h="20px"
-            color={infoIconColor}
-            mr="3"
-            mt="1"
-            flexShrink={0}
-          />
-          <Text
-            fontSize="sm"
-            color={infoTextColor}
-          >
-            {intl.formatMessage({ id: 'settings.sections.solo.mindiff_info' })}
-          </Text>
-        </Flex>
       </SimpleCard>
     </PanelCard>
   );

@@ -73,3 +73,40 @@ describe('setup — the pool dropdown', () => {
     expect(view.select().value).not.toBe('');
   });
 });
+
+// "If you add a space before or after the pool url it throws error" — John.
+describe('setup — edge whitespace in the pool fields', () => {
+  it('cuts the space around the URL and the worker on leaving the field', () => {
+    const setPoolUrl = jest.fn();
+    const setPoolUsername = jest.fn();
+    const setPoolPassword = jest.fn();
+    const view = renderWithProviders(
+      <StepPool
+        pool={{ id: 'custom' }}
+        setPool={() => {}}
+        poolUrl=" stratum+tcp://pool.example.com:3333 "
+        setPoolUrl={setPoolUrl}
+        poolUsername=" wallet.w1 "
+        setPoolUsername={setPoolUsername}
+        poolPassword=" pw "
+        setPoolPassword={setPoolPassword}
+        poolError={null}
+        setPoolError={() => {}}
+        handleSetupPool={(e) => e.preventDefault()}
+        handleChangePool={() => {}}
+        showPassword={true}
+        setShowPassword={() => {}}
+        error={null}
+        setStep={() => {}}
+      />
+    );
+
+    fireEvent.blur(view.container.querySelector('#poolUrl'));
+    fireEvent.blur(view.container.querySelector('#poolUsername'));
+    fireEvent.blur(view.container.querySelector('#poolPassword'));
+
+    expect(setPoolUrl).toHaveBeenLastCalledWith('stratum+tcp://pool.example.com:3333');
+    expect(setPoolUsername).toHaveBeenLastCalledWith('wallet.w1');
+    expect(setPoolPassword).not.toHaveBeenCalled();
+  });
+});

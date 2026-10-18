@@ -118,4 +118,17 @@ describe('savePendingPools', () => {
     expect(save).not.toHaveBeenCalled();
     expect(feedback).toEqual([]);
   });
+
+  it('keeps the pool with the edge whitespace of its URL and worker cut', async () => {
+    const save = jest.fn().mockResolvedValue({ ok: true, profile: { name: 'kept' } });
+    await run({
+      pending: { primary: wanted, backup: idle },
+      settings: { pool: { url: ' stratum+tcp://a:1 ', username: ' w1 ', password: ' p1 ' } },
+      save,
+    });
+
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'stratum+tcp://a:1', username: 'w1', password: ' p1 ' })
+    );
+  });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useDeviceConfig } from '../../../contexts/DeviceConfigContext';
 import { useIntl } from 'react-intl';
@@ -305,6 +305,15 @@ export const useMinerSettings = () => {
     });
   }, [settings, minerInitialModes, fanInitialMode, isApolloIii, isHybrid, intl]);
 
+  const customAwaitsHashrate = useRef(false);
+  useEffect(() => {
+    if (!customAwaitsHashrate.current || !settings || settings.initial) return;
+    customAwaitsHashrate.current = false;
+    if (settings.minerMode === 'custom' && settings.minerHashrate == null) {
+      setSettings({ ...settings, minerHashrate: APOLLO_III_DEFAULTS.minerHashrate });
+    }
+  }, [settings, setSettings]);
+
   // Handle miner mode change
   const handleSwitchMinerMode = (e) => {
     setErrorForm(null);
@@ -317,9 +326,13 @@ export const useMinerSettings = () => {
 
     const changes = { ...settings, minerMode: e.target.id };
     // Entering custom mode on an Apollo III needs a hashrate to act on, otherwise
-    // the generator falls back to eco and the choice appears to do nothing.
+    // the generator falls back to eco and the choice appears to do nothing. Before
+    // the saved settings have arrived there is no way to know whether one exists,
+    // and a default put in now would beat the saved one when the two are merged:
+    // it is decided once they are here (effect below).
     if (isApolloIii && e.target.id === 'custom' && changes.minerHashrate == null) {
-      changes.minerHashrate = APOLLO_III_DEFAULTS.minerHashrate;
+      if (settings.initial) customAwaitsHashrate.current = true;
+      else changes.minerHashrate = APOLLO_III_DEFAULTS.minerHashrate;
     }
     setSettings(changes);
   };

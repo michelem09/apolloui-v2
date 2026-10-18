@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useIntl } from 'react-intl';
 
@@ -22,6 +22,21 @@ export const usePasswordSettings = () => {
       const { lockPassword: _l, verifyLockpassword: _v, ...rest } = prev;
       return rest;
     });
+
+  // The page drops the validated pair from the settings once it has been applied
+  // (see forgetPasswordPair): the fields then empty too, or the effect below would
+  // write the same pair straight back. An edit that invalidates the pair empties
+  // the fields' own state first, so only an outside removal matches here.
+  const hadPair = useRef(false);
+  const pairInSettings = settings.lockPassword !== undefined;
+  useEffect(() => {
+    if (hadPair.current && !pairInSettings && lockPassword && lockPassword === verifyLockpassword) {
+      setLockPassword('');
+      setVerifyLockPassword('');
+    }
+    hadPair.current = pairInSettings;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pairInSettings]);
 
   // Validazione password
   useEffect(() => {

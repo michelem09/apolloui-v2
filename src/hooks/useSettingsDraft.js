@@ -56,7 +56,13 @@ export default function useSettingsDraft() {
     replaceRef.current = false;
     savedRef.current = null;
     setSettings((prev) => {
-      if (replace) return loaded;
+      // A restore brings no timezone (not a settings row) and a pending zone edit
+      // is dropped with the rest, so the zone is the baseline's, never `prev`'s.
+      // The lock password pair is not carried: a restore does not change it.
+      if (replace) {
+        const zone = baselineRef.current?.timezone;
+        return zone && !('timezone' in loaded) ? { ...loaded, timezone: zone } : loaded;
+      }
       if (!prev) return loaded;
       if (prev.initial) {
         // eslint-disable-next-line no-unused-vars
@@ -72,13 +78,39 @@ export default function useSettingsDraft() {
   }, []);
 
   // Call when a save starts, with the working copy being written.
+  // The two flags are exclusive: the later request owns the next arrival.
   const markSaved = useCallback((written) => {
     savedRef.current = written;
+    replaceRef.current = false;
   }, []);
 
   // Call before reloading after an explicit restore: its values win over pending edits.
   const requestReplace = useCallback(() => {
     replaceRef.current = true;
+    savedRef.current = null;
+  }, []);
+
+  // Both flags are consumed only by an arrival, and Apollo does not emit identical
+  // data again (a restore of what is already there, a save of the zone or the
+  // password alone). The page calls this once the refetches of a save/restore have
+  // resolved and their arrival has been loaded, so a flag nobody consumed cannot
+  // turn the next, unrelated reload into a full replace.
+  const settle = useCallback(() => {
+    savedRef.current = null;
+    replaceRef.current = false;
+  }, []);
+
+  // The lock password pair is written into the working copy by the password
+  // section and is not a stored setting: once it has been applied it must leave
+  // the working copy (the baseline never had it), or the bar stays lit and the
+  // next save changes the password again.
+  const forgetPasswordPair = useCallback(() => {
+    setSettings((prev) => {
+      if (!prev || (prev.lockPassword === undefined && prev.verifyLockpassword === undefined)) return prev;
+      // eslint-disable-next-line no-unused-vars
+      const { lockPassword, verifyLockpassword, ...rest } = prev;
+      return rest;
+    });
   }, []);
 
   // The device's current timezone goes into both sides, so picking a different
@@ -98,5 +130,7 @@ export default function useSettingsDraft() {
     seedTimezone,
     markSaved,
     requestReplace,
+    settle,
+    forgetPasswordPair,
   };
 }

@@ -89,7 +89,11 @@ const SettingsTab = () => {
     seedTimezone,
     markSaved,
     requestReplace,
+    settle,
+    forgetPasswordPair,
   } = useSettingsDraft();
+  // Bumped once a save/restore has refetched; see the effect that settles the draft.
+  const [reloadSettled, setReloadSettled] = useState(0);
   const [backupData, setBackupData] = useState();
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
@@ -312,6 +316,13 @@ const SettingsTab = () => {
     loadSettings,
   ]);
 
+  // After the load above (declared later, so it runs after it in the same commit):
+  // a save or restore whose refetch brought nothing new never loaded, and its
+  // flag must not wait for the next unrelated arrival.
+  useEffect(() => {
+    if (reloadSettled) settle();
+  }, [reloadSettled, settle]);
+
   // Seed the current system timezone into both baselines once it arrives, so
   // picking a different one lights up the save bar and picking the current one
   // does not. Patches instead of rebuilding, so it never wipes a pending edit.
@@ -466,6 +477,7 @@ const SettingsTab = () => {
       requestReplace();
       await refetchSettings();
       await refetchPools();
+      setReloadSettled((n) => n + 1);
       setIsModalRestoreOpen(false);
       dispatch(
         sendFeedback({
@@ -611,7 +623,13 @@ const SettingsTab = () => {
         setIsSaving(false);
         return setErrorForm(saved.message);
       }
-      if (changePassword) setIsChanged(false);
+      if (changePassword) {
+        // Applied: the pair leaves the working copy and the section's own fields,
+        // else the reload keeps it (the device does not carry it back) and every
+        // later save would change the password again.
+        forgetPasswordPair();
+        setIsChanged(false);
+      }
 
       // Timezone: a plain save, no restart of its own. Extracted for the same
       // reason as the pool step below, and it never throws either — a zone the
@@ -635,6 +653,7 @@ const SettingsTab = () => {
 
       await refetchSettings();
       await refetchPools();
+      setReloadSettled((n) => n + 1);
 
       // Keeping the pool is a side errand of saving, so it reports separately
       // and never fails the save: the settings are already applied by here, and

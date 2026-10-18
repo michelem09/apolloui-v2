@@ -5,6 +5,8 @@ import en from '../../../locales/en.json';
 import useSettingsDraft from '../../../hooks/useSettingsDraft';
 import { useNodeSettings } from './useNodeSettings';
 import { useMinerSettings } from './useMinerSettings';
+import { usePasswordSettings } from './usePasswordSettings';
+import isEqual from 'lodash/isEqual';
 import fs from 'fs';
 import path from 'path';
 
@@ -38,10 +40,12 @@ const saved = {
   powerLedOff: false,
 };
 
+// Stable, like the page's own setter: an effect depends on it.
+const noop = () => {};
 const mount = (hook) =>
   renderHook(
     () => {
-      draft = { ...useSettingsDraft(), setErrorForm: jest.fn() };
+      draft = { ...useSettingsDraft(), setErrorForm: jest.fn(), setIsChanged: noop };
       return { draft, view: hook() };
     },
     { wrapper }
@@ -267,12 +271,115 @@ describe('data that arrives after the first load', () => {
     expect(loaded(result).currentSettings.timezone).toBe('Africa/Abidjan');
   });
 
+  it('a restore keeps the zone in the working copy too, and nothing is left to save', () => {
+    const result = ready();
+    act(() => result.current.draft.requestReplace());
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 45 }));
+
+    expect(loaded(result).settings.timezone).toBe('Africa/Abidjan');
+    expect(isEqual(loaded(result).settings, loaded(result).currentSettings)).toBe(true);
+  });
+
+  it('a restore drops a pending zone pick and a lock password pair', () => {
+    const result = ready();
+    act(() =>
+      result.current.draft.setSettings((s) => ({
+        ...s,
+        timezone: 'Europe/Rome',
+        lockPassword: 'secret123',
+        verifyLockpassword: 'secret123',
+      }))
+    );
+    act(() => result.current.draft.requestReplace());
+    act(() => result.current.draft.loadSettings(server));
+
+    expect(loaded(result).settings.timezone).toBe('Africa/Abidjan');
+    expect(loaded(result).settings.lockPassword).toBeUndefined();
+    expect(isEqual(loaded(result).settings, loaded(result).currentSettings)).toBe(true);
+  });
+
+  it('a restore that brought nothing new does not turn the next reload into a replace', () => {
+    const result = ready();
+    act(() => result.current.draft.requestReplace()); // identical data: no arrival
+    act(() => result.current.draft.settle());
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 41 }));
+
+    expect(loaded(result).settings.nodeMaxConnections).toBe(12);
+  });
+
+  it('a save that brought nothing new does not leave its snapshot armed', () => {
+    const result = ready();
+    act(() =>
+      result.current.draft.setSettings((s) => ({ ...s, pool: { ...s.pool, url: 'typed' } }))
+    );
+    // The write went through but the device answers with what it had: no arrival.
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.draft.settle());
+    act(() =>
+      result.current.draft.loadSettings({ ...server, pool: { ...server.pool, url: 'other' } })
+    );
+
+    expect(loaded(result).settings.pool.url).toBe('typed');
+  });
+
+  it('the latest request owns the next arrival', () => {
+    const result = ready();
+    act(() => result.current.draft.requestReplace());
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 41 }));
+    // markSaved won: the snapshot predates the edit, so the edit is kept.
+    expect(loaded(result).settings.nodeMaxConnections).toBe(12);
+
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.draft.requestReplace());
+    act(() => result.current.draft.loadSettings({ ...server, nodeMaxConnections: 64 }));
+    expect(loaded(result).settings.nodeMaxConnections).toBe(64);
+  });
+
   it('discard returns to the baseline', () => {
     const result = ready();
     act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
     act(() => result.current.draft.setSettings(loaded(result).currentSettings));
 
     expect(loaded(result).settings).toEqual(loaded(result).currentSettings);
+  });
+});
+
+describe('after a password change was applied', () => {
+  const server = { ...saved, temperatureUnit: 'C' };
+
+  it('the pair leaves the working copy and the fields, so the bar clears and a later save is not a password change', () => {
+    const { result } = mount(usePasswordSettings);
+    act(() => result.current.draft.loadSettings(server));
+    act(() => result.current.view.setLockPassword('secret123'));
+    act(() => result.current.view.setVerifyLockPassword('secret123'));
+    act(() => result.current.draft.setSettings((s) => ({ ...s, temperatureUnit: 'F' })));
+    expect(result.current.draft.settings.lockPassword).toBe('secret123');
+
+    // The save: snapshot, then (page) the pair is forgotten after the password step.
+    act(() => result.current.draft.markSaved(result.current.draft.settings));
+    act(() => result.current.draft.forgetPasswordPair());
+    act(() => result.current.draft.loadSettings({ ...server, temperatureUnit: 'F' }));
+
+    const { settings, currentSettings } = result.current.draft;
+    expect(settings.lockPassword).toBeUndefined();
+    expect(settings.verifyLockpassword).toBeUndefined();
+    expect(isEqual(settings, currentSettings)).toBe(true);
+    expect(result.current.view.lockPassword).toBe('');
+    expect(result.current.view.verifyLockpassword).toBe('');
+  });
+
+  it('shortening the fields afterwards still just takes the pair back', () => {
+    const { result } = mount(usePasswordSettings);
+    act(() => result.current.draft.loadSettings(server));
+    act(() => result.current.view.setLockPassword('secret123'));
+    act(() => result.current.view.setVerifyLockPassword('secret123'));
+    act(() => result.current.view.setLockPassword('short'));
+
+    expect(result.current.draft.settings.lockPassword).toBeUndefined();
+    expect(result.current.view.lockPassword).toBe('short');
   });
 });
 
@@ -287,6 +394,13 @@ describe('the settings page', () => {
     expect(src).toMatch(/loadSettings\(finalSettings\)/);
     expect(src).toMatch(/markSaved\(settings\)/);
     expect(src).toMatch(/requestReplace\(\)/);
+    // The password pair is forgotten once its step went through, and both flags
+    // are settled after the refetches of a save and of a restore.
+    expect(src).toMatch(/if \(changePassword\) \{[^}]*forgetPasswordPair\(\)/);
+    expect(src.match(/setReloadSettled\(\(n\) => n \+ 1\)/g)).toHaveLength(2);
+    expect(src).toMatch(/if \(reloadSettled\) settle\(\)/);
+    // A failed save disarms the snapshot.
+    expect(src).toMatch(/if \(!saved\.ok\) \{\s*markSaved\(null\)/);
     expect(src).toMatch(/seedTimezone\(systemTimezone\)/);
     expect(src).not.toMatch(/setSettings\(finalSettings\)/);
   });

@@ -26,11 +26,15 @@ export const restartTypeFor = ({ miner, solo, node }) => {
 
 // A service the user stopped is not restarted by a save: "restart" is a
 // systemctl restart, which would start it. Only the monitor's own `offline`
-// counts as stopped. No answer yet, `pending` (starting or stopping: a starting
-// miner must still pick up the new config), `online` and `error` all restart.
+// counts as stopped, plus a `pending` one that was asked to go offline (the stop
+// is under way: a restart would bring it back). No answer yet, `pending` towards
+// online (a starting miner must still pick up the new config), `online` and
+// `error` all restart.
 // The settings are written either way (settings.update regenerates
 // miner_config on every save), so a stopped service reads them on its next start.
-export const serviceKnownStopped = (service) => service?.status === 'offline';
+export const serviceKnownStopped = (service) =>
+  service?.status === 'offline' ||
+  (service?.status === 'pending' && service?.requestedStatus === 'offline');
 
 // What a save restarts, and which restart it skipped because the service is
 // stopped. `skipped` is 'miner' | 'solo' | null and only set when a startup

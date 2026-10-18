@@ -90,6 +90,18 @@ describe('restartPlanFor', () => {
     });
   });
 
+  it('treats a miner that is being stopped as stopped', () => {
+    expect(
+      restartPlanFor({ ...base, minerService: { status: 'pending', requestedStatus: 'offline' } })
+    ).toEqual({ type: null, skipped: 'miner' });
+  });
+
+  it('restarts a miner that is still starting, so it picks up the config', () => {
+    expect(
+      restartPlanFor({ ...base, minerService: { status: 'pending', requestedStatus: 'online' } })
+    ).toEqual({ type: 'miner', skipped: null });
+  });
+
   it.each([['online'], ['pending'], ['error'], [undefined]])(
     'restarts the miner when its status is %s',
     (status) => {
@@ -126,6 +138,18 @@ describe('restartPlanFor', () => {
         type: null,
         skipped: 'solo',
       });
+    });
+
+    it('treats a solo pool that is being stopped as stopped', () => {
+      expect(
+        restartPlanFor({ ...solo, soloService: { status: 'pending', requestedStatus: 'offline' } })
+      ).toEqual({ type: null, skipped: 'solo' });
+    });
+
+    it('restarts a solo pool that is still starting', () => {
+      expect(
+        restartPlanFor({ ...solo, soloService: { status: 'pending', requestedStatus: 'online' } })
+      ).toEqual({ type: 'solo', skipped: null });
     });
 
     it.each([['online'], ['pending'], [undefined]])(

@@ -4,7 +4,8 @@ import en from '../../../locales/en.json';
 
 // John: the explanatory blocks under the Pools-tab fields were the only place
 // the UI showed them open, as coloured boxes. They live behind an info button
-// now, like the solo mining page; none of the text may be lost on the way.
+// now, like the solo mining page; none of the text may be lost on the way. The
+// wallet warning (no exchange addresses) is the exception and stays open.
 
 let ctx;
 
@@ -30,7 +31,6 @@ beforeEach(() => {
 
 describe('SoloSettings info', () => {
   const infos = [
-    ['wallet_address', 'wallet_info'],
     ['btc_signature', 'btc_signature_info'],
     ['startdiff', 'startdiff_info'],
     ['mindiff', 'mindiff_info'],
@@ -41,6 +41,14 @@ describe('SoloSettings info', () => {
     for (const [, info] of infos) {
       expect(screen.queryByText(solo[info])).not.toBeInTheDocument();
     }
+  });
+
+  it('keeps the wallet warning open, with no info button', () => {
+    renderWithProviders(<SoloSettings />);
+    expect(screen.getByText(solo.wallet_info)).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: `More information about ${solo.wallet_address}` })
+    ).not.toBeInTheDocument();
   });
 
   it.each(infos)('%s has an info button that shows its full text', async (title, info) => {

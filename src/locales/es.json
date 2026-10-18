@@ -432,6 +432,8 @@
       "save_pool": "Añadir el pool a la lista",
       "save_pool_name": "Nombre para este pool",
       "save_pool_done": "Pool «{name}» añadido a tu lista",
+      "saved_miner_stopped": "Ajustes guardados. El minero está detenido: se aplicarán cuando lo inicies.",
+      "saved_solo_stopped": "Ajustes guardados. El pool solo está detenido: se aplicarán cuando lo inicies.",
       "save_pool_hint": "Los pools guardados aparecen en la lista de arriba y en la del pool de respaldo."
     },
     "tabs": {

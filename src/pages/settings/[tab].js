@@ -60,7 +60,7 @@ import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import useNodeStorage from '../../hooks/useNodeStorage';
 import { servicesSelector } from '../../redux/reselect/services';
-import { nodeRestartNeeded, restartTypeFor } from '../../lib/settingsRestart';
+import { nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
@@ -102,6 +102,8 @@ const SettingsTab = () => {
   // drive when deciding if a save has anything to restart.
   const { data: servicesStatusData } = useSelector(servicesSelector, shallowEqual);
   const nodeServiceOnline = servicesStatusData?.node?.status === 'online';
+  const minerService = servicesStatusData?.miner;
+  const soloService = servicesStatusData?.solo;
   const storageUsable = storage ? !noNodeStorage : null;
   // Saved pools, and the pending "keep this one" the action bar offers. A pool
   // is worth offering to keep only when it is not already in the list — picking
@@ -123,6 +125,8 @@ const SettingsTab = () => {
     backup: poolFieldsChanged(currentSettings?.backupPool, settings?.backupPool),
   };
   const [restartNeeded, setRestartNeeded] = useState(null);
+  // 'miner' | 'solo' when a startup field changed but that service is stopped.
+  const [restartSkipped, setRestartSkipped] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
   const [isModalRestoreOpen, setIsModalRestoreOpen] = useState(false);
   // The format dialog and its progress now live at layout level (FormatTaskContext),
@@ -364,21 +368,18 @@ const SettingsTab = () => {
     ];
     const isEqual = _.isEqual(settings, currentSettings);
     
-    // For solo-node, check solo fields instead of miner fields
-    const restartMinerNeeded = deviceType === 'solo-node' 
-      ? false 
-      : !_.isEqual(
-          _.pick(settings, restartMinerFields),
-          _.pick(currentSettings, restartMinerFields)
-        );
-    
-    const restartSoloNeeded = deviceType === 'solo-node'
-      ? !_.isEqual(
-          _.pick(settings, restartSoloFields),
-          _.pick(currentSettings, restartSoloFields)
-        )
-      : false;
-    
+    // Whether a changed field is acted on by a restart depends on the device
+    // (solo-node has the solo pool, not a miner) and on the service being up:
+    // see restartPlanFor.
+    const minerFieldsChanged = !_.isEqual(
+      _.pick(settings, restartMinerFields),
+      _.pick(currentSettings, restartMinerFields)
+    );
+    const soloFieldsChanged = !_.isEqual(
+      _.pick(settings, restartSoloFields),
+      _.pick(currentSettings, restartSoloFields)
+    );
+
     // Not "does the drive look usable" but "is there a node to restart": see
     // lib/settingsRestart for why this flag has been wrong in both directions.
     const restartNodeNeeded = nodeRestartNeeded({
@@ -390,16 +391,20 @@ const SettingsTab = () => {
       storageUsable: storageUsable,
     });
 
-    const restartType = restartTypeFor({
-      miner: restartMinerNeeded,
-      solo: restartSoloNeeded,
-      node: restartNodeNeeded,
+    const plan = restartPlanFor({
+      deviceType,
+      minerFieldsChanged,
+      soloFieldsChanged,
+      nodeNeeded: restartNodeNeeded,
+      minerService,
+      soloService,
     });
-    
+
     if (!isEqual && !settings.initial) setIsChanged(true);
     if (isEqual) setIsChanged(false);
-    setRestartNeeded(restartType);
-  }, [settings, currentSettings, deviceType, nodeServiceOnline, storageUsable]);
+    setRestartNeeded(plan.type);
+    setRestartSkipped(plan.skipped);
+  }, [settings, currentSettings, deviceType, nodeServiceOnline, storageUsable, minerService, soloService]);
 
   // Handle backup download
   const handleBackup = async () => {
@@ -698,7 +703,13 @@ const SettingsTab = () => {
         dispatch,
       });
       if (restartedOk && !timezoneFeedback.some((m) => m.type === 'error')) {
-        dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
+        const savedId = savedMessageIdFor(restartSkipped);
+        dispatch(
+          sendFeedback({
+            message: savedId ? intl.formatMessage({ id: savedId }) : 'Settings saved.',
+            type: 'success',
+          })
+        );
       }
 
       // Last, and errors after successes: feedback holds one message at a time,

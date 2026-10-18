@@ -432,6 +432,8 @@
       "save_pool": "Add pool to list",
       "save_pool_name": "Name for this pool",
       "save_pool_done": "Pool \"{name}\" added to your list",
+      "saved_miner_stopped": "Settings saved. The miner is stopped: they will apply when you start it.",
+      "saved_solo_stopped": "Settings saved. The solo pool is stopped: they will apply when you start it.",
       "save_pool_hint": "Saved pools appear in the list above, and in the backup pool list."
     },
     "tabs": {

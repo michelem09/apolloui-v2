@@ -23,3 +23,46 @@ export const restartTypeFor = ({ miner, solo, node }) => {
   if (node) return 'node';
   return null;
 };
+
+// A service the user stopped is not restarted by a save: "restart" is a
+// systemctl restart, which would start it. Only the monitor's own `offline`
+// counts as stopped. No answer yet, `pending` (starting or stopping: a starting
+// miner must still pick up the new config), `online` and `error` all restart.
+// The settings are written either way (settings.update regenerates
+// miner_config on every save), so a stopped service reads them on its next start.
+export const serviceKnownStopped = (service) => service?.status === 'offline';
+
+// What a save restarts, and which restart it skipped because the service is
+// stopped. `skipped` is 'miner' | 'solo' | null and only set when a startup
+// field really changed, since that is the only case worth telling the user about.
+export const restartPlanFor = ({
+  deviceType,
+  minerFieldsChanged,
+  soloFieldsChanged,
+  nodeNeeded,
+  minerService,
+  soloService,
+}) => {
+  const isSoloNode = deviceType === 'solo-node';
+  const minerChanged = !isSoloNode && !!minerFieldsChanged;
+  const soloChanged = isSoloNode && !!soloFieldsChanged;
+  const minerStopped = minerChanged && serviceKnownStopped(minerService);
+  const soloStopped = soloChanged && serviceKnownStopped(soloService);
+  return {
+    type: restartTypeFor({
+      miner: minerChanged && !minerStopped,
+      solo: soloChanged && !soloStopped,
+      node: !!nodeNeeded,
+    }),
+    skipped: minerStopped ? 'miner' : soloStopped ? 'solo' : null,
+  };
+};
+
+// The intl id of the success toast when a restart was skipped; null leaves the
+// plain "Settings saved." literal the page has always sent.
+export const savedMessageIdFor = (skipped) =>
+  skipped === 'miner'
+    ? 'settings.actions.saved_miner_stopped'
+    : skipped === 'solo'
+      ? 'settings.actions.saved_solo_stopped'
+      : null;

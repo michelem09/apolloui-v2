@@ -80,7 +80,7 @@ const SettingsTab = () => {
   const deviceType = useDeviceType();
   const router = useRouter();
   const dispatch = useDispatch();
-  const { settings, setSettings, currentSettings, setCurrentSettings, loadSettings } =
+  const { settings, setSettings, currentSettings, setCurrentSettings, loadSettings, seedTimezone } =
     useSettingsDraft();
   const [backupData, setBackupData] = useState();
   const [restoreData, setRestoreData] = useState();
@@ -309,9 +309,8 @@ const SettingsTab = () => {
   // does not. Patches instead of rebuilding, so it never wipes a pending edit.
   useEffect(() => {
     if (!systemTimezone || !currentSettings || currentSettings.timezone) return;
-    setSettings((s) => ({ ...s, timezone: systemTimezone }));
-    setCurrentSettings((s) => ({ ...s, timezone: systemTimezone }));
-  }, [systemTimezone, currentSettings, setSettings, setCurrentSettings]);
+    seedTimezone(systemTimezone);
+  }, [systemTimezone, currentSettings, seedTimezone]);
 
   // Detect changes and restart needs
   useEffect(() => {

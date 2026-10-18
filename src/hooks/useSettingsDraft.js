@@ -20,5 +20,20 @@ export default function useSettingsDraft() {
     setCurrentSettings(loaded);
   }, []);
 
-  return { settings, setSettings, currentSettings, setCurrentSettings, loadSettings };
+  // The device's current timezone goes into both sides, so picking a different
+  // one lights up the save bar and picking the current one does not. A zone the
+  // user already picked (the zone list can arrive before the settings do) stays.
+  const seedTimezone = useCallback((timezone) => {
+    setSettings((s) => (s && s.timezone ? s : { ...s, timezone }));
+    setCurrentSettings((s) => ({ ...s, timezone }));
+  }, []);
+
+  return {
+    settings,
+    setSettings,
+    currentSettings,
+    setCurrentSettings,
+    loadSettings,
+    seedTimezone,
+  };
 }

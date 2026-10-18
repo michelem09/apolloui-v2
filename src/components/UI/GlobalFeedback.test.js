@@ -116,4 +116,16 @@ describe('GlobalFeedback', () => {
     });
     expect(await screen.findByText('Could not restart the miner.')).toBeVisible();
   });
+
+  it('renders one toast as exactly one live region', async () => {
+    const store = makeStore();
+    mount(store);
+
+    act(() => {
+      store.dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
+    });
+
+    await screen.findByText('Settings saved.');
+    expect(document.querySelectorAll('[role="status"], [role="alert"]')).toHaveLength(1);
+  });
 });

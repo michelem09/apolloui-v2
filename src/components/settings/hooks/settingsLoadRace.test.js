@@ -97,13 +97,16 @@ describe('a choice made before the saved settings arrive', () => {
     expect(result.current.draft.currentSettings).toEqual(saved);
   });
 
-  it('after the first answer a later one still replaces the copy (as before)', () => {
+  // Used to assert the opposite (a later answer replaced the whole copy), which
+  // is the defect: a pick made while a reload is in flight was silently undone.
+  it('after the first answer a later one keeps the pending pick', () => {
     const { result } = mount(useNodeSettings);
     act(() => result.current.draft.loadSettings(saved));
     act(() => result.current.view.handleNodeSoftwareChange('knots_29_3'));
     act(() => result.current.draft.loadSettings({ ...saved, nodeSoftware: 'core_29_0' }));
 
-    expect(result.current.draft.settings.nodeSoftware).toBe('core_29_0');
+    expect(result.current.draft.settings.nodeSoftware).toBe('knots_29_3');
+    expect(result.current.draft.currentSettings.nodeSoftware).toBe('core_29_0');
   });
 
   it('Discard returns to the saved value', () => {
@@ -162,6 +165,117 @@ describe('the system timezone seed', () => {
   });
 });
 
+describe('data that arrives after the first load', () => {
+  const server = {
+    ...saved,
+    temperatureUnit: 'C',
+    pool: { url: 'a', username: 'u', password: 'x', enabled: true },
+    backupPool: { url: '', username: '', password: 'x', enabled: false },
+  };
+  const loaded = (draftResult) => draftResult.current.draft;
+
+  // Mounts the hook with the settings already loaded and a zone seeded.
+  const ready = () => {
+    const { result } = mount(useNodeSettings);
+    act(() => result.current.draft.loadSettings(server));
+    act(() => result.current.draft.seedTimezone('Africa/Abidjan'));
+    return result;
+  };
+
+  it('keeps a timezone picked while the reload after a save is in flight', () => {
+    const result = ready();
+    // The save of another field starts, the zone is then picked, the reload lands.
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.draft.setSettings((s) => ({ ...s, timezone: 'Europe/Rome' })));
+    act(() => result.current.draft.loadSettings({ ...server, temperatureUnit: 'F' }));
+
+    expect(loaded(result).settings.timezone).toBe('Europe/Rome');
+    // ...and it is still an unsaved change against the device's zone.
+    expect(loaded(result).currentSettings.timezone).toBe('Africa/Abidjan');
+  });
+
+  it('keeps an edit made during any later arrival, not only the first', () => {
+    const result = ready();
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 41 }));
+
+    expect(loaded(result).settings.nodeMaxConnections).toBe(12);
+    // Untouched fields and the baseline follow the device.
+    expect(loaded(result).settings.fan_low).toBe(41);
+    expect(loaded(result).currentSettings.fan_low).toBe(41);
+    expect(loaded(result).currentSettings.nodeMaxConnections).toBe(32);
+  });
+
+  it('keeps one field of a pool without freezing the others', () => {
+    const result = ready();
+    act(() =>
+      result.current.draft.setSettings((s) => ({ ...s, pool: { ...s.pool, url: 'typed' } }))
+    );
+    act(() =>
+      result.current.draft.loadSettings({ ...server, pool: { ...server.pool, username: 'new' } })
+    );
+
+    expect(loaded(result).settings.pool).toEqual({
+      url: 'typed',
+      username: 'new',
+      password: 'x',
+      enabled: true,
+    });
+  });
+
+  it('after a save, the saved fields take the device value, normalised or not', () => {
+    const result = ready();
+    act(() =>
+      result.current.draft.setSettings((s) => ({ ...s, pool: { ...s.pool, url: ' b ' } }))
+    );
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() =>
+      result.current.draft.loadSettings({ ...server, pool: { ...server.pool, url: 'b' } })
+    );
+
+    expect(loaded(result).settings.pool.url).toBe('b');
+    expect(loaded(result).currentSettings.pool.url).toBe('b');
+  });
+
+  it('the save snapshot serves one arrival only', () => {
+    const result = ready();
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 41 }));
+    act(() => result.current.draft.loadSettings({ ...server, fan_low: 42 }));
+
+    expect(loaded(result).settings.fan_low).toBe(42);
+  });
+
+  it('a failed save does not leave the working copy open to being overwritten', () => {
+    const result = ready();
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.markSaved(loaded(result).settings));
+    act(() => result.current.draft.markSaved(null));
+    act(() => result.current.draft.loadSettings(server));
+
+    expect(loaded(result).settings.nodeMaxConnections).toBe(12);
+  });
+
+  it('a restore replaces pending edits', () => {
+    const result = ready();
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.requestReplace());
+    act(() => result.current.draft.loadSettings({ ...server, nodeMaxConnections: 64 }));
+
+    expect(loaded(result).settings.nodeMaxConnections).toBe(64);
+    // The zone is not in a backup: the baseline keeps it.
+    expect(loaded(result).currentSettings.timezone).toBe('Africa/Abidjan');
+  });
+
+  it('discard returns to the baseline', () => {
+    const result = ready();
+    act(() => result.current.view.handleNodeMaxConnections({ target: { value: '12' } }));
+    act(() => result.current.draft.setSettings(loaded(result).currentSettings));
+
+    expect(loaded(result).settings).toEqual(loaded(result).currentSettings);
+  });
+});
+
 describe('the settings page', () => {
   // The page is not mounted here (it needs the whole app around it), so the link
   // to the hook is held by its source: a plain setSettings on arrival brings the
@@ -171,6 +285,8 @@ describe('the settings page', () => {
   it('gets its state from useSettingsDraft and loads through it', () => {
     expect(src).toMatch(/=\s*useSettingsDraft\(\)/);
     expect(src).toMatch(/loadSettings\(finalSettings\)/);
+    expect(src).toMatch(/markSaved\(settings\)/);
+    expect(src).toMatch(/requestReplace\(\)/);
     expect(src).toMatch(/seedTimezone\(systemTimezone\)/);
     expect(src).not.toMatch(/setSettings\(finalSettings\)/);
   });

@@ -80,8 +80,16 @@ const SettingsTab = () => {
   const deviceType = useDeviceType();
   const router = useRouter();
   const dispatch = useDispatch();
-  const { settings, setSettings, currentSettings, setCurrentSettings, loadSettings, seedTimezone } =
-    useSettingsDraft();
+  const {
+    settings,
+    setSettings,
+    currentSettings,
+    setCurrentSettings,
+    loadSettings,
+    seedTimezone,
+    markSaved,
+    requestReplace,
+  } = useSettingsDraft();
   const [backupData, setBackupData] = useState();
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
@@ -454,6 +462,8 @@ const SettingsTab = () => {
         if (!kept.ok) poolsNotRestored += 1;
       }
 
+      // The restored values replace the working copy, pending edits included.
+      requestReplace();
       await refetchSettings();
       await refetchPools();
       setIsModalRestoreOpen(false);
@@ -577,6 +587,9 @@ const SettingsTab = () => {
       // otherwise carry on to restart the miner and report it.
       // The backend refuses some passwords (line breaks, NUL): say so instead of
       // letting the bar clear as if the change had been applied.
+      // What the device answers to the reload below is the truth for these
+      // fields; an edit made while it is in flight is not (see useSettingsDraft).
+      markSaved(settings);
       const saved = await runSteps([
         { name: 'settings', run: () => saveSettings({ variables: { input }, context: SILENT }) },
         { name: 'pools', run: () => savePools({ variables: { input: { pools: poolsInput } }, context: SILENT }) },
@@ -594,6 +607,7 @@ const SettingsTab = () => {
           : []),
       ]);
       if (!saved.ok) {
+        markSaved(null);
         setIsSaving(false);
         return setErrorForm(saved.message);
       }
@@ -676,6 +690,7 @@ const SettingsTab = () => {
 
       setIsSaving(false);
     } catch (error) {
+      markSaved(null);
       setIsSaving(false);
       dispatch(sendFeedback({ message: error.message || String(error), type: 'error' }));
     }

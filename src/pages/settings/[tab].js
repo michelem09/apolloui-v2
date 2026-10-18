@@ -62,6 +62,7 @@ import useNodeStorage from '../../hooks/useNodeStorage';
 import { servicesSelector } from '../../redux/reselect/services';
 import { nodeRestartNeeded, restartTypeFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
+import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
 import { buildPoolsInput } from '../../lib/poolsInput';
 import { savePendingPools } from '../../lib/savePendingPools';
@@ -79,8 +80,8 @@ const SettingsTab = () => {
   const deviceType = useDeviceType();
   const router = useRouter();
   const dispatch = useDispatch();
-  const [settings, setSettings] = useState({ initial: true });
-  const [currentSettings, setCurrentSettings] = useState();
+  const { settings, setSettings, currentSettings, setCurrentSettings, loadSettings } =
+    useSettingsDraft();
   const [backupData, setBackupData] = useState();
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
@@ -288,8 +289,9 @@ const SettingsTab = () => {
         : { enabled: false, url: '', username: '', password: 'x', index: 2 };
 
     const finalSettings = { ...settingsData, pool: poolToUse, backupPool: backupPoolToUse };
-    setSettings(finalSettings);
-    setCurrentSettings(finalSettings);
+    // Not a plain setSettings: a choice made before this answer arrived must
+    // survive it (see useSettingsDraft).
+    loadSettings(finalSettings);
     setBackupData({ settings: settingsData, pools: poolsData });
   }, [
     loadingSettings,
@@ -299,6 +301,7 @@ const SettingsTab = () => {
     errorQuerySettings,
     errorQueryPools,
     deviceType,
+    loadSettings,
   ]);
 
   // Seed the current system timezone into both baselines once it arrives, so
@@ -308,7 +311,7 @@ const SettingsTab = () => {
     if (!systemTimezone || !currentSettings || currentSettings.timezone) return;
     setSettings((s) => ({ ...s, timezone: systemTimezone }));
     setCurrentSettings((s) => ({ ...s, timezone: systemTimezone }));
-  }, [systemTimezone, currentSettings]);
+  }, [systemTimezone, currentSettings, setSettings, setCurrentSettings]);
 
   // Detect changes and restart needs
   useEffect(() => {

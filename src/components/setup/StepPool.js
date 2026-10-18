@@ -19,6 +19,7 @@ import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import Card from '../card/Card';
 import { presetPools } from '../../lib/utils';
+import { trimEdges } from '../../lib/poolOptions';
 import { useIntl } from 'react-intl';
 
 const StepPool = ({
@@ -112,6 +113,7 @@ const StepPool = ({
                   id="poolUrl"
                   value={poolUrl}
                   onChange={(e) => setPoolUrl(e.target.value)}
+                  onBlur={(e) => setPoolUrl(trimEdges(e.target.value))}
                   isInvalid={poolError}
                   isDisabled={pool?.id !== 'custom'}
                   fontWeight="500"
@@ -134,6 +136,7 @@ const StepPool = ({
                   id="poolUsername"
                   value={poolUsername}
                   onChange={(e) => setPoolUsername(e.target.value)}
+                  onBlur={(e) => setPoolUsername(trimEdges(e.target.value))}
                   isInvalid={poolError && !poolUsername}
                   fontWeight="500"
                   color={'secondaryGray.800'}

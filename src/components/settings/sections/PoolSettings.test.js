@@ -133,3 +133,32 @@ describe('picking a preset — the dropdown must keep it', () => {
     expect(view.url().value).toBe(braiins.url);
   });
 });
+
+describe('PoolSettings — edge whitespace', () => {
+  it('cuts the space around the URL and the worker when the field is left, not the password', () => {
+    const view = setup({ url: ' pool.example.com:3333 ', username: ' wallet ', password: ' pw ' });
+    const field = (name) => view.container.querySelector(`input[name="${name}"]`);
+
+    fireEvent.blur(field('url'));
+    view.reload();
+    fireEvent.blur(field('username'));
+    view.reload();
+    fireEvent.blur(field('password'));
+    view.reload();
+
+    expect(ctx.settings.pool).toEqual({
+      url: 'pool.example.com:3333',
+      username: 'wallet',
+      password: ' pw ',
+    });
+  });
+
+  it('does not touch the settings when there is nothing to cut', () => {
+    const view = setup(configured('pool.example.com:3333'));
+    const before = ctx.settings;
+
+    fireEvent.blur(view.url());
+
+    expect(ctx.settings).toBe(before);
+  });
+});

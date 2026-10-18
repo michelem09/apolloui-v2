@@ -11,6 +11,7 @@ import { AUTH_LOGIN_QUERY, SAVE_SETUP_QUERY } from '../graphql/auth';
 import { UPDATE_POOLS_QUERY } from '../graphql/pools';
 import { SET_SETTINGS_QUERY } from '../graphql/settings';
 import { isValidBitcoinAddress, presetPools } from '../lib/utils';
+import { trimEdges } from '../lib/poolOptions';
 import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 
 // Components
@@ -165,16 +166,25 @@ const Setup = () => {
     e.preventDefault();
 
     setPoolError(null);
-    if (!poolUsername || !poolPassword || !poolUrl)
+
+    // Edge whitespace is cut here too, not only on blur: Enter submits without
+    // leaving the field. The state is rewritten as well, because the save after
+    // setup reads it rather than the pool object below.
+    const url = trimEdges(poolUrl);
+    const username = trimEdges(poolUsername);
+    setPoolUrl(url);
+    setPoolUsername(username);
+
+    if (!username || !poolPassword || !url)
       return setPoolError('All fields are required');
-    if (!poolUrl.match(/stratum\+tcp:\/\/(.*):?\d*$/))
+    if (!url.match(/stratum\+tcp:\/\/(.*):?\d*$/))
       return setPoolError('Invalid pool URL');
 
     setPool({
       ...pool,
-      username: poolUsername,
+      username,
       password: poolPassword,
-      url: poolUrl,
+      url,
     });
 
     // Move to password step
@@ -185,9 +195,11 @@ const Setup = () => {
     e.preventDefault();
     try {
       setPoolError(null);
-      if (!poolUsername) return setPoolError('All fields are required');
+      const wallet = trimEdges(poolUsername);
+      setPoolUsername(wallet);
+      if (!wallet) return setPoolError('All fields are required');
 
-      if (!isValidBitcoinAddress(poolUsername))
+      if (!isValidBitcoinAddress(wallet))
         return setPoolError('Please add a valid Bitcoin address');
 
       const soloUrl = 'stratum+tcp://127.0.0.1:3333';
@@ -197,7 +209,7 @@ const Setup = () => {
       setPoolPassword(soloPassword);
 
       setPool({
-        username: poolUsername,
+        username: wallet,
         password: soloPassword,
         url: soloUrl,
         index: 1,

@@ -10,6 +10,8 @@
 // So this never throws. It returns the messages to show, and the caller carries
 // on to the restarts whatever happened here.
 
+import { trimEdges } from './poolOptions';
+
 export const savePendingPools = async ({
   pending,
   settings,
@@ -43,8 +45,8 @@ export const savePendingPools = async ({
 
       const kept = await save({
         name: request.name?.trim() || suggestName(pool.url, profiles),
-        url: pool.url,
-        username: pool.username || null,
+        url: trimEdges(pool.url),
+        username: trimEdges(pool.username) || null,
         password: pool.password || null,
       });
 

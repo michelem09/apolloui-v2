@@ -24,6 +24,7 @@ import {
   buildPoolOptions,
   findPoolOption,
   matchPoolOption,
+  trimEdges,
 } from '../../../lib/poolOptions';
 
 const PoolSettings = () => {
@@ -140,6 +141,24 @@ const PoolSettings = () => {
     setPickedPool(option);
   };
 
+  // Edge whitespace on the URL and the worker is cut when the field is left, so
+  // the user sees what will be saved. Not on every keystroke, and never on the
+  // password. Nothing changes when there is nothing to cut, so tabbing through
+  // an untouched field does not mark the form as edited.
+  const handlePoolBlur = (e) => {
+    const { name, value } = e.target;
+    const trimmed = trimEdges(value);
+    if (trimmed === value) return;
+    setSettings({ ...settings, pool: { ...settings.pool, [name]: trimmed } });
+  };
+
+  const handleBackupPoolBlur = (e) => {
+    const { name, value } = e.target;
+    const trimmed = trimEdges(value);
+    if (trimmed === value) return;
+    updateBackupPool({ [name]: trimmed });
+  };
+
   const handlePoolChange = (e) => {
     setErrorForm(null);
 
@@ -216,6 +235,7 @@ const PoolSettings = () => {
               placeholder={intl.formatMessage({ id: 'settings.sections.pool.url.placeholder' })}
               value={settings.pool.url}
               onChange={handlePoolChange}
+              onBlur={handlePoolBlur}
               // The pick, not the derived selection: a configured pool that
               // happens to match an entry is still the user's to edit, and a URL
               // being typed must not lock itself the moment it reads as a preset.
@@ -234,6 +254,7 @@ const PoolSettings = () => {
               placeholder={intl.formatMessage({ id: 'settings.sections.pool.username.placeholder' })}
               value={settings.pool.username}
               onChange={handlePoolChange}
+              onBlur={handlePoolBlur}
               disabled={settings.nodeEnableSoloMining}
             />
           </SimpleCard>
@@ -355,6 +376,7 @@ const PoolSettings = () => {
                 placeholder={intl.formatMessage({ id: 'settings.sections.pool.url.placeholder' })}
                 value={backupPool.url || ''}
                 onChange={handleBackupPoolChange}
+                onBlur={handleBackupPoolBlur}
                 disabled={
                   settings.nodeEnableSoloMining || (pickedBackup && !pickedBackup.isCustom)
                 }
@@ -370,6 +392,7 @@ const PoolSettings = () => {
                 placeholder={intl.formatMessage({ id: 'settings.sections.pool.username.placeholder' })}
                 value={backupPool.username || ''}
                 onChange={handleBackupPoolChange}
+                onBlur={handleBackupPoolBlur}
                 disabled={settings.nodeEnableSoloMining}
               />
             </SimpleCard>

@@ -27,6 +27,20 @@ const mergeKeepingEdits = (fresh, prev, reference) => {
   return out;
 };
 
+// Keys that are not settings rows: the page seeds them into both sides from other
+// queries (the zone list, the automation config). A reload must not drop them from
+// the baseline, or the working copy (which keeps them) reads as changed until the
+// seed runs again.
+const SEEDED_KEYS = ['timezone', 'latitude', 'longitude', '_locationSeeded'];
+const withSeeded = (loaded, base) => {
+  if (!base) return loaded;
+  const out = { ...loaded };
+  SEEDED_KEYS.forEach((key) => {
+    if (!(key in loaded) && key in base) out[key] = base[key];
+  });
+  return out;
+};
+
 // The settings page's working copy (`settings`) and the saved baseline
 // (`currentSettings`) it is compared against. The page mounts its controls before
 // the device has answered, with `{ initial: true }` as the working copy, so a
@@ -56,13 +70,11 @@ export default function useSettingsDraft() {
     replaceRef.current = false;
     savedRef.current = null;
     setSettings((prev) => {
-      // A restore brings no timezone (not a settings row) and a pending zone edit
-      // is dropped with the rest, so the zone is the baseline's, never `prev`'s.
-      // The lock password pair is not carried: a restore does not change it.
-      if (replace) {
-        const zone = baselineRef.current?.timezone;
-        return zone && !('timezone' in loaded) ? { ...loaded, timezone: zone } : loaded;
-      }
+      // A restore brings no seeded key (zone, location: not settings rows) and a
+      // pending edit of them is dropped with the rest, so they are the baseline's,
+      // never `prev`'s. The lock password pair is not carried: a restore does not
+      // change it.
+      if (replace) return withSeeded(loaded, baselineRef.current);
       if (!prev) return loaded;
       if (prev.initial) {
         // eslint-disable-next-line no-unused-vars
@@ -71,10 +83,8 @@ export default function useSettingsDraft() {
       }
       return mergeKeepingEdits(loaded, prev, reference);
     });
-    // The zone is not a settings row: the baseline keeps what it knew of it.
-    setCurrentSettings((base) =>
-      base && base.timezone && !('timezone' in loaded) ? { ...loaded, timezone: base.timezone } : loaded
-    );
+    // The seeded keys are not settings rows: the baseline keeps what it knew.
+    setCurrentSettings((base) => withSeeded(loaded, base));
   }, []);
 
   // Call when a save starts, with the working copy being written.

@@ -404,4 +404,21 @@ describe('the settings page', () => {
     expect(src).toMatch(/seedTimezone\(systemTimezone\)/);
     expect(src).not.toMatch(/setSettings\(finalSettings\)/);
   });
+
+  it('every exit after markSaved(settings) disarms the snapshot or settles', () => {
+    // Body of the save handler from the snapshot to its catch: any `return` in it
+    // must be preceded (inside its own block) by markSaved(null); the location
+    // failure used to return without either and left a stale snapshot.
+    const start = src.indexOf('markSaved(settings)');
+    const end = src.indexOf('} catch (error) {', start);
+    const body = src.slice(start, end);
+    const returns = [...body.matchAll(/\breturn\b/g)];
+    returns.forEach((m) => {
+      const before = body.slice(Math.max(0, m.index - 500), m.index);
+      expect(before).toMatch(/markSaved\(null\)/);
+    });
+    // The location failure continues to the refetch instead of returning.
+    expect(body).toMatch(/locationError = /);
+    expect(body.indexOf('locationError =')).toBeLessThan(body.indexOf('await refetchSettings()'));
+  });
 });

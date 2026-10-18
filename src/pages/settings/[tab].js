@@ -367,9 +367,8 @@ const SettingsTab = () => {
       longitude: automationConfig.longitude ?? null,
       _locationSeeded: true,
     });
-    // A reload keeps the working copy's own location edit (see useSettingsDraft)
-    // but rebuilds the baseline without it: re-seed the baseline always, the
-    // working copy only if it has never been seeded.
+    // Both sides keep the seed across reloads (see useSettingsDraft), so this runs
+    // once; the working copy is left alone if it was already seeded.
     setSettings((s) => (s._locationSeeded ? s : patch(s)));
     setCurrentSettings(patch);
   }, [automationConfig, currentSettings, setSettings, setCurrentSettings]);
@@ -797,6 +796,7 @@ const SettingsTab = () => {
         setCurrentSettings((s) => ({ ...s, timezone: appliedTimezone }));
       }
 
+      let locationError = null;
       // Device location: saved to the automation config, no restart. Same story
       // as the timezone — settings query does not carry it, so sync the baseline.
       if (
@@ -806,17 +806,18 @@ const SettingsTab = () => {
         const locResult = await saveAutomationConfig({
           variables: { input: { latitude: settings.latitude ?? null, longitude: settings.longitude ?? null } },
         });
-        const locErr = locResult?.error || locResult?.data?.Automation?.updateConfig?.error;
-        if (locErr) {
-          setIsSaving(false);
-          return setErrorForm(locErr.message);
+        locationError = locResult?.error || locResult?.data?.Automation?.updateConfig?.error;
+        // A refused location must not abandon the flow: the settings and pools
+        // above are already written, so the refetch, the settle and the restarts
+        // below still have to run. The baseline just keeps the old location.
+        if (!locationError) {
+          setCurrentSettings((c) => ({
+            ...c,
+            latitude: settings.latitude ?? null,
+            longitude: settings.longitude ?? null,
+          }));
+          await refetchAutomation();
         }
-        setCurrentSettings((c) => ({
-          ...c,
-          latitude: settings.latitude ?? null,
-          longitude: settings.longitude ?? null,
-        }));
-        await refetchAutomation();
       }
 
       await refetchSettings();
@@ -863,7 +864,7 @@ const SettingsTab = () => {
         restartMiner: () => restartMiner(),
         dispatch,
       });
-      if (restartedOk && !timezoneFeedback.some((m) => m.type === 'error')) {
+      if (restartedOk && !locationError && !timezoneFeedback.some((m) => m.type === 'error')) {
         dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
       }
 
@@ -874,6 +875,7 @@ const SettingsTab = () => {
       timezoneFeedback.forEach((message) => dispatch(sendFeedback(message)));
 
       setIsSaving(false);
+      if (locationError) setErrorForm(locationError.message);
     } catch (error) {
       markSaved(null);
       setIsSaving(false);

@@ -675,6 +675,7 @@
         "startdiff_info": "Ändern Sie den Start-Schwierigkeitswert für Miner, die sich mit dem Solo Pool verbinden. Dies ist nützlich für sehr niedrige oder sehr hohe Hashraten",
         "mindiff": "Minimale Schwierigkeit",
         "mindiff_info": "Legen Sie eine höhere minimale Schwierigkeit fest, damit Vardiff nicht unter dieses Niveau fällt – nützlich bei Vermietung/hoher Hashrate, um die Shares pro Sekunde niedrig zu halten",
+        "info_label": "Weitere Informationen zu {field}",
         "invalid_address": "Bitte fügen Sie eine gültige Bitcoin-Adresse hinzu",
         "incompatible_address": "Warnung: P2WSH- und P2TR-Bitcoin-Adresse sind für SOLO-Mining nicht gültig. Bitte fügen Sie eine andere Bitcoin-Adresse hinzu"
       }

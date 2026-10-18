@@ -675,6 +675,7 @@
         "startdiff_info": "Modifica il valore della difficoltà iniziale per i miner che si connettono al Solo Pool, utile per hashrate molto bassi o molto alti",
         "mindiff": "Difficoltà Minima",
         "mindiff_info": "Imposta una difficoltà minima più alta per impedire al vardiff di scendere sotto questo livello, utile per noleggio/hashrate elevato per mantenere basso il numero di share al secondo",
+        "info_label": "Maggiori informazioni su {field}",
         "invalid_address": "Aggiungi un indirizzo Bitcoin valido",
         "incompatible_address": "Attenzione: gli indirizzi Bitcoin P2WSH e P2TR non sono validi per il solo mining. Aggiungi un indirizzo Bitcoin diverso"
       }

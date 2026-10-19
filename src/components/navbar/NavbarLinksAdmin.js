@@ -55,7 +55,7 @@ import { useSelector, shallowEqual } from 'react-redux';
 import { soloSelector } from '../../redux/reselect/solo';
 import { servicesSelector } from '../../redux/reselect/services';
 import moment from '../../lib/moment';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 
 const parseReleaseVersion = (version) => {
   if (typeof version !== 'string') return null;
@@ -128,7 +128,7 @@ export default function HeaderLinks({
   loading,
   handleSystemAction,
 }) {
-  const deviceType = useDeviceType();
+  const { isSoloNode, hasMiner } = useDeviceConfig();
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.600', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -371,7 +371,7 @@ export default function HeaderLinks({
         </Tooltip>
 
         {/* SOLO MINING */}
-        {(deviceType === 'solo-node' || nodeEnableSoloMining) && (
+        {(isSoloNode || nodeEnableSoloMining) && (
           <Flex
             bg={badgeBg}
             display={secondary ? 'flex' : 'none'}
@@ -440,7 +440,7 @@ export default function HeaderLinks({
         )}
 
         {/* HASHRATE */}
-        {!loading && deviceType !== 'solo-node' && (
+        {!loading && hasMiner && (
           <Flex
             bg={badgeBg}
             display={secondary ? 'flex' : 'none'}
@@ -474,8 +474,8 @@ export default function HeaderLinks({
                 me="6px"
                 minW="70px"
                 display={{
-                  base: (deviceType === 'solo-node' || nodeEnableSoloMining) ? 'none' : 'block',
-                  md: deviceType === 'solo-node' ? 'none' : 'block',
+                  base: (isSoloNode || nodeEnableSoloMining) ? 'none' : 'block',
+                  md: 'block',
                 }}
               >
                 {`${globalHashrate?.value || 0} ${globalHashrate?.unit || ''}`}
@@ -520,7 +520,7 @@ export default function HeaderLinks({
         )}
 
         {/* TEMPERATURE */}
-        {!loading && deviceType !== 'solo-node' && (
+        {!loading && hasMiner && (
           <Flex
             bg={badgeBg}
             display={secondary ? { base: 'none', md: 'flex' } : 'none'}
@@ -581,7 +581,7 @@ export default function HeaderLinks({
               bg={updateAvailable && 'orange.500'}
             />
             <MenuList>
-              {deviceType !== 'solo-node' && (
+              {hasMiner && (
                 <>
                   <MenuGroup title="Miner">
                     <MenuItem

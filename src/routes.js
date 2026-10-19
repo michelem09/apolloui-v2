@@ -7,9 +7,9 @@ import { SystemIcon } from './components/UI/Icons/SystemIcon';
 import { GrUserWorker } from 'react-icons/gr';
 import { FormattedMessage } from 'react-intl';
 
-// Function to generate routes based on device type
-// This allows routes to be dynamic and not require rebuild
-export const getRoutes = (deviceType) => {
+// Function to generate the menu. `hasMiner` comes live from the device config:
+// always true on an Apollo, and on a Solo Node only while a board is plugged in.
+export const getRoutes = ({ hasMiner = true } = {}) => {
   return [
     {
       name: <FormattedMessage id="routes.overview" />,
@@ -17,8 +17,8 @@ export const getRoutes = (deviceType) => {
       path: '/overview',
       icon: <DashboardIcon width='20px' height='20px' color='inherit' />,
     },
-    // Hide miner route for solo-node devices
-    ...(deviceType !== 'solo-node' ? [{
+    // No miner, no Miner page
+    ...(hasMiner ? [{
       name: <FormattedMessage id="routes.miner" />,
       layout: '/admin',
       path: '/miner',

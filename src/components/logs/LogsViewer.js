@@ -24,7 +24,7 @@ import { LOGS_READ_QUERY } from '../../graphql/logs';
 import { updateLogs } from '../../redux/slices/logsSlice';
 import { MdRefresh, MdContentCopy } from 'react-icons/md';
 import moment from 'moment';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 
 export const LOG_TYPES = [
   { value: 'CKPOOL', label: 'Apollo Solo' },
@@ -41,12 +41,12 @@ const LogsViewer = ({
   showHeader = true,
   height = '400px'
 }) => {
-  const deviceType = useDeviceType();
+  const { hasMiner } = useDeviceConfig();
   
-  // Filter log types based on device type
+  // Filter log types by what the box has
   const getAvailableLogTypes = () => {
-    if (deviceType === 'solo-node') {
-      // Hide miner logs for solo-node devices
+    if (!hasMiner) {
+      // No miner (a Solo Node with no board plugged in): nothing to log
       return LOG_TYPES.filter(type => type.value !== 'MINER');
     }
     
@@ -57,13 +57,21 @@ const LogsViewer = ({
   
   // Ensure initial log type is available for the current device type
   const getValidInitialLogType = () => {
-    if (deviceType === 'solo-node' && initialLogType === 'MINER') {
+    if (!hasMiner && initialLogType === 'MINER') {
       return 'CKPOOL'; // Default to CKPOOL if MINER is not available
     }
     return initialLogType;
   };
   
   const [logType, setLogType] = useState(getValidInitialLogType());
+  // A miner that goes away (board expired, or the list had not arrived when the
+  // viewer mounted) must not leave the select on a log that no longer exists.
+  useEffect(() => {
+    if (!availableLogTypes.some((type) => type.value === logType)) {
+      setLogType(getValidInitialLogType());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMiner]);
   const [lines, setLines] = useState(initialLines);
   const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);

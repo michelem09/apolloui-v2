@@ -60,6 +60,7 @@ import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
 import { useDeviceConfig, useDeviceType } from '../../contexts/DeviceConfigContext';
 import useNodeStorage from '../../hooks/useNodeStorage';
 import { servicesSelector } from '../../redux/reselect/services';
+import { settingsTabsFor } from '../../lib/settingsTabs';
 import { SOLO_RESTART_FIELDS, minerRestartFieldsFor, nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
@@ -78,7 +79,7 @@ const SILENT = { silentErrors: true };
 const SettingsTab = () => {
   const intl = useIntl();
   const deviceType = useDeviceType();
-  const { hasUsbMiners } = useDeviceConfig();
+  const { hasUsbMiners, isSoloNode, hasMiner } = useDeviceConfig();
   const router = useRouter();
   const dispatch = useDispatch();
   const {
@@ -139,21 +140,10 @@ const SettingsTab = () => {
   // Get the current tab from the URL
   const { tab } = router.query;
   
-  // Define tab mapping based on device type
-  const tabMapping = deviceType === 'solo-node' ? {
-    'solo': 0,
-    'node': 1,
-    'system': 2,
-    'logs': 3,
-    'extra': 4
-  } : {
-    'pools': 0,
-    'miner': 1,
-    'node': 2,
-    'system': 3,
-    'logs': 4,
-    'extra': 5
-  };
+  // The tabs follow what the box has. A Solo Node mines only into its own node, so
+  // it never gets Pools; its Miner tab exists only while a board is plugged in.
+  const tabNames = settingsTabsFor({ isSoloNode, hasMiner });
+  const tabMapping = Object.fromEntries(tabNames.map((name, index) => [name, index]));
 
   // Get current tab index from URL
   const currentTabIndex = tabMapping[tab] || 0;
@@ -252,9 +242,6 @@ const SettingsTab = () => {
 
   // Handle tab change
   const handleTabChange = (index) => {
-    const tabNames = deviceType === 'solo-node' 
-      ? ['solo', 'node', 'system', 'logs', 'extra']
-      : ['pools', 'miner', 'node', 'system', 'logs', 'extra'];
     const newTab = tabNames[index];
     router.push(`/settings/${newTab}`);
   };
@@ -865,7 +852,7 @@ const SettingsTab = () => {
               scrollbarWidth: 'none'
             }}>
               <TabList>
-                {deviceType === 'solo-node' && (
+                {isSoloNode && (
                   <Tab>
                     <Flex align="center" gap="10px">
                       <GrUserWorker />
@@ -873,7 +860,7 @@ const SettingsTab = () => {
                     </Flex>
                   </Tab>
                 )}
-                {deviceType !== 'solo-node' && (
+                {!isSoloNode && (
                   <Tab>
                     <Flex align="center" gap="10px">
                       <PoolIcon />
@@ -881,7 +868,7 @@ const SettingsTab = () => {
                     </Flex>
                   </Tab>
                 )}
-                {deviceType !== 'solo-node' && (
+                {hasMiner && (
                   <Tab>
                     <Flex align="center" gap="10px">
                       <MinerIcon />
@@ -924,17 +911,17 @@ const SettingsTab = () => {
             )}
 
             <TabPanels>
-              {deviceType === 'solo-node' && (
+              {isSoloNode && (
                 <TabPanel>
                   <SoloTab />
                 </TabPanel>
               )}
-              {deviceType !== 'solo-node' && (
+              {!isSoloNode && (
                 <TabPanel>
                   <PoolsTab />
                 </TabPanel>
               )}
-              {deviceType !== 'solo-node' && (
+              {hasMiner && (
                 <TabPanel>
                   <MinerTab />
                 </TabPanel>

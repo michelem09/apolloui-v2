@@ -66,9 +66,10 @@ export const minerRestartFieldsFor = (deviceType) =>
 export const SOLO_RESTART_FIELDS = ['nodeEnableSoloMining'];
 
 // A USB miner is "present" on a Solo Node if the live board list has one
-// (`hasUsbMiners` from the device config), or the monitor has it running, or a start was explicitly asked for. Without any of
-// these apollo-miner.service just loops in auto-restart (pending, requestedStatus
-// null, or offline between turns): nothing to restart, nothing to tell the user.
+// (`hasUsbMiners` from the device config), or the monitor has it running, or a
+// start was explicitly asked for. Without any of these apollo-miner.service just
+// loops in auto-restart (pending, requestedStatus null, or offline between
+// turns): nothing to restart, nothing to tell the user.
 export const usbMinerPresent = ({ hasUsbMiners, minerService }) =>
   !!hasUsbMiners ||
   minerService?.status === 'online' ||

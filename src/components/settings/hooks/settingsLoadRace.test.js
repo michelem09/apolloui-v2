@@ -16,7 +16,7 @@ let draft;
 jest.mock('../context/SettingsContext', () => ({ useSettings: () => draft }));
 let family = 'apollo-ii';
 jest.mock('../../../contexts/DeviceConfigContext', () => ({
-  useDeviceConfig: () => ({ minerFamily: family, isHybrid: false }),
+  useDeviceConfig: () => ({ minerFamily: family, effectiveMinerFamily: family, isHybrid: false }),
 }));
 beforeEach(() => {
   family = 'apollo-ii';

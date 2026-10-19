@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import CardSkeleton from '../components/UI/CardSkeleton';
 import { useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
 
@@ -58,7 +59,16 @@ const CHIP_SPEED_FULL_SCALE = { 'apollo-iii': 1050, legacy: 240 };
 
 const Miner = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { minerFamily } = useDeviceConfig();
+  const { effectiveMinerFamily, isSoloNode, hasMiner, boardsLive } = useDeviceConfig();
+  const router = useRouter();
+
+  // A Solo Node with no board has no Miner page (the menu hides it). Whoever lands
+  // here anyway — a bookmark, a board that expired — goes to the overview, but
+  // only once the board list has really said there is none.
+  useEffect(() => {
+    if (isSoloNode && boardsLive && !hasMiner) router.replace('/overview');
+  }, [isSoloNode, boardsLive, hasMiner, router]);
+
   const cardColor = useColorModeValue('white', 'brand.800');
   const iconColor = useColorModeValue('white', 'white');
   const iconColorReversed = useColorModeValue('brand.500', 'white');
@@ -143,7 +153,7 @@ const Miner = () => {
     // Apollo III tunes its own board voltage, so power and oscillator are not
     // settings there and showing them as "AUTO" claims a control that does not
     // exist. What it does have is a target hashrate.
-    const isApolloIii = minerFamily === 'apollo-iii';
+    const isApolloIii = effectiveMinerFamily === 'apollo-iii';
 
   const dataTableBoards = [
     {
@@ -657,7 +667,7 @@ const Miner = () => {
                       value={avgChipSpeed ? avgChipSpeed.toFixed(2) : 'N/A'}
                       rawValue={avgChipSpeed}
                       total={
-                        CHIP_SPEED_FULL_SCALE[minerFamily] ||
+                        CHIP_SPEED_FULL_SCALE[effectiveMinerFamily] ||
                         CHIP_SPEED_FULL_SCALE.legacy
                       }
                       gauge={true}

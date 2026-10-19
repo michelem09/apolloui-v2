@@ -17,8 +17,10 @@ const APOLLO_III_DEFAULTS = { minerHashrate: 12, fanTemp: 50, fanPwm: 50 };
 export const useMinerSettings = () => {
   const intl = useIntl();
   const { settings, setSettings, setErrorForm } = useSettings();
-  const { minerFamily, isHybrid } = useDeviceConfig();
-  const isApolloIii = minerFamily === 'apollo-iii';
+  // effectiveMinerFamily: a Solo Node with USB boards is 'legacy' (those boards
+  // always run miner_config), so it gets the legacy presets and no super_eco.
+  const { effectiveMinerFamily, isHybrid } = useDeviceConfig();
+  const isApolloIii = effectiveMinerFamily === 'apollo-iii';
 
   // Built with useMemo, not useRef: the miner family is only known once
   // /api/config answers, so the controls have to be able to change once it does.

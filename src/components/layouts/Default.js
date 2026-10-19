@@ -22,7 +22,7 @@ import { updateServicesStatus } from '../../redux/slices/servicesSlice';
 import { settingsSelector } from '../../redux/reselect/settings';
 import { minerSelector } from '../../redux/reselect/miner';
 import { isAuthError } from '../../redux/utils/errorUtils';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 import { getRoutes } from '../../routes';
 import { GET_SETTINGS_QUERY } from '../../graphql/settings';
 import { subscribeWsStatus } from '../../lib/apolloClient';
@@ -62,26 +62,26 @@ const createSerializableError = (error) => {
 const Layout = ({ children }) => {
   const { onOpen } = useDisclosure();
   const dispatch = useDispatch();
-  const deviceType = useDeviceType();
+  const { isSoloNode, hasMiner } = useDeviceConfig();
   const wsStatus = useWsConnectionStatus();
 
-  // Generate routes dynamically based on device type
-  const dynamicRoutes = getRoutes(deviceType || 'miner');
+  // Generate routes dynamically from what the box has
+  const dynamicRoutes = getRoutes({ hasMiner });
   let routes = dynamicRoutes;
 
   // ---------------------------------------------------------------------------
-  // Miner subscription — skip for solo-node devices
+  // Miner subscription — skipped while there is no miner (a Solo Node with no board)
   // ---------------------------------------------------------------------------
   const {
     loading: loadingMiner,
     error: errorMiner,
     data: dataMiner,
   } = useSubscription(MINER_SUBSCRIPTION, {
-    skip: typeof window === 'undefined' || !deviceType || deviceType === 'solo-node',
+    skip: typeof window === 'undefined' || !hasMiner,
   });
 
   useEffect(() => {
-    if (!deviceType || deviceType === 'solo-node') return;
+    if (!hasMiner) return;
 
     const safeData = dataMiner ? {
       Miner: {
@@ -107,7 +107,7 @@ const Layout = ({ children }) => {
         data: safeData,
       })
     );
-  }, [loadingMiner, errorMiner, dataMiner, dispatch, deviceType]);
+  }, [loadingMiner, errorMiner, dataMiner, dispatch, hasMiner]);
 
   // ---------------------------------------------------------------------------
   // Miner boards — always subscribed, Solo Node included: it is what says whether
@@ -287,7 +287,7 @@ const Layout = ({ children }) => {
   const blockFound = minerData?.stats?.blockFound ?? null;
 
   routes = routes.filter((route) => {
-    if (route.path === '/solo-mining' && deviceType !== 'solo-node' && !nodeEnableSoloMining) return false;
+    if (route.path === '/solo-mining' && !isSoloNode && !nodeEnableSoloMining) return false;
     return true;
   });
 

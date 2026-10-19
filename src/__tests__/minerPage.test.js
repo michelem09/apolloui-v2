@@ -1,5 +1,5 @@
 import { renderWithProviders, screen } from '../test-utils';
-import Miner from './miner';
+import Miner from '../pages/miner';
 import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 
 jest.mock('next/router', () => ({ useRouter: () => ({ replace: jest.fn() }) }));

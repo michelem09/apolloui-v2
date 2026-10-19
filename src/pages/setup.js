@@ -26,7 +26,7 @@ const Setup = () => {
   const router = useRouter();
   const intl = useIntl();
   const textColor = useColorModeValue('brand.800', 'white');
-  const { deviceType, hasUsbMiners } = useDeviceConfig();
+  const { deviceType } = useDeviceConfig();
   const isSoloNode = deviceType === 'solo-node';
 
   const [step, setStep] = useState(1);
@@ -292,9 +292,12 @@ const Setup = () => {
     await startNode();
 
     // The Solo Node has no internal board, but it still runs apollo-miner for
-    // USB hashboards, and the miner only reads the pool out of miner_config at
-    // launch — so it needs the restart too whenever one is plugged in.
-    if (!isSoloNode || hasUsbMiners) await restartMiner();
+    // USB hashboards, and the miner only reads the pool (and the payout address)
+    // out of miner_config at launch — so it needs the restart too. Not gated on
+    // hasUsbMiners: /setup renders under AuthLayout, where nothing subscribes to
+    // the boards, so that flag only holds a build-time hint that may be gone. With
+    // no board plugged in the restart lands on the placeholder, which is harmless.
+    await restartMiner();
 
     // Only when the user actually chose solo: manageBitcoinConf stops and
     // disables ckpool for pooled mining, and starting it here undoes that.

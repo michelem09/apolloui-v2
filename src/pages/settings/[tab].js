@@ -60,7 +60,7 @@ import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
 import { useDeviceType } from '../../contexts/DeviceConfigContext';
 import useNodeStorage from '../../hooks/useNodeStorage';
 import { servicesSelector } from '../../redux/reselect/services';
-import { nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
+import { minerRestartFieldsFor, nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
@@ -341,20 +341,7 @@ const SettingsTab = () => {
     // configuration once, at startup, so a field changed here without a restart
     // is written to miner_config and then ignored by the running process.
     // Apollo III has its own tuning fields alongside the Apollo I/II ones.
-    const restartMinerFields = [
-      'minerMode',
-      'frequency',
-      'voltage',
-      'pool',
-      'backupPool',
-      'fan_low',
-      'fan_high',
-      'minerHashrate',
-      'fanTemp',
-      'fanPwm',
-      'powerLedOff',
-      'nodeEnableSoloMining',
-    ];
+    const restartMinerFields = minerRestartFieldsFor(deviceType);
     const restartSoloFields = [
       'pool',
       'nodeEnableSoloMining',

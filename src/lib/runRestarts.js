@@ -18,6 +18,15 @@ export const runRestarts = async ({ type, deviceType, restartMiner, restartSolo,
     return false;
   };
 
+  // A Solo Node with a USB miner: 'solo+miner', 'miner+node', 'solo+miner+node',
+  // in that order (ckpool listening before the miner reconnects).
+  if (typeof type === 'string' && type.includes('+')) {
+    const run = { solo: restartSolo, miner: restartMiner, node: restartNode };
+    for (const step of type.split('+')) {
+      if (!(await attempt(run[step]))) return false;
+    }
+    return true;
+  }
   if (type === 'miner') return attempt(restartMiner);
   if (type === 'solo') return attempt(restartSolo);
   if (type === 'node') return attempt(restartNode);

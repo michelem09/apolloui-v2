@@ -62,7 +62,7 @@ const createSerializableError = (error) => {
 const Layout = ({ children }) => {
   const { onOpen } = useDisclosure();
   const dispatch = useDispatch();
-  const { isSoloNode, hasMiner } = useDeviceConfig();
+  const { isSoloNode, hasMiner, loading: loadingDeviceConfig } = useDeviceConfig();
   const wsStatus = useWsConnectionStatus();
 
   // Generate routes dynamically from what the box has
@@ -327,7 +327,9 @@ const Layout = ({ children }) => {
     });
   }, [wsStatus, status]);
 
-  if (status === 'loading' || status === 'unauthenticated') return <></>;
+  // Until /api/config has answered the device type is unknown: hold the first
+  // paint rather than show the menu of the wrong device.
+  if (status === 'loading' || status === 'unauthenticated' || loadingDeviceConfig) return <></>;
 
   // Sign-out in flight: hold the page blank rather than render a dashboard whose
   // data source has just rejected us.

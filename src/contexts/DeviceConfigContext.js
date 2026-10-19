@@ -49,10 +49,17 @@ function deriveConfig({ chassis, usbMiners }) {
 }
 
 export const DeviceConfigProvider = ({ children }) => {
-  // Build-time values as the first paint, so the layout does not flash; the API
-  // below then replaces them with what the device actually reports.
+  // Build-time values where there are any; the API below then replaces them with
+  // what the device actually reports. Nothing here may assume a miner: the
+  // device-type variable is gone from set_UI_mode.sh, so on a Solo Node an assumed
+  // 'miner' would flash the miner UI (menu entry, miner subscription) until
+  // /api/config answers. With the type unknown, `hasMiner` is false and the
+  // layout holds its first paint (Default.js) for that one same-origin request,
+  // so neither an Apollo nor a Solo Node flashes the other's UI.
   const [config, setConfig] = useState(() => ({
-    deviceType: process.env.NEXT_PUBLIC_DEVICE_TYPE || 'miner',
+    deviceType:
+      process.env.NEXT_PUBLIC_DEVICE_TYPE ||
+      (process.env.NEXT_PUBLIC_CHASSIS === 'solo-node' ? 'solo-node' : null),
     chassis: process.env.NEXT_PUBLIC_CHASSIS || null,
     usbMiners: !!process.env.NEXT_PUBLIC_USB_MINERS,
   }));
@@ -76,10 +83,12 @@ export const DeviceConfigProvider = ({ children }) => {
             usbMiners: !!data.usbMiners,
           });
         } else {
-          // Keep the build-time values rather than guessing.
+          // Keep the build-time values rather than guessing; with none, an Apollo.
+          setConfig((c) => ({ ...c, deviceType: c.deviceType || 'miner' }));
           console.warn('Failed to fetch device config from API, using fallback');
         }
       } catch (error) {
+        setConfig((c) => ({ ...c, deviceType: c.deviceType || 'miner' }));
         console.error('Failed to fetch device config:', error);
       } finally {
         setLoading(false);
@@ -99,7 +108,8 @@ export const DeviceConfigProvider = ({ children }) => {
     // miner UI that is about to be taken away). Once the backend has spoken, a
     // Solo Node follows it; an Apollo keeps its miner even when the board list is
     // momentarily empty (a crashed internal miner is still a miner to show).
-    const hasMiner = isSoloNode ? boards.live && boards.hasMiner : true;
+    const hasMiner =
+      config.deviceType === null ? false : isSoloNode ? boards.live && boards.hasMiner : true;
     const hasUsbMiners = boards.live ? boards.hasUsbMiners : hintUsbMiners;
     // A Solo Node has no internal miner: with no USB board plugged in there is
     // nothing to start. Not known until the board list has spoken, so the button

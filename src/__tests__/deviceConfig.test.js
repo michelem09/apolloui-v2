@@ -196,3 +196,39 @@ describe('DeviceConfigProvider — hardware mapping', () => {
     expect(screen.getByTestId('probe').textContent).toBe('legacy|legacy|true|false|false|true');
   });
 });
+
+// Before /api/config answers, nothing may assume a miner: the device-type variable
+// is gone, so a Solo Node would otherwise flash the miner UI and open the miner
+// subscription. The layout holds its first paint on `loading`.
+describe('DeviceConfigProvider — before /api/config answers', () => {
+  const EarlyProbe = () => {
+    const c = useDeviceConfig();
+    return (
+      <span data-testid="early">{[c.loading, c.deviceType, c.hasMiner, c.isSoloNode].map(String).join('|')}</span>
+    );
+  };
+
+  it('does not assume a miner while the type is unknown', () => {
+    global.fetch = jest.fn(() => new Promise(() => {}));
+    render(
+      <Provider store={makeStore()}>
+        <DeviceConfigProvider>
+          <EarlyProbe />
+        </DeviceConfigProvider>
+      </Provider>
+    );
+    expect(screen.getByTestId('early').textContent).toBe('true|null|false|false');
+  });
+
+  it('falls back to an Apollo (with its miner) when the API fails', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+    render(
+      <Provider store={makeStore()}>
+        <DeviceConfigProvider>
+          <EarlyProbe />
+        </DeviceConfigProvider>
+      </Provider>
+    );
+    await waitFor(() => expect(screen.getByTestId('early').textContent).toBe('false|miner|true|false'));
+  });
+});

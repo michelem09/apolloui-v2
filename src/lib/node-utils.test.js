@@ -1,15 +1,37 @@
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
-import { getMinerHashboardType, getNodeErrorMessage } from './utils';
+import { boardKindOf, getMinerHashboardType, getNodeErrorMessage } from './utils';
 
-describe('getMinerHashboardType (internal vs USB hashboard)', () => {
-  it('serial ttyS1 → Internal', () => {
-    renderWithProviders(<div>{getMinerHashboardType('/dev/ttyS1')}</div>);
+describe('boardKindOf (internal vs USB hashboard)', () => {
+  it('trusts the kind the backend reports', () => {
+    expect(boardKindOf({ kind: 'internal' })).toBe('internal');
+    expect(boardKindOf({ kind: 'usb', comport: '/dev/ttyS1' })).toBe('usb');
+  });
+  it('an Apollo III board has no comport and is still internal when the backend says so', () => {
+    expect(boardKindOf({ kind: 'internal', comport: undefined })).toBe('internal');
+  });
+  it('falls back to the comport when the board list has not caught up', () => {
+    expect(boardKindOf({ comport: '/dev/ttyS1' })).toBe('internal');
+    expect(boardKindOf({ comport: '/dev/ttyACM0' })).toBe('usb');
+  });
+  it('says nothing when it knows nothing', () => {
+    expect(boardKindOf({})).toBeNull();
+    expect(boardKindOf()).toBeNull();
+  });
+});
+
+describe('getMinerHashboardType (translated label)', () => {
+  it('internal', () => {
+    renderWithProviders(<div>{getMinerHashboardType('internal')}</div>);
     expect(screen.getByText(/Internal/)).toBeInTheDocument();
   });
-  it('USB (ttyACM) → External', () => {
-    renderWithProviders(<div>{getMinerHashboardType('/dev/ttyACM0')}</div>);
-    expect(screen.getByText(/External/)).toBeInTheDocument();
+  it('usb', () => {
+    renderWithProviders(<div>{getMinerHashboardType('usb')}</div>);
+    expect(screen.getByText(/USB/)).toBeInTheDocument();
+  });
+  it('unknown kind renders nothing', () => {
+    renderWithProviders(<div data-testid="x">{getMinerHashboardType(null)}</div>);
+    expect(screen.getByTestId('x')).toBeEmptyDOMElement();
   });
 });
 

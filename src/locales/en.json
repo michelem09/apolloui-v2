@@ -292,6 +292,17 @@
     "power": {
       "usage": "Power usage",
       "watts_per_th": "Watts per TH/s"
+    },
+    "board": {
+      "kind": {
+        "internal": "Internal",
+        "usb": "USB"
+      },
+      "status": {
+        "disconnected": "Disconnected"
+      },
+      "disconnected_since": "Disconnected since {time}",
+      "unplugged_toast": "A USB miner was disconnected. It stays listed as disconnected for {minutes} minutes."
     }
   },
   "solo_mining": {
@@ -534,7 +545,8 @@
         "power_led": {
           "title": "Front Status Light",
           "description": "Turn off/on the front status led. Note: your miner will be restarted to apply."
-        }
+        },
+        "usb_legacy_note": "USB boards always run the matching legacy mode (Eco, Balanced, Turbo or Custom), whatever the Apollo III is set to. Super Eco does not apply to them."
       },
       "node": {
         "title": "Bitcoin node settings",
@@ -1097,6 +1109,14 @@
       "6hours": "Last 6 hours",
       "24hours": "Last 24 hours",
       "30days": "Last 30 days"
+    }
+  },
+  "navbar": {
+    "usb_miners": {
+      "label": "USB miners",
+      "tooltip": "{count, plural, one {# USB miner connected} other {# USB miners connected}}",
+      "disconnected": "{count, plural, one {# USB miner disconnected} other {# USB miners disconnected}}",
+      "board_disconnected": "{board}: disconnected since {time}"
     }
   }
 }

@@ -43,9 +43,11 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
   const temperatureUnit = settings?.temperatureUnit || 'c'; // Use 'C' as default
 
   const activeBoards = _.size(_.filter(data, { status: true }));
-  const totalBoards = _.size(data);
+  // A disconnected board is listed below but is not one of the miner's boards.
+  const totalBoards = _.size(_.reject(data, 'disconnected'));
   const activePools = _.size(_.filter(data, { poolStatus: true }));
-  const dataSorted = _.orderBy(data, ['version'], ['desc']);
+  // Connected boards first; a disconnected one is listed, tagged, at the end.
+  const dataSorted = _.orderBy(data, ['disconnected', 'version'], ['asc', 'desc']);
 
   const dataTableBoards = _.chain(dataSorted)
     .map((board) => {
@@ -196,6 +198,9 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                       version={dataSorted[index].version}
                       badgeSecondaryText="Active ASICs"
                       comport={dataSorted[index].comport}
+                      kind={dataSorted[index].kind}
+                      disconnected={dataSorted[index].disconnected}
+                      disconnectedSince={dataSorted[index].disconnectedSince}
                       showName={true}
                     />
                   </Card>
@@ -222,6 +227,9 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                       badgeSecondaryText={dataSorted[index].poolUsername}
                       version={dataSorted[index].version}
                       comport={dataSorted[index].comport}
+                      kind={dataSorted[index].kind}
+                      disconnected={dataSorted[index].disconnected}
+                      disconnectedSince={dataSorted[index].disconnectedSince}
                       showName={true}
                     />
                   </Card>

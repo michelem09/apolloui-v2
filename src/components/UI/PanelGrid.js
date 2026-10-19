@@ -10,7 +10,8 @@ import {
 } from '@chakra-ui/react';
 import ActiveBadge from '../apollo/ActiveBadge';
 import { ErrorIcon } from './Icons/ErrorIcon';
-import { getMinerHashboardType } from '../../lib/utils';
+import { useIntl } from 'react-intl';
+import { boardKindOf, getMinerHashboardType } from '../../lib/utils';
 
 const PanelGrid = ({
   title,
@@ -20,10 +21,15 @@ const PanelGrid = ({
   status,
   version,
   comport,
+  kind,
+  disconnected,
+  disconnectedSince,
   badgeText,
   badgeSecondaryText,
   showName,
 }) => {
+  const intl = useIntl();
+  const boardKind = boardKindOf({ kind, comport });
   const badgeBgColor = useColorModeValue('gray.200', 'gray.900');
   const tagColor = useColorModeValue('gray.800', 'gray.200');
   const tagBgColor = useColorModeValue('gray.200', 'gray.600');
@@ -69,7 +75,7 @@ const PanelGrid = ({
               {versionsMap[version]?.name}
             </Tag>
           )}
-          {comport && (
+          {boardKind && (
             <Tag
               size="md"
               color={tagColor}
@@ -77,8 +83,38 @@ const PanelGrid = ({
               my={{ base: '1', md: '0' }}
               ml={{ base: '0', md: '2' }}
             >
-              {getMinerHashboardType(comport)}
+              {getMinerHashboardType(boardKind)}
             </Tag>
+          )}
+          {disconnected && (
+            <>
+              <Tag
+                size="md"
+                colorScheme="orange"
+                my={{ base: '1', md: '0' }}
+                ml={{ base: '0', md: '2' }}
+              >
+                {intl.formatMessage({ id: 'miner.board.status.disconnected' })}
+              </Tag>
+              {disconnectedSince && (
+                <Text
+                  fontSize="xs"
+                  color="orange.500"
+                  alignSelf="center"
+                  ml={{ base: '0', md: '2' }}
+                >
+                  {intl.formatMessage(
+                    { id: 'miner.board.disconnected_since' },
+                    {
+                      time: intl.formatTime(new Date(disconnectedSince), {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }),
+                    }
+                  )}
+                </Text>
+              )}
+            </>
           )}
         </Flex>
         {typeof active !== 'undefined' &&

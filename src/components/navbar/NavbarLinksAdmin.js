@@ -55,6 +55,7 @@ import { useSelector, shallowEqual } from 'react-redux';
 import { soloSelector } from '../../redux/reselect/solo';
 import { servicesSelector } from '../../redux/reselect/services';
 import moment from '../../lib/moment';
+import UsbMinersIndicator from './UsbMinersIndicator';
 import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 
 const parseReleaseVersion = (version) => {
@@ -554,6 +555,8 @@ export default function HeaderLinks({
             </Text>
           </Flex>
         )}
+
+        <UsbMinersIndicator secondary={secondary} />
 
         <Flex p="0px" mx="4px" display={{ base: 'none', md: 'block' }}>
           <FixedPlugin type="small" />

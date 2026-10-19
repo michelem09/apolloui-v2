@@ -292,6 +292,17 @@
     "power": {
       "usage": "Consumo de energía",
       "watts_per_th": "Watts por TH/s"
+    },
+    "board": {
+      "kind": {
+        "internal": "Interna",
+        "usb": "USB"
+      },
+      "status": {
+        "disconnected": "Desconectada"
+      },
+      "disconnected_since": "Desconectada desde las {time}",
+      "unplugged_toast": "Se ha desconectado un minero USB. Seguirá en la lista como desconectado durante {minutes} minutos."
     }
   },
   "solo_mining": {
@@ -534,7 +545,8 @@
         "power_led": {
           "title": "Luz de estado frontal",
           "description": "Encender/apagar el LED de estado frontal. Nota: el minero se reiniciará para aplicar los cambios."
-        }
+        },
+        "usb_legacy_note": "Las placas USB siempre usan el modo clásico equivalente (Eco, Balanced, Turbo o Custom), sea cual sea el ajuste del Apollo III. Super Eco no se aplica a ellas."
       },
       "node": {
         "title": "Configuración del nodo Bitcoin",
@@ -1097,6 +1109,14 @@
       "6hours": "Últimas 6 horas",
       "24hours": "Últimas 24 horas",
       "30days": "Últimos 30 días"
+    }
+  },
+  "navbar": {
+    "usb_miners": {
+      "label": "Mineros USB",
+      "tooltip": "{count, plural, one {# minero USB conectado} other {# mineros USB conectados}}",
+      "disconnected": "{count, plural, one {# minero USB desconectado} other {# mineros USB desconectados}}",
+      "board_disconnected": "{board}: desconectada desde las {time}"
     }
   }
 }

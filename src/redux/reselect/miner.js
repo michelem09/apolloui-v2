@@ -2,18 +2,29 @@ import { createSelector } from 'reselect';
 import { loadingUntilAnswered } from '../utils/answered';
 import _ from 'lodash';
 import { initialState } from '../../graphql/miner';
-import { displayHashrate, convertHashrateStringToValue } from '../../lib/utils';
+import { displayHashrate, convertHashrateStringToValue, boardKindOf } from '../../lib/utils';
 import moment from '../../lib/moment';
 
 const minerDataSelector = (state) => state.miner.data;
 const minerErrorSelector = (state) => state.miner.error;
 const minerLoadingSelector = (state) => loadingUntilAnswered(state.miner);
+// The board list is optional here (a store without that slice still works): a
+// board with no entry in it is simply taken to be connected.
+const boardListSelector = (state) => state.minerBoards?.data?.result?.boards;
+
+const NO_BOARDS = [];
 
 export const minerSelector = createSelector(
   minerDataSelector,
   minerErrorSelector,
   minerLoadingSelector,
-  (minerData, minerError, minerLoading) => {
+  boardListSelector,
+  (minerData, minerError, minerLoading, boardList = NO_BOARDS) => {
+    // Stat file id === board id (MinerStats.uuid === MinerBoard.id). A board the
+    // backend reports as disconnected has a stat file that is stale but still
+    // there: it is listed, tagged, and kept out of every total below.
+    const boardById = new Map(boardList.map((entry) => [entry.id, entry]));
+
     const {
       Miner: {
         online: { error: errorOnline, result = {} },
@@ -37,6 +48,7 @@ export const minerSelector = createSelector(
 
       const boards = minerStats.map((board) => {
         const {
+          uuid,
           date,
           version,
           comport,
@@ -78,16 +90,22 @@ export const minerSelector = createSelector(
         // Compute board liveness from the stat file timestamp
         const shareTime = moment(date);
         const ageMinutes = moment.duration(moment().diff(shareTime)).asMinutes();
-        const status = ageMinutes <= maxStatusInterval;
+        const registered = boardById.get(uuid);
+        const disconnected = registered?.status === 'disconnected';
+        const status = ageMinutes <= maxStatusInterval && !disconnected;
         const poolStatus = status;
         const lastsharetime = shareTime;
 
         const poolHashrateInGh = avgPoolHashrateInGh;
 
         return {
+          uuid,
           date,
           status,
           comport,
+          kind: boardKindOf({ kind: registered?.kind, comport }),
+          disconnected,
+          disconnectedSince: disconnected ? registered.since : null,
           poolStatus,
           poolUsername,
           poolHost,
@@ -149,6 +167,9 @@ export const minerSelector = createSelector(
       );
 
       if (_.every(boards, ['status', false])) minerUptime = 'Inactive';
+
+      // Disconnected boards are listed but are not part of the miner any more.
+      const connectedBoards = _.reject(boards, 'disconnected');
 
       const globalHashrate = displayHashrate(
         _.sumBy(boards, (hb) => {
@@ -213,10 +234,12 @@ export const minerSelector = createSelector(
       // above guards the same expression; the aggregate did not.
       if (!isFinite(avgBoardEfficiency)) avgBoardEfficiency = 0;
 
-      let avgBoardTemp = _.meanBy(boards, (hb) => {
-        if (hb.status) return hb.temperature;
-        return null;
-      });
+      // Averages are taken over the boards that are mining. Averaging all of them
+      // with a zero for each idle one dragged every figure down by the boards
+      // that were not there (an unplugged USB board most of all).
+      const activeList = _.filter(boards, 'status');
+
+      let avgBoardTemp = _.meanBy(activeList, (hb) => hb.temperature);
 
       if (isNaN(avgBoardTemp)) avgBoardTemp = 0;
 
@@ -245,24 +268,15 @@ export const minerSelector = createSelector(
 
       if (isNaN(totalBoardAccepted)) totalBoardAccepted = 0;
 
-      let avgChipSpeed = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.chipSpeed) return hb.chipSpeed;
-        return 0;
-      });
+      let avgChipSpeed = _.meanBy(activeList, (hb) => hb.chipSpeed || 0);
 
       if (isNaN(avgChipSpeed)) avgChipSpeed = 0;
 
-      let avgFanSpeed = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.fanSpeed) return hb.fanSpeed;
-        return 0;
-      });
+      let avgFanSpeed = _.meanBy(activeList, (hb) => hb.fanSpeed || 0);
 
       if (isNaN(avgFanSpeed)) avgFanSpeed = 0;
 
-      let avgVoltage = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.voltage) return hb.voltage;
-        return 0;
-      });
+      let avgVoltage = _.meanBy(activeList, (hb) => hb.voltage || 0);
 
       if (isNaN(avgVoltage)) avgVoltage = 0;
 
@@ -282,15 +296,12 @@ export const minerSelector = createSelector(
         return 0;
       });
 
-      let avgDiff = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.diff) return hb.diff;
-        return 0;
-      });
+      let avgDiff = _.meanBy(activeList, (hb) => hb.diff || 0);
 
       if (isNaN(avgDiff)) avgDiff = 0;
 
       const activeBoards = _.size(_.filter(boards, { status: true }));
-      const totalBoards = _.size(boards);
+      const totalBoards = _.size(connectedBoards);
       const activePools = _.size(_.filter(boards, { poolStatus: true }));
 
       stats = {

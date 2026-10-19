@@ -943,7 +943,7 @@ const Overview = () => {
                               }
                             >
                               {servicesStatus?.miner?.status === 'online' &&
-                              Number.isFinite(avgBoardTemp)
+                              avgBoardTemp > 0
                                 ? `${formatTemperature(
                                     avgBoardTemp,
                                     temperatureUnit

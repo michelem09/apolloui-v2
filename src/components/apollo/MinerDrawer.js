@@ -189,6 +189,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
+                    opacity={dataSorted[index].disconnected ? 0.6 : 1}
                   >
                     <PanelGrid
                       title={`Hashboard #${index}`}
@@ -219,6 +220,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
+                    opacity={dataSorted[index].disconnected ? 0.6 : 1}
                   >
                     <PanelGrid
                       title={`${dataSorted[index].poolHost}:${dataSorted[index].poolPort}`}

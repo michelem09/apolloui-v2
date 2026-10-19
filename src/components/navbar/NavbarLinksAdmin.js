@@ -317,8 +317,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -380,8 +381,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -449,8 +451,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -549,7 +552,7 @@ export default function HeaderLinks({
               fontWeight="700"
               me="6px"
             >
-              {minerStatusLabel === 'Online' && avgBoardTemp !== null
+              {minerStatusLabel === 'Online' && avgBoardTemp > 0
                 ? `${formatTemperature(avgBoardTemp, temperatureUnit)}`
                 : '-'}
             </Text>

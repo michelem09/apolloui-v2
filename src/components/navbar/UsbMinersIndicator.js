@@ -94,10 +94,12 @@ const UsbMinersIndicator = ({ secondary = true }) => {
         bg={warn ? 'orange.500' : badgeBg}
         display={secondary ? 'flex' : 'none'}
         borderRadius="30px"
-        p="6px"
+        // Tighter on a phone: this is the fourth badge in a bar that has to fit
+        // 390 px beside the node, solo and miner ones.
+        p={{ base: '4px', md: '6px' }}
         align="center"
-        me="8px"
-        px="10px"
+        me={{ base: '4px', md: '8px' }}
+        px={{ base: '6px', md: '10px' }}
       >
         <Icon as={MdOutlineUsb} w="18px" h="18px" color={warn ? 'white' : navbarIcon} />
         <Flex
@@ -108,7 +110,7 @@ const UsbMinersIndicator = ({ secondary = true }) => {
           h="20px"
           minW="20px"
           px="5px"
-          ms="6px"
+          ms={{ base: '4px', md: '6px' }}
           borderRadius="30px"
           fontSize="xs"
           fontWeight="700"

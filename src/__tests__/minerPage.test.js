@@ -48,6 +48,8 @@ describe('Miner page, Total pools and hashboards card', () => {
     expect(screen.queryByText('Pools')).not.toBeInTheDocument();
     // A lone unplugged board: Active 0/1.
     expect(screen.getByText(/Active 0\/1/)).toBeInTheDocument();
+    // The card heading says it; the panel inside must not repeat it.
+    expect(screen.getAllByText('Hashboards')).toHaveLength(1);
   });
 
   it('Apollo with a board: the Pools panel is still there', () => {
@@ -55,5 +57,7 @@ describe('Miner page, Total pools and hashboards card', () => {
     renderWithProviders(<Miner />);
     expect(screen.getByText('Total pools and hashboards')).toBeInTheDocument();
     expect(screen.getByText('Pools')).toBeInTheDocument();
+    // Here the heading is the longer one, so the panel keeps its own title.
+    expect(screen.getAllByText('Hashboards')).toHaveLength(1);
   });
 });

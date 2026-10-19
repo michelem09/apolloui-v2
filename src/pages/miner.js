@@ -589,8 +589,9 @@ const Miner = () => {
                   </Stack>
                 ) : (
                   <Box mt="3">
+                    {/* On a Solo Node the card heading already says "Hashboards". */}
                     <PanelGrid
-                      title={intl.formatMessage({ id: 'miner.hashboards' })}
+                      title={isSoloNode ? undefined : intl.formatMessage({ id: 'miner.hashboards' })}
                       active={activeBoards}
                       total={totalBoards}
                       data={dataTableBoards}

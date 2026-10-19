@@ -1,4 +1,6 @@
+import { isEqual, pick } from 'lodash';
 import {
+  SOLO_RESTART_FIELDS,
   minerRestartFieldsFor,
   nodeRestartNeeded,
   restartTypeFor,
@@ -169,57 +171,96 @@ describe('restartPlanFor', () => {
       ).toEqual({ type: 'node', skipped: 'solo' });
     });
 
-    // The miner and solo field lists overlap (pool): the wallet address is the
-    // pool username, so one edit changes both, and a USB miner mines to it.
-    describe('with a USB miner (monitor says online)', () => {
-      const wallet = { ...solo, minerFieldsChanged: true };
-      const usb = { status: 'online' };
+    // The wallet address is the pool username: one edit, mined to by a USB miner.
+    describe('USB miner present', () => {
+      const wallet = { ...solo, soloFieldsChanged: false, minerFieldsChanged: true };
+      const online = { status: 'online' };
 
-      it('restarts ckpool, then the miner', () => {
-        expect(restartPlanFor({ ...wallet, soloService: usb, minerService: usb })).toEqual({
-          type: 'solo+miner',
+      it.each([
+        ['online', { status: 'online' }, undefined],
+        ['asked to start', { status: 'pending', requestedStatus: 'online' }, undefined],
+        ['seen at boot, status unknown yet', undefined, true],
+        ['seen at boot, still starting', { status: 'pending', requestedStatus: 'online' }, true],
+      ])('restarts the miner and not ckpool (%s)', (_n, minerService, hasUsbMiners) => {
+        expect(restartPlanFor({ ...wallet, minerService, hasUsbMiners })).toEqual({
+          type: 'miner',
           skipped: null,
         });
       });
 
-      it('adds the node last when it needs a restart too', () => {
+      it('does not start a miner the user stopped (seen at boot), and says so', () => {
         expect(
-          restartPlanFor({ ...wallet, nodeNeeded: true, soloService: usb, minerService: usb })
-        ).toEqual({ type: 'solo+miner+node', skipped: null });
+          restartPlanFor({ ...wallet, minerService: { status: 'offline' }, hasUsbMiners: true })
+        ).toEqual({ type: null, skipped: 'miner' });
       });
 
-      it('restarts only the miner when ckpool is stopped, and still says so', () => {
+      it('does not start a miner being stopped (seen at boot), and says so', () => {
         expect(
-          restartPlanFor({ ...wallet, soloService: { status: 'offline' }, minerService: usb })
+          restartPlanFor({
+            ...wallet,
+            minerService: { status: 'pending', requestedStatus: 'offline' },
+            hasUsbMiners: true,
+          })
+        ).toEqual({ type: null, skipped: 'miner' });
+      });
+
+      it('keeps the node last when it needs a restart too', () => {
+        expect(restartPlanFor({ ...wallet, nodeNeeded: true, minerService: online })).toEqual({
+          type: 'miner+node',
+          skipped: null,
+        });
+      });
+
+      it('restarts ckpool, then the miner, when solo mining is switched too', () => {
+        expect(
+          restartPlanFor({ ...wallet, soloFieldsChanged: true, soloService: online, minerService: online })
+        ).toEqual({ type: 'solo+miner', skipped: null });
+      });
+
+      it('restarts only the miner when ckpool is stopped, and says so', () => {
+        expect(
+          restartPlanFor({
+            ...wallet,
+            soloFieldsChanged: true,
+            soloService: { status: 'offline' },
+            minerService: online,
+          })
         ).toEqual({ type: 'miner', skipped: 'solo' });
+      });
+
+      it('does not restart the miner when no miner field changed', () => {
+        expect(
+          restartPlanFor({ ...wallet, minerFieldsChanged: false, minerService: online, hasUsbMiners: true })
+        ).toEqual({ type: null, skipped: null });
       });
     });
 
-    describe('without a running USB miner', () => {
-      const wallet = { ...solo, minerFieldsChanged: true };
+    describe('no USB miner (the unit loops in auto-restart)', () => {
+      const wallet = { ...solo, soloFieldsChanged: false, minerFieldsChanged: true };
 
-      // Without one, apollo-miner.service loops in auto-restart: the monitor
-      // reports pending (or offline between turns), never online.
       it.each([
         [{ status: 'offline' }],
-        [{ status: 'pending', requestedStatus: 'online' }],
+        [{ status: 'pending', requestedStatus: null }],
+        [{ status: 'pending' }],
         [{ status: 'pending', requestedStatus: 'offline' }],
         [{ status: 'error' }],
         [undefined],
-      ])('leaves the miner alone (%j) and restarts only ckpool, silently', (minerService) => {
-        expect(
-          restartPlanFor({ ...wallet, soloService: { status: 'online' }, minerService })
-        ).toEqual({ type: 'solo', skipped: null });
+      ])('does nothing and says nothing (%j)', (minerService) => {
+        expect(restartPlanFor({ ...wallet, minerService, hasUsbMiners: false })).toEqual({
+          type: null,
+          skipped: null,
+        });
       });
     });
 
-    it('does not restart the miner for a ckpool-only change (difficulty, signature)', () => {
+    it('restarts only ckpool when solo mining is switched and no miner field changed', () => {
       expect(
         restartPlanFor({
           ...solo,
           minerFieldsChanged: false,
           soloService: { status: 'online' },
           minerService: { status: 'online' },
+          hasUsbMiners: true,
         })
       ).toEqual({ type: 'solo', skipped: null });
     });
@@ -233,6 +274,7 @@ describe('restartPlanFor', () => {
           soloFieldsChanged: false,
           nodeNeeded: true,
           minerService: { status: 'online' },
+          hasUsbMiners: true,
         })
       ).toEqual({ type: 'node', skipped: null });
     });
@@ -255,6 +297,33 @@ describe('minerRestartFieldsFor', () => {
     expect(minerRestartFieldsFor('solo-node')).toContain('pool');
     expect(minerRestartFieldsFor('solo-node')).not.toContain('nodeEnableSoloMining');
     expect(minerRestartFieldsFor('miner')).toContain('nodeEnableSoloMining');
+  });
+});
+
+// What the settings page feeds restartPlanFor: the changed-field flags come from
+// these lists, so a wallet edit is followed through them rather than asserted.
+describe('a wallet change on a solo-node, from the page lists', () => {
+  const before = { pool: { url: 'stratum+tcp://127.0.0.1:3333', username: 'bc1qold' }, nodeEnableSoloMining: true };
+  const after = { ...before, pool: { ...before.pool, username: 'bc1qnew' } };
+  const changed = (fields) => !isEqual(pick(before, fields), pick(after, fields));
+
+  it('changes a miner field and no ckpool field', () => {
+    expect(changed(minerRestartFieldsFor('solo-node'))).toBe(true);
+    expect(changed(SOLO_RESTART_FIELDS)).toBe(false);
+  });
+
+  it('restarts the USB miner and leaves ckpool alone', () => {
+    expect(
+      restartPlanFor({
+        deviceType: 'solo-node',
+        minerFieldsChanged: changed(minerRestartFieldsFor('solo-node')),
+        soloFieldsChanged: changed(SOLO_RESTART_FIELDS),
+        nodeNeeded: false,
+        minerService: { status: 'online' },
+        soloService: { status: 'online' },
+        hasUsbMiners: true,
+      })
+    ).toEqual({ type: 'miner', skipped: null });
   });
 });
 

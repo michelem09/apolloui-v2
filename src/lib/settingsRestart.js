@@ -59,18 +59,29 @@ export const minerRestartFieldsFor = (deviceType) =>
     ? MINER_FIELDS.filter((f) => f !== 'nodeEnableSoloMining')
     : MINER_FIELDS;
 
+// Fields that restart ckpool on a solo-node. The pool is NOT one of them: ckpool
+// runs btcsolo and takes the payout address from the miner's stratum username
+// (manageCkpoolConf writes no address), so a wallet change leaves it as it is and
+// restarting it would only drop every miner connected over the LAN.
+export const SOLO_RESTART_FIELDS = ['nodeEnableSoloMining'];
+
+// A USB miner is "present" on a Solo Node if boot detection saw one, or the
+// monitor has it running, or a start was explicitly asked for. Without any of
+// these apollo-miner.service just loops in auto-restart (pending, requestedStatus
+// null, or offline between turns): nothing to restart, nothing to tell the user.
+export const usbMinerPresent = ({ hasUsbMiners, minerService }) =>
+  !!hasUsbMiners ||
+  minerService?.status === 'online' ||
+  (minerService?.status === 'pending' && minerService?.requestedStatus === 'online');
+
 // What a save restarts, and which restart it skipped because the service is
 // stopped. `skipped` is 'miner' | 'solo' | null and only set when a startup
 // field really changed, since that is the only case worth telling the user about.
 //
 // On a Solo Node the "miner" is a USB miner plugged into the box, pointed at the
 // local ckpool with the payout address as its username: it keeps mining to the
-// old address until restarted. Whether one is there cannot be read from "stopped"
-// (without one, apollo-miner.service loops in auto-restart and reports pending or
-// offline all day), so it is restarted only when the monitor says `online`, i.e.
-// its stat file is fresh. Anything else is left alone silently: it reads the new
-// miner_config at its next start, and "your miner is stopped" would be noise on a
-// box that has none.
+// old address until restarted. When one is present the ordinary rule applies
+// (restart it unless it is known stopped); when none is, it is left alone.
 export const restartPlanFor = ({
   deviceType,
   minerFieldsChanged,
@@ -78,27 +89,24 @@ export const restartPlanFor = ({
   nodeNeeded,
   minerService,
   soloService,
+  hasUsbMiners,
 }) => {
   const isSoloNode = deviceType === 'solo-node';
-  const minerChanged = !isSoloNode && !!minerFieldsChanged;
+  const minerApplies = !isSoloNode || usbMinerPresent({ hasUsbMiners, minerService });
+  const minerChanged = minerApplies && !!minerFieldsChanged;
   const soloChanged = isSoloNode && !!soloFieldsChanged;
   const minerStopped = minerChanged && serviceKnownStopped(minerService);
   const soloStopped = soloChanged && serviceKnownStopped(soloService);
-  const usbMinerRestart =
-    isSoloNode && !!minerFieldsChanged && minerService?.status === 'online';
+  const minerRestart = minerChanged && !minerStopped;
   const soloRestart = soloChanged && !soloStopped;
   const skipped = minerStopped ? 'miner' : soloStopped ? 'solo' : null;
-  if (usbMinerRestart) {
+  if (isSoloNode && minerRestart) {
     // ckpool first, so the pool is listening when the miner reconnects.
     const steps = [soloRestart && 'solo', 'miner', nodeNeeded && 'node'].filter(Boolean);
     return { type: steps.join('+'), skipped };
   }
   return {
-    type: restartTypeFor({
-      miner: minerChanged && !minerStopped,
-      solo: soloRestart,
-      node: !!nodeNeeded,
-    }),
+    type: restartTypeFor({ miner: minerRestart, solo: soloRestart, node: !!nodeNeeded }),
     skipped,
   };
 };

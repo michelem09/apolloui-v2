@@ -57,10 +57,10 @@ import {
 import { nodeSelector } from '../../redux/reselect/node';
 import { mcuSelector } from '../../redux/reselect/mcu';
 import { CHANGE_PASSWORD_QUERY } from '../../graphql/auth';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import { useDeviceConfig, useDeviceType } from '../../contexts/DeviceConfigContext';
 import useNodeStorage from '../../hooks/useNodeStorage';
 import { servicesSelector } from '../../redux/reselect/services';
-import { minerRestartFieldsFor, nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
+import { SOLO_RESTART_FIELDS, minerRestartFieldsFor, nodeRestartNeeded, restartPlanFor, savedMessageIdFor } from '../../lib/settingsRestart';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
@@ -78,6 +78,7 @@ const SILENT = { silentErrors: true };
 const SettingsTab = () => {
   const intl = useIntl();
   const deviceType = useDeviceType();
+  const { hasUsbMiners } = useDeviceConfig();
   const router = useRouter();
   const dispatch = useDispatch();
   const {
@@ -342,10 +343,7 @@ const SettingsTab = () => {
     // is written to miner_config and then ignored by the running process.
     // Apollo III has its own tuning fields alongside the Apollo I/II ones.
     const restartMinerFields = minerRestartFieldsFor(deviceType);
-    const restartSoloFields = [
-      'pool',
-      'nodeEnableSoloMining',
-    ];
+    const restartSoloFields = SOLO_RESTART_FIELDS;
     const restartNodeFields = [
       'nodeEnableTor',
       'nodeUserConf',
@@ -385,13 +383,14 @@ const SettingsTab = () => {
       nodeNeeded: restartNodeNeeded,
       minerService,
       soloService,
+      hasUsbMiners,
     });
 
     if (!isEqual && !settings.initial) setIsChanged(true);
     if (isEqual) setIsChanged(false);
     setRestartNeeded(plan.type);
     setRestartSkipped(plan.skipped);
-  }, [settings, currentSettings, deviceType, nodeServiceOnline, storageUsable, minerService, soloService]);
+  }, [settings, currentSettings, deviceType, nodeServiceOnline, storageUsable, minerService, soloService, hasUsbMiners]);
 
   // Handle backup download
   const handleBackup = async () => {

@@ -129,7 +129,7 @@ export default function HeaderLinks({
   loading,
   handleSystemAction,
 }) {
-  const { isSoloNode, hasMiner } = useDeviceConfig();
+  const { isSoloNode, hasMiner, canStartMiner } = useDeviceConfig();
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.600', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -590,15 +590,24 @@ export default function HeaderLinks({
               {hasMiner && (
                 <>
                   <MenuGroup title="Miner">
-                    <MenuItem
-                      icon={<StartIcon />}
-                      isDisabled={
-                        minerOnline === 'online' || minerOnline === 'pending'
-                      }
-                      onClick={() => handleSystemAction('startMiner')}
+                    <Tooltip
+                      label={intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' })}
+                      isDisabled={canStartMiner}
+                      shouldWrapChildren
+                      hasArrow
                     >
-                      Start
-                    </MenuItem>
+                      <MenuItem
+                        icon={<StartIcon />}
+                        isDisabled={
+                          !canStartMiner ||
+                          minerOnline === 'online' ||
+                          minerOnline === 'pending'
+                        }
+                        onClick={() => handleSystemAction('startMiner')}
+                      >
+                        Start
+                      </MenuItem>
+                    </Tooltip>
                     <MenuItem
                       icon={<StopIcon />}
                       isDisabled={minerOnline === 'offline'}
@@ -606,15 +615,24 @@ export default function HeaderLinks({
                     >
                       Stop
                     </MenuItem>
-                    <MenuItem
-                      icon={<RestartIcon />}
-                      isDisabled={
-                        minerOnline === 'offline' || minerOnline === 'pending'
-                      }
-                      onClick={() => handleSystemAction('restartMiner')}
+                    <Tooltip
+                      label={intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' })}
+                      isDisabled={canStartMiner}
+                      shouldWrapChildren
+                      hasArrow
                     >
-                      Restart
-                    </MenuItem>
+                      <MenuItem
+                        icon={<RestartIcon />}
+                        isDisabled={
+                          !canStartMiner ||
+                          minerOnline === 'offline' ||
+                          minerOnline === 'pending'
+                        }
+                        onClick={() => handleSystemAction('restartMiner')}
+                      >
+                        Restart
+                      </MenuItem>
+                    </Tooltip>
                   </MenuGroup>
                   <MenuDivider />
                 </>

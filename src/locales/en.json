@@ -1116,7 +1116,8 @@
       "label": "USB miners",
       "tooltip": "{count, plural, one {# USB miner connected} other {# USB miners connected}}",
       "disconnected": "{count, plural, one {# USB miner disconnected} other {# USB miners disconnected}}",
-      "board_disconnected": "{board}: disconnected since {time}"
+      "board_disconnected": "{board}: disconnected since {time}",
+      "none_to_start": "No USB miner connected"
     }
   }
 }

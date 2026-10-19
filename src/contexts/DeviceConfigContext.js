@@ -24,6 +24,8 @@ import { minerBoardsSelector } from '../redux/reselect/minerBoards';
  *   minerFamily          'apollo-iii' | 'legacy' | null   (null: no internal board)
  *   effectiveMinerFamily minerFamily, or 'legacy' for a Solo Node with USB boards:
  *                        USB boards always run the legacy miner_config
+ *   canStartMiner  Start/Restart of the miner make sense: always on an Apollo, on a
+ *                 Solo Node only with a USB board active (live)
  *   hasUsbMiners         USB boards are attached (live from the Miner.boards push)
  *   isHybrid             an Apollo III alongside USB boards, where a III-only
  *                        preset would not apply to everything that is mining
@@ -99,6 +101,10 @@ export const DeviceConfigProvider = ({ children }) => {
     // momentarily empty (a crashed internal miner is still a miner to show).
     const hasMiner = isSoloNode ? boards.live && boards.hasMiner : true;
     const hasUsbMiners = boards.live ? boards.hasUsbMiners : hintUsbMiners;
+    // A Solo Node has no internal miner: with no USB board plugged in there is
+    // nothing to start. Not known until the board list has spoken, so the button
+    // never flashes enabled and then turns off.
+    const canStartMiner = isSoloNode ? boards.live && boards.usbActiveCount > 0 : true;
     const effectiveMinerFamily = minerFamily ?? (hasUsbMiners ? 'legacy' : null);
     return {
       deviceType: config.deviceType,
@@ -108,13 +114,14 @@ export const DeviceConfigProvider = ({ children }) => {
       // false until the first board list has arrived: callers that would redirect
       // or hide something on `hasMiner` alone must wait for it on a Solo Node.
       boardsLive: boards.live,
+      canStartMiner,
       minerFamily,
       effectiveMinerFamily,
       hasUsbMiners,
       isHybrid: minerFamily === 'apollo-iii' && hasUsbMiners,
       loading,
     };
-  }, [config, loading, boards.live, boards.hasMiner, boards.hasUsbMiners]);
+  }, [config, loading, boards.live, boards.hasMiner, boards.hasUsbMiners, boards.usbActiveCount]);
 
   return (
     <DeviceConfigContext.Provider value={value}>

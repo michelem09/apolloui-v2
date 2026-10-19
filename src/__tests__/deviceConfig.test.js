@@ -12,7 +12,7 @@ const Probe = () => {
   const c = useDeviceConfig();
   if (c.loading) return <span>loading</span>;
   return (
-    <span data-testid="probe">
+    <span data-testid="probe" data-can-start={String(c.canStartMiner)}>
       {[
         c.minerFamily,
         c.effectiveMinerFamily,
@@ -61,6 +61,11 @@ const renderWith = async (apiPayload, boards) => {
   mount(store);
   await waitFor(() => expect(screen.getByTestId('probe')).toBeInTheDocument());
   return screen.getByTestId('probe').textContent;
+};
+
+const canStart = async (apiPayload, boards) => {
+  await renderWith(apiPayload, boards);
+  return screen.getByTestId('probe').getAttribute('data-can-start');
 };
 
 // minerFamily|effectiveMinerFamily|hasUsbMiners|isHybrid|isSoloNode|hasMiner
@@ -128,6 +133,37 @@ describe('DeviceConfigProvider — hardware mapping', () => {
         { hasMiner: true, hasUsbMiners: true, usbCount: 1, usbActiveCount: 1 }
       )
     ).toBe('null|legacy|true|false|true|true');
+  });
+
+  describe('canStartMiner', () => {
+    const solo = { deviceType: 'solo-node', chassis: 'solo-node', usbMiners: false };
+
+    it('Solo Node with no board list yet: not startable, so it never flashes enabled', async () => {
+      expect(await canStart(solo)).toBe('false');
+    });
+
+    it('Solo Node with no board at all: not startable', async () => {
+      expect(await canStart(solo, { hasMiner: false })).toBe('false');
+    });
+
+    it('Solo Node with its only USB board disconnected: not startable', async () => {
+      // hasMiner and usbCount stay set during the 15 min the board is listed.
+      expect(
+        await canStart(solo, { hasMiner: true, hasUsbMiners: true, usbCount: 1, usbActiveCount: 0 })
+      ).toBe('false');
+    });
+
+    it('Solo Node with an active USB board: startable', async () => {
+      expect(
+        await canStart(solo, { hasMiner: true, hasUsbMiners: true, usbCount: 1, usbActiveCount: 1 })
+      ).toBe('true');
+    });
+
+    it('Apollo: always startable, even with no board list and no active USB board', async () => {
+      const apollo = { deviceType: 'miner', chassis: null, usbMiners: false };
+      expect(await canStart(apollo)).toBe('true');
+      expect(await canStart(apollo, { hasMiner: true, usbCount: 1, usbActiveCount: 0 })).toBe('true');
+    });
   });
 
   it('follows the board list live: a board appearing after mount flips the Solo Node', async () => {

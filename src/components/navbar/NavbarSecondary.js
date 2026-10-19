@@ -6,7 +6,10 @@ import {
   useColorModeValue,
   Center,
   Button,
+  Tooltip,
 } from '@chakra-ui/react';
+import { useIntl } from 'react-intl';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 import { RestartIcon } from '../UI/Icons/RestartIcon';
 import { StopIcon } from '../UI/Icons/StopIcon';
 
@@ -17,6 +20,9 @@ const NavbarSeconday = ({
   minerOnline,
   soloOnline, // Add solo service status
 }) => {
+  const intl = useIntl();
+  const { canStartMiner } = useDeviceConfig();
+  const noBoard = intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' });
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
   const menuBg = useColorModeValue('white', 'navy.800');
@@ -71,6 +77,7 @@ const NavbarSeconday = ({
                 </Text>
               </Button>
 
+              <Tooltip label={noBoard} isDisabled={canStartMiner} shouldWrapChildren hasArrow>
               <Button
                 ms="auto"
                 p="6px"
@@ -78,7 +85,7 @@ const NavbarSeconday = ({
                 me="6px"
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('restartMiner')}
-                isDisabled={minerOnline === 'pending'}
+                isDisabled={!canStartMiner || minerOnline === 'pending'}
               >
                 <Flex
                   align="center"
@@ -101,10 +108,12 @@ const NavbarSeconday = ({
                   Restart
                 </Text>
               </Button>
+              </Tooltip>
             </>
           )}
 
           {minerOnline === 'offline' && (
+            <Tooltip label={noBoard} isDisabled={canStartMiner} shouldWrapChildren hasArrow>
             <Button
               ms="auto"
               p="6px"
@@ -112,7 +121,7 @@ const NavbarSeconday = ({
               me="6px"
               bgColor={badgeBox}
               onClick={() => handleSystemAction('startMiner')}
-              isDisabled={minerOnline === 'pending'}
+              isDisabled={!canStartMiner}
             >
               <Flex
                 align="center"
@@ -135,6 +144,7 @@ const NavbarSeconday = ({
                 Start
               </Text>
             </Button>
+            </Tooltip>
           )}
         </Center>
       )}

@@ -53,8 +53,3 @@ export const getRoutes = (deviceType) => {
     },
   ];
 };
-
-// Default export for backward compatibility (uses build-time env var as fallback)
-const routes = getRoutes(process.env.NEXT_PUBLIC_DEVICE_TYPE || 'miner');
-
-export default routes;

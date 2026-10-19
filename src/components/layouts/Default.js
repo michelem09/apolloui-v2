@@ -14,6 +14,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { useSubscription, useQuery } from '@apollo/client';
 import { updateNodeStats } from '../../redux/slices/nodeSlice';
 import { updateMinerStats } from '../../redux/slices/minerSlice';
+import { updateMinerBoards } from '../../redux/slices/minerBoardsSlice';
 import { updateSoloStats } from '../../redux/slices/soloSlice';
 import { updateMcuStats } from '../../redux/slices/mcuSlice';
 import { updateSettings } from '../../redux/slices/settingsSlice';
@@ -33,6 +34,7 @@ import {
   SERVICES_SUBSCRIPTION,
   SETTINGS_SUBSCRIPTION,
 } from '../../graphql/subscriptions';
+import { MINER_BOARDS_SUBSCRIPTION } from '../../graphql/minerBoards';
 
 // Hook that tracks the WebSocket connection status by subscribing to
 // the module-level tracker maintained in apolloClient.js.
@@ -106,6 +108,30 @@ const Layout = ({ children }) => {
       })
     );
   }, [loadingMiner, errorMiner, dataMiner, dispatch, deviceType]);
+
+  // ---------------------------------------------------------------------------
+  // Miner boards — always subscribed, Solo Node included: it is what says whether
+  // a Solo Node has a miner to show at all.
+  // ---------------------------------------------------------------------------
+  const {
+    loading: loadingBoards,
+    error: errorBoards,
+    data: dataBoards,
+  } = useSubscription(MINER_BOARDS_SUBSCRIPTION, {
+    skip: typeof window === 'undefined',
+  });
+
+  useEffect(() => {
+    if (dataBoards || (errorBoards && !isAuthError(errorBoards))) {
+      dispatch(
+        updateMinerBoards({
+          loading: loadingBoards,
+          error: createSerializableError(errorBoards),
+          data: dataBoards ? dataBoards.minerBoards : null,
+        })
+      );
+    }
+  }, [loadingBoards, errorBoards, dataBoards, dispatch]);
 
   // ---------------------------------------------------------------------------
   // Solo subscription

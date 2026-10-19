@@ -12,8 +12,12 @@ import path from 'path';
 // with only a rebuild to fix it.
 //
 // /etc/armbian-release is the same source backend/utils/set_UI_mode.sh reads, so
-// the two cannot drift apart. The .env it writes is the fallback for USB miners,
-// which are detected by probing ports and cannot be re-derived here.
+// the two cannot drift apart. The device type comes from it too (a Solo Node
+// chassis is 'solo-node', anything else 'miner'): nothing writes
+// NEXT_PUBLIC_DEVICE_TYPE any more, so a value left in the .env is stale by
+// definition and is honoured only where there is no release file at all, i.e. in
+// development. Whether a USB miner is plugged in is not decided here either: it
+// changes while the box runs and comes live from the Miner.boards subscription.
 
 const ARMBIAN_RELEASE = '/etc/armbian-release';
 
@@ -74,11 +78,14 @@ export default function handler(req, res) {
     process.env.USB_MINERS ??
     process.env.NEXT_PUBLIC_USB_MINERS;
 
-  const deviceType =
-    readUiEnv('NEXT_PUBLIC_DEVICE_TYPE') ||
-    process.env.DEVICE_TYPE ||
-    process.env.NEXT_PUBLIC_DEVICE_TYPE ||
-    'miner';
+  const deviceType = boardName
+    ? chassis === 'solo-node'
+      ? 'solo-node'
+      : 'miner'
+    : readUiEnv('NEXT_PUBLIC_DEVICE_TYPE') ||
+      process.env.DEVICE_TYPE ||
+      process.env.NEXT_PUBLIC_DEVICE_TYPE ||
+      'miner';
 
   res.status(200).json({
     deviceType,

@@ -101,6 +101,36 @@ describe('/api/config runtime device config', () => {
     expect(call().usbMiners).toBe(false);
   });
 
+  it('derives the device type from the chassis, not from a stale .env value', () => {
+    // A Solo Node installed from scratch has no NEXT_PUBLIC_DEVICE_TYPE at all;
+    // an upgraded one still carries the old value. Neither may matter.
+    givenFiles({ 'armbian-release': 'BOARD_NAME="Solo Node"\n' });
+    expect(call().deviceType).toBe('solo-node');
+
+    givenFiles({
+      'armbian-release': 'BOARD_NAME="Solo Node"\n',
+      '.env': 'NEXT_PUBLIC_DEVICE_TYPE="miner"\n',
+    });
+    expect(call().deviceType).toBe('solo-node');
+
+    givenFiles({
+      'armbian-release': 'BOARD_NAME="Apollo 3"\n',
+      '.env': 'NEXT_PUBLIC_DEVICE_TYPE="solo-node"\n',
+    });
+    expect(call().deviceType).toBe('miner');
+
+    givenFiles({
+      'armbian-release': 'BOARD_NAME="Rock 5B Plus"\n',
+      '.env': 'NEXT_PUBLIC_DEVICE_TYPE="solo-node"\n',
+    });
+    expect(call().deviceType).toBe('miner');
+  });
+
+  it('uses the .env device type only when there is no release file (development)', () => {
+    givenFiles({ '.env': 'NEXT_PUBLIC_DEVICE_TYPE="solo-node"\n' });
+    expect(call().deviceType).toBe('solo-node');
+  });
+
   it('still honours the environment in development, where there is no device', () => {
     process.env.CHASSIS = 'apollo-iii';
     process.env.DEVICE_TYPE = 'solo-node';

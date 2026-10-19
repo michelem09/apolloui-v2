@@ -301,7 +301,9 @@ export const minerSelector = createSelector(
       if (isNaN(avgDiff)) avgDiff = 0;
 
       const activeBoards = _.size(_.filter(boards, { status: true }));
-      const totalBoards = _.size(connectedBoards);
+      // An unplugged board still counts in the denominator (Active 0/1), while staying
+      // out of the numerator, the sums and the averages.
+      const totalBoards = _.size(boards);
       const activePools = _.size(_.filter(boards, { poolStatus: true }));
 
       stats = {

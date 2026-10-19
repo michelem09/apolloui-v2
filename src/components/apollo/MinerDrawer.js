@@ -31,7 +31,7 @@ import ActiveBadge from './ActiveBadge';
 import { useSelector, shallowEqual } from 'react-redux';
 import { settingsSelector } from '../../redux/reselect/settings';
 
-const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
+const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) => {
   const drawerBgColor = useColorModeValue('gray.200', 'brand.700');
   const cardColor = useColorModeValue('white', 'brand.800');
   const shadow = useColorModeValue(
@@ -43,8 +43,9 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
   const temperatureUnit = settings?.temperatureUnit || 'c'; // Use 'C' as default
 
   const activeBoards = _.size(_.filter(data, { status: true }));
-  // A disconnected board is listed below but is not one of the miner's boards.
-  const totalBoards = _.size(_.reject(data, 'disconnected'));
+  // A disconnected board counts in the denominator (Active 0/1) but never in the
+  // numerator.
+  const totalBoards = _.size(data);
   const activePools = _.size(_.filter(data, { poolStatus: true }));
   // Connected boards first; a disconnected one is listed, tagged, at the end.
   const dataSorted = _.orderBy(data, ['disconnected', 'version'], ['asc', 'desc']);
@@ -138,7 +139,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
       <DrawerOverlay />
       <DrawerContent bgColor={drawerBgColor} maxW="100vw" overflowX="hidden">
         <DrawerCloseButton />
-        <DrawerHeader fontSize="3xl">Hashboards and Pools</DrawerHeader>
+        <DrawerHeader fontSize="3xl">{hidePools ? 'Hashboards' : 'Hashboards and Pools'}</DrawerHeader>
 
         <DrawerBody overflowX="hidden" width="100%" maxWidth="100%">
           <Tabs size="md" align={'center'} isLazy variant={'line'}>
@@ -158,6 +159,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     />
                   )}
               </Tab>
+              {!hidePools && (
               <Tab>
                 <Text fontWeight={600} me="2">
                   Pools
@@ -173,6 +175,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     />
                   )}
               </Tab>
+              )}
             </TabList>
 
             <TabPanels>
@@ -207,6 +210,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                   </Card>
                 ))}
               </TabPanel>
+              {!hidePools && (
               <TabPanel>
                 {dataTablePools.map((board, index) => (
                   <Card
@@ -237,6 +241,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                   </Card>
                 ))}
               </TabPanel>
+              )}
             </TabPanels>
           </Tabs>
         </DrawerBody>

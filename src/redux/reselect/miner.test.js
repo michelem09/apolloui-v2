@@ -88,7 +88,8 @@ describe('minerSelector — board list join', () => {
     // An idle board used to enter the mean as a zero: 1000 rpm and 0 gave 500.
     expect(stats.avgFanSpeed).toBe(1000);
     expect(stats.avgVoltage).toBe(1);
-    expect(stats.totalBoards).toBe(1);
+    // The unplugged board is in the denominator (Active 1/2), not the numerator.
+    expect(stats.totalBoards).toBe(2);
     expect(stats.activeBoards).toBe(1);
     expect(stats.boards).toHaveLength(2);
   });
@@ -107,7 +108,18 @@ describe('minerSelector — board list join', () => {
     );
     expect(data.stats.minerUptime).toBe('Inactive');
     expect(data.stats.minerPower).toBe(0);
-    expect(data.stats.totalBoards).toBe(0);
+    expect(data.stats.totalBoards).toBe(2);
+    expect(data.stats.activeBoards).toBe(0);
+  });
+
+  it('a lone unplugged board reads Active 0/1 and stays out of the averages', () => {
+    const { data } = minerSelector(
+      stateWith([FILES()[1]], [entry('usb-1', 'usb', 'disconnected')])
+    );
+    expect(data.stats.activeBoards).toBe(0);
+    expect(data.stats.totalBoards).toBe(1);
+    expect(data.stats.minerPower).toBe(0);
+    expect(data.stats.avgBoardTemp).toBe(0);
   });
 
   it('falls back to the comport for the kind when the board list has no entry yet', () => {

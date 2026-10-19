@@ -216,6 +216,7 @@ const Miner = () => {
         onClose={onClose}
         placement="right"
         data={boards}
+        hidePools={isSoloNode}
       />
       
       {/* Render the real page while the services push is still in flight: every
@@ -564,7 +565,9 @@ const Miner = () => {
                 >
                   <Flex m="2">
                     <Text fontSize="lg" fontWeight="800">
-                      {intl.formatMessage({ id: 'miner.total_pools_hashboards' })}
+                      {intl.formatMessage({
+                        id: isSoloNode ? 'miner.hashboards' : 'miner.total_pools_hashboards',
+                      })}
                     </Text>
                   </Flex>
                   <Flex align-items="center">
@@ -592,15 +595,20 @@ const Miner = () => {
                       total={totalBoards}
                       data={dataTableBoards}
                     />
-                    <Center height="20px" mx="5">
-                      <Divider />
-                    </Center>
-                    <PanelGrid
-                      title={intl.formatMessage({ id: 'miner.pools' })}
-                      active={activePools}
-                      total={totalBoards}
-                      data={dataTablePools}
-                    />
+                    {/* A Solo Node mines only into its own node: no pools to show. */}
+                    {!isSoloNode && (
+                      <>
+                        <Center height="20px" mx="5">
+                          <Divider />
+                        </Center>
+                        <PanelGrid
+                          title={intl.formatMessage({ id: 'miner.pools' })}
+                          active={activePools}
+                          total={totalBoards}
+                          data={dataTablePools}
+                        />
+                      </>
+                    )}
                   </Box>
                 )}
               </Card>

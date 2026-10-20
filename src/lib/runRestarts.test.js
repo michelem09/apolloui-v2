@@ -4,6 +4,7 @@ import {
   runRestarts,
   savedMessageIdFor,
   serviceKnownStopped,
+  soloConfChanged,
   usbMinerPresent,
 } from './runRestarts';
 
@@ -180,5 +181,37 @@ describe('savedMessageIdFor', () => {
   it('names the stopped-miner toast, otherwise leaves the plain one', () => {
     expect(savedMessageIdFor('miner')).toBe('settings.actions.saved_miner_stopped');
     expect(savedMessageIdFor(null)).toBeNull();
+  });
+});
+
+describe('soloConfChanged', () => {
+  const on = { nodeEnableSoloMining: true, btcsig: 'a', startdiff: 1, mindiff: 1 };
+  it('solo on before and after, btcsig changed: true', () => {
+    expect(soloConfChanged(on, { ...on, btcsig: 'b' })).toBe(true);
+  });
+  it.each(['startdiff', 'mindiff'])('solo on, %s changed: true', (f) => {
+    expect(soloConfChanged(on, { ...on, [f]: 9 })).toBe(true);
+  });
+  it('solo on, nothing relevant changed: false', () => {
+    expect(soloConfChanged(on, { ...on, pool: 'x' })).toBe(false);
+  });
+  it('solo switched on with btcsig changed: false (ckpool starts by itself)', () => {
+    expect(soloConfChanged({ ...on, nodeEnableSoloMining: false }, { ...on, btcsig: 'b' })).toBe(false);
+  });
+  it('solo switched off: false', () => {
+    expect(soloConfChanged(on, { ...on, nodeEnableSoloMining: false, btcsig: 'b' })).toBe(false);
+  });
+  it('a missing before (settings not loaded): false', () => {
+    expect(soloConfChanged(undefined, on)).toBe(false);
+  });
+  it('feeds restartPlanFor: switching solo on with a stopped ckpool says nothing', () => {
+    const changed = soloConfChanged({ ...on, nodeEnableSoloMining: false }, { ...on, btcsig: 'b' });
+    expect(
+      restartPlanFor({ deviceType: 'miner', minerFieldsChanged: false, soloFieldsChanged: changed, nodeNeeded: false, soloService: { status: 'offline' } }).skipped
+    ).toBeNull();
+    const stillOn = soloConfChanged(on, { ...on, btcsig: 'b' });
+    expect(
+      restartPlanFor({ deviceType: 'miner', minerFieldsChanged: false, soloFieldsChanged: stillOn, nodeNeeded: false, soloService: { status: 'offline' } }).skipped
+    ).toBe('solo');
   });
 });

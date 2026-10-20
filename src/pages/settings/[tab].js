@@ -60,7 +60,7 @@ import { mcuSelector } from '../../redux/reselect/mcu';
 import { CHANGE_PASSWORD_MUTATION } from '../../graphql/auth';
 import { useDeviceConfig, useDeviceType } from '../../contexts/DeviceConfigContext';
 import { servicesSelector } from '../../redux/reselect/services';
-import { minerRestartFieldsFor, restartPlanFor, savedMessageIdFor } from '../../lib/runRestarts';
+import { minerRestartFieldsFor, restartPlanFor, savedMessageIdFor, soloConfChanged } from '../../lib/runRestarts';
 import { settingsTabsFor } from '../../lib/settingsTabs';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
@@ -102,9 +102,6 @@ const RESTORABLE_SETTINGS_FIELDS = [
   'mindiff',
   'nodeSoftware',
 ];
-
-// Settings that end up in ckpool's conf (see settings.js ckpoolConfigChanged).
-const SOLO_CONF_FIELDS = ['btcsig', 'startdiff', 'mindiff'];
 
 const SettingsTab = () => {
   const intl = useIntl();
@@ -423,10 +420,7 @@ const SettingsTab = () => {
     // The ckpool conf fields (settings._applyServiceLifecycle restarts a running
     // ckpool for them, and leaves a stopped one alone). Only with solo mining
     // already on: switching it on or off starts or stops ckpool itself.
-    const soloFieldsChanged =
-      !!currentSettings?.nodeEnableSoloMining &&
-      !!settings?.nodeEnableSoloMining &&
-      !_.isEqual(_.pick(settings, SOLO_CONF_FIELDS), _.pick(currentSettings, SOLO_CONF_FIELDS));
+    const soloFieldsChanged = soloConfChanged(currentSettings, settings);
 
     const restartNodeNeeded = !_.isEqual(
       _.pick(settings, restartNodeFields),

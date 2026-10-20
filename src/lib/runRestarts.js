@@ -1,3 +1,4 @@
+import isEqual from 'lodash/isEqual';
 import { callFailure, serviceFailureIdOf } from './callFailure';
 import { sendFeedback } from '../redux/slices/feedbackSlice';
 
@@ -65,6 +66,16 @@ export const usbMinerPresent = ({ hasUsbMiners, minerService }) =>
   !!hasUsbMiners ||
   minerService?.status === 'online' ||
   (minerService?.status === 'pending' && minerService?.requestedStatus === 'online');
+
+// The ckpool conf fields (btcsig/startdiff/mindiff): settings._applyServiceLifecycle
+// restarts a running ckpool when one changes and leaves a stopped one alone. Only
+// with solo mining on both before and after: switching it on or off starts or stops
+// ckpool itself, which then reads the new conf by itself.
+export const SOLO_CONF_FIELDS = ['btcsig', 'startdiff', 'mindiff'];
+export const soloConfChanged = (before, after) =>
+  !!before?.nodeEnableSoloMining &&
+  !!after?.nodeEnableSoloMining &&
+  SOLO_CONF_FIELDS.some((f) => !isEqual(before?.[f], after?.[f]));
 
 // What a save asks this page to restart: 'miner', 'node' or 'both' (null for
 // nothing). Node and ckpool are restarted by the backend itself on v2.2

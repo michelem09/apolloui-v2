@@ -593,23 +593,25 @@ export default function HeaderLinks({
               {hasMiner && (
                 <>
                   <MenuGroup title="Miner">
+                    {/* Box child, not shouldWrapChildren: its inline span shrank the row */}
                     <Tooltip
                       label={startBlockedLabel}
                       isDisabled={canStartMiner}
-                      shouldWrapChildren
                       hasArrow
                     >
-                      <MenuItem
-                        icon={<StartIcon />}
-                        isDisabled={
-                          !canStartMiner ||
-                          minerOnline === 'online' ||
-                          minerOnline === 'pending'
-                        }
-                        onClick={() => handleSystemAction('startMiner')}
-                      >
-                        Start
-                      </MenuItem>
+                      <Box w="100%">
+                        <MenuItem
+                          icon={<StartIcon />}
+                          isDisabled={
+                            !canStartMiner ||
+                            minerOnline === 'online' ||
+                            minerOnline === 'pending'
+                          }
+                          onClick={() => handleSystemAction('startMiner')}
+                        >
+                          Start
+                        </MenuItem>
+                      </Box>
                     </Tooltip>
                     <MenuItem
                       icon={<StopIcon />}
@@ -618,23 +620,25 @@ export default function HeaderLinks({
                     >
                       Stop
                     </MenuItem>
+                    {/* Box child, not shouldWrapChildren: its inline span shrank the row */}
                     <Tooltip
                       label={startBlockedLabel}
                       isDisabled={canStartMiner}
-                      shouldWrapChildren
                       hasArrow
                     >
-                      <MenuItem
-                        icon={<RestartIcon />}
-                        isDisabled={
-                          !canStartMiner ||
-                          minerOnline === 'offline' ||
-                          minerOnline === 'pending'
-                        }
-                        onClick={() => handleSystemAction('restartMiner')}
-                      >
-                        Restart
-                      </MenuItem>
+                      <Box w="100%">
+                        <MenuItem
+                          icon={<RestartIcon />}
+                          isDisabled={
+                            !canStartMiner ||
+                            minerOnline === 'offline' ||
+                            minerOnline === 'pending'
+                          }
+                          onClick={() => handleSystemAction('restartMiner')}
+                        >
+                          Restart
+                        </MenuItem>
+                      </Box>
                     </Tooltip>
                   </MenuGroup>
                   <MenuDivider />

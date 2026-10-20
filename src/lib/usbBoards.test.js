@@ -1,4 +1,10 @@
-import { newlyDisconnected, expiryMinutes, usbBoardsOf } from './usbBoards';
+import {
+  newlyDisconnected,
+  newlyStuck,
+  usbIndicatorState,
+  expiryMinutes,
+  usbBoardsOf,
+} from './usbBoards';
 
 const b = (id, status, kind = 'usb') => ({ id, kind, status });
 
@@ -53,5 +59,36 @@ describe('usbBoardsOf', () => {
   it('keeps USB boards only', () => {
     expect(usbBoardsOf([b('a', 'active'), b('i', 'active', 'internal')]).map((x) => x.id)).toEqual(['a']);
     expect(usbBoardsOf(undefined)).toEqual([]);
+  });
+});
+
+describe('usbIndicatorState', () => {
+  const st = (...statuses) => usbIndicatorState(statuses.map((s, i) => b(`b${i}`, s)));
+  it('is normal with only active boards, or none', () => {
+    expect(st('active', 'active')).toBe('normal');
+    expect(st()).toBe('normal');
+  });
+  it('booting alone is the spinner', () => {
+    expect(st('active', 'booting')).toBe('booting');
+  });
+  it('worst wins: stuck > disconnected > booting > normal', () => {
+    expect(st('booting', 'disconnected')).toBe('disconnected');
+    expect(st('booting', 'stuck')).toBe('stuck');
+    expect(st('disconnected', 'stuck', 'booting', 'active')).toBe('stuck');
+    expect(st('disconnected', 'active')).toBe('disconnected');
+  });
+});
+
+describe('newlyStuck', () => {
+  it('reports booting -> stuck once', () => {
+    expect(newlyStuck([b('a', 'booting')], [b('a', 'stuck')]).map((x) => x.id)).toEqual(['a']);
+    expect(newlyStuck([b('a', 'stuck')], [b('a', 'stuck')])).toEqual([]);
+  });
+  it('is silent on the first payload', () => {
+    expect(newlyStuck(null, [b('a', 'stuck')])).toEqual([]);
+  });
+  it('ignores internal boards and other transitions', () => {
+    expect(newlyStuck([b('a', 'active')], [b('a', 'disconnected')])).toEqual([]);
+    expect(newlyStuck([b('i', 'booting', 'internal')], [b('i', 'stuck', 'internal')])).toEqual([]);
   });
 });

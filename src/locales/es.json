@@ -299,10 +299,15 @@
         "usb": "USB"
       },
       "status": {
-        "disconnected": "Desconectada"
+        "disconnected": "Desconectada",
+        "booting": "Arrancando",
+        "not_responding": "No responde"
       },
       "disconnected_since": "Desconectada desde las {time}",
-      "unplugged_toast": "Se ha desconectado un minero USB. Seguirá en la lista como desconectado durante {minutes} minutos."
+      "booting_since": "Arrancando desde las {time}",
+      "stuck_since": "No responde desde las {time}",
+      "unplugged_toast": "Se ha desconectado un minero USB. Seguirá en la lista como desconectado durante {minutes} minutos.",
+      "stuck_toast": "El minero USB {board} no responde. Lleva más de 2 minutos arrancando."
     }
   },
   "solo_mining": {
@@ -1117,7 +1122,12 @@
       "tooltip": "{count, plural, one {# minero USB conectado} other {# mineros USB conectados}}",
       "disconnected": "{count, plural, one {# minero USB desconectado} other {# mineros USB desconectados}}",
       "board_disconnected": "{board}: desconectada desde las {time}",
-      "none_to_start": "Ningún minero USB conectado"
+      "none_to_start": "Ningún minero USB conectado",
+      "none_responding": "Ningún minero USB responde",
+      "booting": "{count, plural, one {# minero USB arrancando} other {# mineros USB arrancando}}",
+      "board_booting": "{board}: arrancando desde las {time}",
+      "stuck": "{count, plural, one {# minero USB no responde} other {# mineros USB no responden}}",
+      "board_stuck": "{board}: no responde desde las {time}"
     }
   }
 }

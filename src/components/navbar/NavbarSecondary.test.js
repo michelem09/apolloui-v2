@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders, screen } from '../../test-utils';
 import NavbarSecondary from './NavbarSecondary';
 import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
@@ -33,5 +34,15 @@ describe('NavbarSecondary miner buttons', () => {
     useDeviceConfig.mockReturnValue({ canStartMiner: true });
     mount('online');
     expect(screen.getByRole('button', { name: /Restart/ })).toBeEnabled();
+  });
+
+  it.each([
+    ['stuck', /No USB miner responding/],
+    ['none', /No USB miner connected/],
+  ])('Start explains itself when blocked (%s)', async (startBlockedReason, text) => {
+    useDeviceConfig.mockReturnValue({ canStartMiner: false, startBlockedReason });
+    mount('offline');
+    await userEvent.hover(screen.getByRole('button', { name: /Start/ }).parentElement);
+    expect(await screen.findByText(text)).toBeInTheDocument();
   });
 });

@@ -98,4 +98,58 @@ describe('UsbMinersIndicator', () => {
     push(store, [board('a', 'usb', 'active')]);
     expect(store.getState().feedback.seq).toBe(0);
   });
+
+  const state = () => screen.getByTestId('usb-miners-indicator').getAttribute('data-state');
+
+  it('booting: a spinner, the count still shows the active boards only', () => {
+    const store = makeStore();
+    mount(store);
+    push(store, [board('a', 'usb', 'active'), board('b', 'usb', 'booting')]);
+    expect(state()).toBe('booting');
+    expect(screen.getByTestId('usb-miners-spinner')).toBeInTheDocument();
+    expect(screen.getByTestId('usb-miners-indicator')).toHaveTextContent(/^1/);
+  });
+
+  it('only a booting board: shown, with 0', () => {
+    const store = makeStore();
+    mount(store);
+    push(store, [board('b', 'usb', 'booting')]);
+    expect(screen.getByTestId('usb-miners-spinner')).toBeInTheDocument();
+    expect(screen.getByTestId('usb-miners-indicator')).toHaveTextContent('0');
+  });
+
+  it('all active: no spinner', () => {
+    const store = makeStore();
+    mount(store);
+    push(store, [board('a', 'usb', 'active')]);
+    expect(state()).toBe('normal');
+    expect(screen.queryByTestId('usb-miners-spinner')).not.toBeInTheDocument();
+  });
+
+  it('precedence: stuck beats disconnected beats booting', () => {
+    const store = makeStore();
+    mount(store);
+    push(store, [board('a', 'usb', 'booting'), board('b', 'usb', 'disconnected')]);
+    expect(state()).toBe('disconnected');
+    expect(screen.queryByTestId('usb-miners-spinner')).not.toBeInTheDocument();
+    push(store, [board('a', 'usb', 'booting'), board('b', 'usb', 'disconnected'), board('c', 'usb', 'stuck')]);
+    expect(state()).toBe('stuck');
+  });
+
+  it('toasts an error once when a booting board turns stuck, never on the first list', () => {
+    const store = makeStore();
+    mount(store);
+    push(store, [board('a', 'usb', 'stuck', { serial: '123456789' })]);
+    expect(store.getState().feedback.seq).toBe(0);
+
+    const s2 = makeStore();
+    mount(s2);
+    push(s2, [board('a', 'usb', 'booting', { serial: '123456789' })]);
+    push(s2, [board('a', 'usb', 'stuck', { serial: '123456789' })]);
+    expect(s2.getState().feedback.seq).toBe(1);
+    expect(s2.getState().feedback.type).toBe('error');
+    expect(s2.getState().feedback.message).toMatch(/…456789 is not responding/);
+    push(s2, [board('a', 'usb', 'stuck', { serial: '123456789' })]);
+    expect(s2.getState().feedback.seq).toBe(1);
+  });
 });

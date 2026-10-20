@@ -299,10 +299,15 @@
         "usb": "USB"
       },
       "status": {
-        "disconnected": "Getrennt"
+        "disconnected": "Getrennt",
+        "booting": "Startet",
+        "not_responding": "Antwortet nicht"
       },
       "disconnected_since": "Getrennt seit {time}",
-      "unplugged_toast": "Ein USB-Miner wurde getrennt. Er bleibt noch {minutes} Minuten als getrennt in der Liste."
+      "booting_since": "Startet seit {time}",
+      "stuck_since": "Antwortet nicht seit {time}",
+      "unplugged_toast": "Ein USB-Miner wurde getrennt. Er bleibt noch {minutes} Minuten als getrennt in der Liste.",
+      "stuck_toast": "Der USB-Miner {board} antwortet nicht. Er startet seit mehr als 2 Minuten."
     }
   },
   "solo_mining": {
@@ -1117,7 +1122,12 @@
       "tooltip": "{count, plural, one {# USB-Miner verbunden} other {# USB-Miner verbunden}}",
       "disconnected": "{count, plural, one {# USB-Miner getrennt} other {# USB-Miner getrennt}}",
       "board_disconnected": "{board}: getrennt seit {time}",
-      "none_to_start": "Kein USB-Miner angeschlossen"
+      "none_to_start": "Kein USB-Miner angeschlossen",
+      "none_responding": "Kein USB-Miner antwortet",
+      "booting": "{count, plural, one {# USB-Miner startet} other {# USB-Miner starten}}",
+      "board_booting": "{board}: startet seit {time}",
+      "stuck": "{count, plural, one {# USB-Miner antwortet nicht} other {# USB-Miner antworten nicht}}",
+      "board_stuck": "{board}: antwortet nicht seit {time}"
     }
   }
 }

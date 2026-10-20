@@ -153,6 +153,36 @@ describe('DeviceConfigProvider — hardware mapping', () => {
       ).toBe('false');
     });
 
+    const ub = (id, status) => ({ id, kind: 'usb', status });
+    const attached = (boards) => ({
+      hasMiner: true,
+      hasUsbMiners: true,
+      usbCount: boards.length,
+      usbActiveCount: boards.filter((x) => x.status === 'active').length,
+      boards,
+    });
+
+    it('Solo Node with a booting USB board: startable (the miner starts when it is ready)', async () => {
+      expect(await canStart(solo, attached([ub('a', 'booting')]))).toBe('true');
+    });
+
+    it('Solo Node with only a stuck board: not startable', async () => {
+      expect(await canStart(solo, attached([ub('a', 'stuck')]))).toBe('false');
+    });
+
+    it('Solo Node with stuck + booting: startable', async () => {
+      expect(await canStart(solo, attached([ub('a', 'stuck'), ub('b', 'booting')]))).toBe('true');
+    });
+
+    it('Solo Node with stuck + disconnected: not startable', async () => {
+      expect(await canStart(solo, attached([ub('a', 'stuck'), ub('b', 'disconnected')]))).toBe('false');
+    });
+
+    it.each(['booting', 'stuck'])('a %s board counts as USB miners attached', async (status) => {
+      const out = await renderWith(solo, attached([ub('a', status)]));
+      expect(out.split('|')[2]).toBe('true');
+    });
+
     it('Solo Node with an active USB board: startable', async () => {
       expect(
         await canStart(solo, { hasMiner: true, hasUsbMiners: true, usbCount: 1, usbActiveCount: 1 })

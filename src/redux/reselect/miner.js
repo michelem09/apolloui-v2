@@ -13,6 +13,46 @@ const minerLoadingSelector = (state) => loadingUntilAnswered(state.miner);
 const boardListSelector = (state) => state.minerBoards?.data?.result?.boards;
 
 const NO_BOARDS = [];
+const BOOT_STATES = ['booting', 'stuck'];
+
+// Placeholder row for a registry board that has no stat file yet. Numbers are
+// zero, text is empty; `status: false` keeps it out of every sum and average.
+const bootStub = (entry) => ({
+  uuid: entry.id,
+  date: null,
+  status: false,
+  comport: entry.port || null,
+  kind: 'usb',
+  disconnected: false,
+  disconnectedSince: null,
+  bootState: entry.status,
+  bootSince: entry.since,
+  poolStatus: false,
+  poolUsername: null,
+  poolHost: null,
+  poolPort: null,
+  poolHashrateInGh: 0,
+  avgPoolHashrateInGh: 0,
+  upTime: 0,
+  version: null,
+  lastShareTimeX: 0,
+  lastShareTime: null,
+  wattPerGHs: 0,
+  wattTotal: 0,
+  hashrateInGh: 0,
+  avgHashrateInGh: 0,
+  efficiency: 0,
+  fanSpeed: 0,
+  temperature: 0,
+  errorRate: 0,
+  chipSpeed: 0,
+  chips: 0,
+  sharesAccepted: 0,
+  sharesRejected: 0,
+  sharesSent: 0,
+  diff: 0,
+  voltage: 0,
+});
 
 export const minerSelector = createSelector(
   minerDataSelector,
@@ -92,7 +132,11 @@ export const minerSelector = createSelector(
         const ageMinutes = moment.duration(moment().diff(shareTime)).asMinutes();
         const registered = boardById.get(uuid);
         const disconnected = registered?.status === 'disconnected';
-        const status = ageMinutes <= maxStatusInterval && !disconnected;
+        // Booting (bootloader, the miner restarts by itself when the board is
+        // ready) and stuck: attached, listed, tagged, and out of every total like
+        // a disconnected one. Its stat file is the one from before the reset.
+        const bootState = BOOT_STATES.includes(registered?.status) ? registered.status : null;
+        const status = ageMinutes <= maxStatusInterval && !disconnected && !bootState;
         const poolStatus = status;
         const lastsharetime = shareTime;
 
@@ -106,6 +150,8 @@ export const minerSelector = createSelector(
           kind: boardKindOf({ kind: registered?.kind, comport }),
           disconnected,
           disconnectedSince: disconnected ? registered.since : null,
+          bootState,
+          bootSince: bootState ? registered.since : null,
           poolStatus,
           poolUsername,
           poolHost,
@@ -142,6 +188,14 @@ export const minerSelector = createSelector(
 
 
 
+
+      // A board seen only in its bootloader has no stat file at all: still listed,
+      // so the page does not look as if nothing had been plugged in.
+      const withStat = new Set(minerStats.map((s) => s.uuid));
+      for (const entry of boardList) {
+        if (entry.kind !== 'usb' || !BOOT_STATES.includes(entry.status) || withStat.has(entry.id)) continue;
+        boards.push(bootStub(entry));
+      }
 
       const maxBoardDate = _.maxBy(boards, 'date');
 

@@ -5,6 +5,7 @@ import {
   Box,
   Flex,
   Icon,
+  Spinner,
   Text,
   Tooltip,
   useColorModeValue,
@@ -12,11 +13,19 @@ import {
 import { MdOutlineUsb } from 'react-icons/md';
 import { minerBoardsSelector } from '../../redux/reselect/minerBoards';
 import { sendFeedback } from '../../redux/slices/feedbackSlice';
-import { expiryMinutes, newlyDisconnected, usbBoardsOf } from '../../lib/usbBoards';
+import {
+  expiryMinutes,
+  newlyDisconnected,
+  newlyStuck,
+  usbBoardsOf,
+  usbIndicatorState,
+} from '../../lib/usbBoards';
 
-// A USB icon with the number of USB miners that are plugged in. It is not there
-// when no USB board is known at all; it goes orange, with the detail in a tooltip,
-// when one has been unplugged, and a toast announces the unplug itself.
+// A USB icon with the number of USB miners that are active. It is not there when
+// no USB board is known at all. States, the worst one winning: red when a board
+// does not answer (stuck in its bootloader), orange when one has been unplugged,
+// a spinner while one boots, normal otherwise. The detail of every board that is
+// not active is in the tooltip; toasts announce an unplug and a board turning stuck.
 const UsbMinersIndicator = ({ secondary = true }) => {
   const intl = useIntl();
   const dispatch = useDispatch();
@@ -29,6 +38,9 @@ const UsbMinersIndicator = ({ secondary = true }) => {
 
   const usb = usbBoardsOf(boards);
   const disconnected = usb.filter((b) => b.status === 'disconnected');
+  const booting = usb.filter((b) => b.status === 'booting');
+  const stuck = usb.filter((b) => b.status === 'stuck');
+  const state = usbIndicatorState(usb);
 
   // The unplug toast: compares each payload with the one before it. `previous`
   // stays null until the first list has arrived, so opening the page with a board
@@ -47,12 +59,24 @@ const UsbMinersIndicator = ({ secondary = true }) => {
         })
       );
     }
+    for (const board of newlyStuck(previous.current, boards)) {
+      dispatch(
+        sendFeedback({
+          type: 'error',
+          message: intl.formatMessage(
+            { id: 'miner.board.stuck_toast' },
+            { board: `…${String(board.serial || board.id).slice(-6)}` }
+          ),
+        })
+      );
+    }
     previous.current = boards;
   }, [live, boards, dispatch, intl]);
 
   if (!live || usb.length === 0) return null;
 
-  const warn = disconnected.length > 0;
+  const warn = state === 'stuck' || state === 'disconnected';
+  const alertBg = state === 'stuck' ? 'red.500' : 'orange.500';
   const time = (iso) =>
     iso
       ? intl.formatTime(new Date(iso), { hour: '2-digit', minute: '2-digit' })
@@ -63,24 +87,28 @@ const UsbMinersIndicator = ({ secondary = true }) => {
       <Text>
         {intl.formatMessage({ id: 'navbar.usb_miners.tooltip' }, { count: usbActiveCount })}
       </Text>
-      {warn && (
-        <>
-          <Text fontWeight="700">
-            {intl.formatMessage(
-              { id: 'navbar.usb_miners.disconnected' },
-              { count: disconnected.length }
-            )}
-          </Text>
-          {disconnected.map((board) => (
-            <Text key={board.id}>
-              {intl.formatMessage(
-                { id: 'navbar.usb_miners.board_disconnected' },
-                // The last digits of the serial tell two boards apart.
-                { board: `…${String(board.serial || board.id).slice(-6)}`, time: time(board.since) }
-              )}
-            </Text>
-          ))}
-        </>
+      {[
+        [stuck, 'stuck'],
+        [disconnected, 'disconnected'],
+        [booting, 'booting'],
+      ].map(
+        ([list, key]) =>
+          list.length > 0 && (
+            <Box key={key}>
+              <Text fontWeight="700">
+                {intl.formatMessage({ id: `navbar.usb_miners.${key}` }, { count: list.length })}
+              </Text>
+              {list.map((board) => (
+                <Text key={board.id}>
+                  {intl.formatMessage(
+                    { id: `navbar.usb_miners.board_${key}` },
+                    // The last digits of the serial tell two boards apart.
+                    { board: `…${String(board.serial || board.id).slice(-6)}`, time: time(board.since) }
+                  )}
+                </Text>
+              ))}
+            </Box>
+          )
       )}
     </Box>
   );
@@ -89,9 +117,10 @@ const UsbMinersIndicator = ({ secondary = true }) => {
     <Tooltip label={label} hasArrow placement="bottom">
       <Flex
         data-testid="usb-miners-indicator"
+        data-state={state}
         aria-label={intl.formatMessage({ id: 'navbar.usb_miners.label' })}
         tabIndex={0}
-        bg={warn ? 'orange.500' : badgeBg}
+        bg={warn ? alertBg : badgeBg}
         display={secondary ? 'flex' : 'none'}
         borderRadius="30px"
         // Tighter on a phone: this is the fourth badge in a bar that has to fit
@@ -102,6 +131,15 @@ const UsbMinersIndicator = ({ secondary = true }) => {
         px={{ base: '6px', md: '10px' }}
       >
         <Icon as={MdOutlineUsb} w="18px" h="18px" color={warn ? 'white' : navbarIcon} />
+        {state === 'booting' && (
+          <Spinner
+            data-testid="usb-miners-spinner"
+            size="xs"
+            ms={{ base: '4px', md: '6px' }}
+            color={navbarIcon}
+            label={intl.formatMessage({ id: 'navbar.usb_miners.booting' }, { count: booting.length })}
+          />
+        )}
         <Flex
           align="center"
           justify="center"

@@ -25,7 +25,9 @@ import { minerBoardsSelector } from '../redux/reselect/minerBoards';
  *   effectiveMinerFamily minerFamily, or 'legacy' for a Solo Node with USB boards:
  *                        USB boards always run the legacy miner_config
  *   canStartMiner  Start/Restart of the miner make sense: always on an Apollo, on a
- *                 Solo Node only with a USB board active (live)
+ *                 Solo Node only with a USB board active or booting (live)
+ *   startBlockedReason   null when startable; else 'stuck' (the only boards attached
+ *                        are not responding) or 'none' (Solo Node, nothing usable)
  *   hasUsbMiners         USB boards are attached (live from the Miner.boards push)
  *   isHybrid             an Apollo III alongside USB boards, where a III-only
  *                        preset would not apply to everything that is mining
@@ -114,7 +116,19 @@ export const DeviceConfigProvider = ({ children }) => {
     // A Solo Node has no internal miner: with no USB board plugged in there is
     // nothing to start. Not known until the board list has spoken, so the button
     // never flashes enabled and then turns off.
-    const canStartMiner = isSoloNode ? boards.live && boards.usbActiveCount > 0 : true;
+    // A booting board counts: the miner starts by itself when the board is ready,
+    // so pressing Start meanwhile is legitimate. Stuck, disconnected and unknown
+    // boards do not.
+    const canStartMiner = isSoloNode
+      ? boards.live && boards.usbActiveCount + boards.usbBootingCount > 0
+      : true;
+    // Why Start is off on a Solo Node: 'stuck' when the only attached boards are
+    // not responding (so the tooltip says that), 'none' otherwise; null if startable.
+    const startBlockedReason = canStartMiner
+      ? null
+      : boards.live && boards.usbStuckCount > 0
+        ? 'stuck'
+        : 'none';
     const effectiveMinerFamily = minerFamily ?? (hasUsbMiners ? 'legacy' : null);
     return {
       deviceType: config.deviceType,
@@ -125,13 +139,14 @@ export const DeviceConfigProvider = ({ children }) => {
       // or hide something on `hasMiner` alone must wait for it on a Solo Node.
       boardsLive: boards.live,
       canStartMiner,
+      startBlockedReason,
       minerFamily,
       effectiveMinerFamily,
       hasUsbMiners,
       isHybrid: minerFamily === 'apollo-iii' && hasUsbMiners,
       loading,
     };
-  }, [config, loading, boards.live, boards.hasMiner, boards.hasUsbMiners, boards.usbActiveCount]);
+  }, [config, loading, boards.live, boards.hasMiner, boards.hasUsbMiners, boards.usbActiveCount, boards.usbBootingCount, boards.usbStuckCount]);
 
   return (
     <DeviceConfigContext.Provider value={value}>

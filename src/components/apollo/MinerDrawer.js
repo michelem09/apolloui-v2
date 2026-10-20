@@ -47,8 +47,12 @@ const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) =>
   // numerator.
   const totalBoards = _.size(data);
   const activePools = _.size(_.filter(data, { poolStatus: true }));
-  // Connected boards first; a disconnected one is listed, tagged, at the end.
-  const dataSorted = _.orderBy(data, ['disconnected', 'version'], ['asc', 'desc']);
+  // Connected boards first; a disconnected, booting or stuck one is listed, tagged, at the end.
+  const dataSorted = _.orderBy(
+    data,
+    [(b) => Boolean(b.disconnected || b.bootState), 'version'],
+    ['asc', 'desc']
+  );
 
   const dataTableBoards = _.chain(dataSorted)
     .map((board) => {
@@ -192,7 +196,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) =>
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
-                    opacity={dataSorted[index].disconnected ? 0.6 : 1}
+                    opacity={dataSorted[index].disconnected || dataSorted[index].bootState ? 0.6 : 1}
                   >
                     <PanelGrid
                       title={`Hashboard #${index}`}
@@ -205,6 +209,8 @@ const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) =>
                       kind={dataSorted[index].kind}
                       disconnected={dataSorted[index].disconnected}
                       disconnectedSince={dataSorted[index].disconnectedSince}
+                      bootState={dataSorted[index].bootState}
+                      bootSince={dataSorted[index].bootSince}
                       showName={true}
                     />
                   </Card>
@@ -224,10 +230,14 @@ const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) =>
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
-                    opacity={dataSorted[index].disconnected ? 0.6 : 1}
+                    opacity={dataSorted[index].disconnected || dataSorted[index].bootState ? 0.6 : 1}
                   >
                     <PanelGrid
-                      title={`${dataSorted[index].poolHost}:${dataSorted[index].poolPort}`}
+                      title={
+                        dataSorted[index].poolHost
+                          ? `${dataSorted[index].poolHost}:${dataSorted[index].poolPort}`
+                          : `Hashboard #${index}`
+                      }
                       data={board}
                       status={dataSorted[index].poolStatus}
                       badgeSecondaryText={dataSorted[index].poolUsername}
@@ -236,6 +246,8 @@ const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) =>
                       kind={dataSorted[index].kind}
                       disconnected={dataSorted[index].disconnected}
                       disconnectedSince={dataSorted[index].disconnectedSince}
+                      bootState={dataSorted[index].bootState}
+                      bootSince={dataSorted[index].bootSince}
                       showName={true}
                     />
                   </Card>

@@ -19,16 +19,21 @@ export const minerBoardsSelector = createSelector(
   (data, error, received, loading) => {
     const result = data?.result ?? null;
     const errors = [error, data?.error].filter(Boolean);
+    const boards = result?.boards ?? NO_BOARDS;
+    const countUsb = (status) => boards.filter((b) => b.kind === 'usb' && b.status === status).length;
     return {
       loading,
       received,
       live: !!result,
       error: errors,
-      boards: result?.boards ?? NO_BOARDS,
+      boards,
       hasMiner: !!result?.hasMiner,
       hasUsbMiners: !!result?.hasUsbMiners,
       usbCount: result?.usbCount ?? 0,
       usbActiveCount: result?.usbActiveCount ?? 0,
+      // Attached but not mining yet / not answering: counted from the list.
+      usbBootingCount: countUsb('booting'),
+      usbStuckCount: countUsb('stuck'),
       deviceFamily: result?.deviceFamily ?? null,
     };
   }

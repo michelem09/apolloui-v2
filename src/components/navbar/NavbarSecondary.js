@@ -21,8 +21,10 @@ const NavbarSeconday = ({
   soloOnline, // Add solo service status
 }) => {
   const intl = useIntl();
-  const { canStartMiner } = useDeviceConfig();
-  const noBoard = intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' });
+  const { canStartMiner, startBlockedReason } = useDeviceConfig();
+  const noBoard = intl.formatMessage({
+    id: startBlockedReason === 'stuck' ? 'navbar.usb_miners.none_responding' : 'navbar.usb_miners.none_to_start',
+  });
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
   const menuBg = useColorModeValue('white', 'navy.800');

@@ -94,6 +94,30 @@ describe('minerSelector — board list join', () => {
     expect(stats.boards).toHaveLength(2);
   });
 
+  it.each(['booting', 'stuck'])('a %s board is tagged and kept out of totals like a disconnected one', (st) => {
+    const since = '2026-10-19T10:00:00.000Z';
+    const { data } = minerSelector(
+      stateWith(FILES(), [entry('internal-1', 'internal', 'active'), entry('usb-1', 'usb', st, since)])
+    );
+    const usb = data.stats.boards.find((b) => b.uuid === 'usb-1');
+    expect(usb).toMatchObject({ status: false, bootState: st, bootSince: since, disconnected: false });
+    expect(data.stats.minerPower).toBe(100);
+    expect(data.stats.avgBoardTemp).toBe(60);
+    expect(data.stats.totalBoards).toBe(2);
+    expect(data.stats.activeBoards).toBe(1);
+  });
+
+  it('a board known only from its bootloader (no stat file) is still listed, out of totals', () => {
+    const { data } = minerSelector(
+      stateWith([FILES()[0]], [entry('internal-1', 'internal', 'active'), entry('usb-9', 'usb', 'booting', 'x')])
+    );
+    const stub = data.stats.boards.find((b) => b.uuid === 'usb-9');
+    expect(stub).toMatchObject({ status: false, bootState: 'booting', kind: 'usb' });
+    expect(data.stats.minerPower).toBe(100);
+    expect(data.stats.totalBoards).toBe(2);
+    expect(data.stats.activeBoards).toBe(1);
+  });
+
   it('the same stat files without the join count the unplugged board (the bug)', () => {
     const { data } = minerSelector(stateWith(FILES()));
     expect(data.stats.minerPower).toBe(150);

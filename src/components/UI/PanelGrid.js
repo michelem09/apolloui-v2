@@ -24,6 +24,8 @@ const PanelGrid = ({
   kind,
   disconnected,
   disconnectedSince,
+  bootState,
+  bootSince,
   badgeText,
   badgeSecondaryText,
   showName,
@@ -85,6 +87,38 @@ const PanelGrid = ({
             >
               {getMinerHashboardType(boardKind)}
             </Tag>
+          )}
+          {bootState && (
+            <>
+              <Tag
+                size="md"
+                colorScheme={bootState === 'stuck' ? 'red' : 'blue'}
+                my={{ base: '1', md: '0' }}
+                ml={{ base: '0', md: '2' }}
+              >
+                {intl.formatMessage({
+                  id: bootState === 'stuck' ? 'miner.board.status.not_responding' : 'miner.board.status.booting',
+                })}
+              </Tag>
+              {bootSince && (
+                <Text
+                  fontSize="xs"
+                  color={bootState === 'stuck' ? 'red.500' : 'gray.500'}
+                  alignSelf="center"
+                  ml={{ base: '0', md: '2' }}
+                >
+                  {intl.formatMessage(
+                    { id: bootState === 'stuck' ? 'miner.board.stuck_since' : 'miner.board.booting_since' },
+                    {
+                      time: intl.formatTime(new Date(bootSince), {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }),
+                    }
+                  )}
+                </Text>
+              )}
+            </>
           )}
           {disconnected && (
             <>

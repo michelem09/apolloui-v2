@@ -129,7 +129,7 @@ export default function HeaderLinks({
   loading,
   handleSystemAction,
 }) {
-  const { isSoloNode, hasMiner, canStartMiner } = useDeviceConfig();
+  const { isSoloNode, hasMiner, canStartMiner, startBlockedReason } = useDeviceConfig();
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.600', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -144,6 +144,9 @@ export default function HeaderLinks({
   // Without somewhere to put a blockchain the node cannot start, so the controls
   // that would try are turned off rather than left to fail.
   const intl = useIntl();
+  const startBlockedLabel = intl.formatMessage({
+    id: startBlockedReason === 'stuck' ? 'navbar.usb_miners.none_responding' : 'navbar.usb_miners.none_to_start',
+  });
   const { unavailable: noNodeStorage, state: nodeStorageState } =
     useNodeStorage();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -591,7 +594,7 @@ export default function HeaderLinks({
                 <>
                   <MenuGroup title="Miner">
                     <Tooltip
-                      label={intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' })}
+                      label={startBlockedLabel}
                       isDisabled={canStartMiner}
                       shouldWrapChildren
                       hasArrow
@@ -616,7 +619,7 @@ export default function HeaderLinks({
                       Stop
                     </MenuItem>
                     <Tooltip
-                      label={intl.formatMessage({ id: 'navbar.usb_miners.none_to_start' })}
+                      label={startBlockedLabel}
                       isDisabled={canStartMiner}
                       shouldWrapChildren
                       hasArrow

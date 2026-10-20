@@ -26,7 +26,7 @@ const Setup = () => {
   const router = useRouter();
   const intl = useIntl();
   const textColor = useColorModeValue('brand.800', 'white');
-  const { deviceType, hasUsbMiners } = useDeviceConfig();
+  const { deviceType } = useDeviceConfig();
   const isSoloNode = deviceType === 'solo-node';
 
   const [step, setStep] = useState(1);
@@ -261,16 +261,18 @@ const Setup = () => {
       if (nodeError) throw new Error(nodeError.message);
 
       // The Solo Node has no internal board, but it still runs apollo-miner for
-      // USB hashboards, and the miner only reads the pool out of miner_config at
-      // launch — so it needs the restart too whenever one is plugged in.
-      if (!isSoloNode || hasUsbMiners) {
-        const minerResult = await restartMiner();
-        // A call that failed outright (UNAUTHENTICATED, network) is `error`, not a
-        // payload error: reading only the payload went on to /signin as if the
-        // miner had restarted.
-        const minerError = minerResult.error || minerResult?.data?.Miner?.restart?.error;
-        if (minerError) throw new Error(minerError.message);
-      }
+      // USB hashboards, and the miner only reads the pool (and the payout address)
+      // out of miner_config at launch — so it needs the restart too. Not gated on
+      // hasUsbMiners: /setup renders under AuthLayout, where nothing subscribes to
+      // the boards, so that flag only holds a hint that may be gone. With no board
+      // plugged in the restart lands on the placeholder, which is harmless. (ckpool
+      // is started by the backend when the settings are saved with solo on.)
+      const minerResult = await restartMiner();
+      // A call that failed outright (UNAUTHENTICATED, network) is `error`, not a
+      // payload error: reading only the payload went on to /signin as if the
+      // miner had restarted.
+      const minerError = minerResult.error || minerResult?.data?.Miner?.restart?.error;
+      if (minerError) throw new Error(minerError.message);
       // Go straight to signin — where the guard sends a completed setup anyway.
       // router.reload() instead remounted /setup and flashed step 1 of the wizard
       // while ProtectedRoutes waited for the async auth-status query to redirect.

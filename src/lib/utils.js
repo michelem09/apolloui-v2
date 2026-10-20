@@ -3,6 +3,7 @@ import { MdOutlineUsb } from 'react-icons/md';
 import { CgServer } from 'react-icons/cg';
 import { Icon, useColorModeValue } from '@chakra-ui/react';
 import _ from 'lodash';
+import { FormattedMessage } from 'react-intl';
 
 export const displayHashrate = (
   hashrate,
@@ -365,19 +366,33 @@ export const getNodeErrorMessage = (error, intl, storage = null) => {
   return { sentence, type };
 };
 
-export const getMinerHashboardType = (comport) => {
-  if (comport && comport.includes('ttyS1')) {
+// Internal or USB, for a board. The backend says it outright (`kind`), which also
+// covers an Apollo III board that has no comport at all; the comport is only the
+// fallback for a stat file the board list has not caught up with yet.
+export const boardKindOf = ({ kind, comport } = {}) => {
+  if (kind === 'internal' || kind === 'usb') return kind;
+  if (!comport) return null;
+  return comport.includes('ttyS') ? 'internal' : 'usb';
+};
+
+// The label for that kind, translated. Takes the kind, not the board, so a caller
+// that has already resolved it does not do so twice.
+export const getMinerHashboardType = (kind) => {
+  if (kind === 'internal') {
     return (
       <>
-        Internal <Icon as={CgServer} ml="2" />
+        <FormattedMessage id="miner.board.kind.internal" /> <Icon as={CgServer} ml="2" />
       </>
     );
   }
-  return (
-    <>
-      External <Icon as={MdOutlineUsb} ml="2" />
-    </>
-  );
+  if (kind === 'usb') {
+    return (
+      <>
+        <FormattedMessage id="miner.board.kind.usb" /> <Icon as={MdOutlineUsb} ml="2" />
+      </>
+    );
+  }
+  return null;
 };
 
 export const filterRecentShares = (dataArray, intervalInSeconds) => {

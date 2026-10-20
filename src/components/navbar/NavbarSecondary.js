@@ -6,7 +6,10 @@ import {
   useColorModeValue,
   Center,
   Button,
+  Tooltip,
 } from '@chakra-ui/react';
+import { useIntl } from 'react-intl';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 import { RestartIcon } from '../UI/Icons/RestartIcon';
 import { StopIcon } from '../UI/Icons/StopIcon';
 
@@ -18,6 +21,11 @@ const NavbarSeconday = ({
   soloOnline, // Add solo service status
   busy = false, // this service's own start/stop/restart is in flight
 }) => {
+  const intl = useIntl();
+  const { canStartMiner, startBlockedReason } = useDeviceConfig();
+  const noBoard = intl.formatMessage({
+    id: startBlockedReason === 'stuck' ? 'navbar.usb_miners.none_responding' : 'navbar.usb_miners.none_to_start',
+  });
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
   const menuBg = useColorModeValue('white', 'navy.800');
@@ -73,6 +81,7 @@ const NavbarSeconday = ({
                 </Text>
               </Button>
 
+              <Tooltip label={noBoard} isDisabled={canStartMiner} shouldWrapChildren hasArrow>
               <Button
                 ms="auto"
                 p="6px"
@@ -81,7 +90,7 @@ const NavbarSeconday = ({
                 bgColor={badgeBox}
                 onClick={() => handleSystemAction('restartMiner')}
                 isLoading={busy}
-                isDisabled={minerOnline === 'pending'}
+                isDisabled={!canStartMiner || minerOnline === 'pending'}
               >
                 <Flex
                   align="center"
@@ -104,10 +113,12 @@ const NavbarSeconday = ({
                   Restart
                 </Text>
               </Button>
+              </Tooltip>
             </>
           )}
 
           {minerOnline === 'offline' && (
+            <Tooltip label={noBoard} isDisabled={canStartMiner} shouldWrapChildren hasArrow>
             <Button
               ms="auto"
               p="6px"
@@ -116,7 +127,7 @@ const NavbarSeconday = ({
               bgColor={badgeBox}
               onClick={() => handleSystemAction('startMiner')}
               isLoading={busy}
-              isDisabled={minerOnline === 'pending'}
+              isDisabled={!canStartMiner || minerOnline === 'pending'}
             >
               <Flex
                 align="center"
@@ -139,6 +150,7 @@ const NavbarSeconday = ({
                 Start
               </Text>
             </Button>
+            </Tooltip>
           )}
         </Center>
       )}

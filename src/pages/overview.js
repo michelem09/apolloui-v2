@@ -68,7 +68,8 @@ import { useMutation } from '@apollo/client';
 import { SOLO_START_MUTATION } from '../graphql/solo';
 import { GiDiamondTrophy } from 'react-icons/gi';
 import CountUp from 'react-countup';
-import { useDeviceType } from '../contexts/DeviceConfigContext';
+import { useDeviceConfig } from '../contexts/DeviceConfigContext';
+import { overviewAreasFor } from '../lib/overviewLayout';
 
 const Overview = () => {
   const intl = useIntl();
@@ -99,7 +100,7 @@ const Overview = () => {
   const shadow = useColorModeValue(
     '0px 17px 40px 0px rgba(112, 144, 176, 0.1)'
   );
-  const deviceType = useDeviceType();
+  const { isSoloNode, hasMiner } = useDeviceConfig();
 
   // Chart interval state
   const [chartInterval, setChartInterval] = useState('hour');
@@ -534,7 +535,7 @@ const Overview = () => {
       ) : (
         <>
           {/* Solo Status Widgets - Top row */}
-          {(deviceType === 'solo-node' || nodeEnableSoloMining === true) && (
+          {(isSoloNode || nodeEnableSoloMining === true) && (
             <>
               {/* The cards stay up when the pool is off — dimmed, not taken
                   away. The record lives in the database now, so Best share
@@ -762,35 +763,13 @@ const Overview = () => {
               {/* A solo node puts this beside its chart, below. No other
                   device type has a soloChart for it to sit next to. */}
               {!soloOnline &&
-                deviceType !== 'solo-node' &&
+                !isSoloNode &&
                 soloOffPanel({ mb: '20px' })}
           </>
           )}
 
           <Grid
-            templateAreas={deviceType === 'solo-node' ? (soloOnline ? {
-              base: `'node' 'soloChart' 'gauges'`,
-              lg: `'node node node node' 'soloChart soloChart soloChart soloChart' 'gauges gauges gauges gauges'`,
-              '3xl': `'node node node node' 'soloChart soloChart soloChart soloChart' 'gauges gauges gauges gauges'`,
-            } : {
-              // The chart gives up a quarter of the row to the panel rather
-              // than the panel taking a full-width band of its own. On the left,
-              // where the reading starts: stacked, it already comes first.
-              base: `'node' 'soloState' 'soloChart' 'gauges'`,
-              lg: `'node node node node' 'soloState soloChart soloChart soloChart' 'gauges gauges gauges gauges'`,
-              '3xl': `'node node node node' 'soloState soloChart soloChart soloChart' 'gauges gauges gauges gauges'`,
-            }) : {
-              base: `'hashrate' 'temperatures' 'power' 'node' 'chart' 'gauges'`,
-              lg: `'hashrate hashrate temperatures power' 'hashrate hashrate node node' 'chart chart chart chart' 'gauges gauges gauges gauges'`,
-              '3xl': `'hashrate hashrate temperatures power' 'hashrate hashrate node node' 'chart chart chart chart' 'gauges gauges gauges gauges'`,
-            }}
-            templateRows={deviceType === 'solo-node' ? {
-              base: soloOnline ? 'auto auto auto' : 'auto auto auto auto',
-              lg: 'auto auto auto',
-            } : {
-              base: 'auto auto auto auto auto auto',
-              lg: 'auto auto auto auto',
-            }}
+            templateAreas={overviewAreasFor({ isSoloNode, hasMiner, soloOnline })}
             templateColumns={{
               base: 'minmax(0, 1fr)',
               lg: 'repeat(4, minmax(0, 1fr))',
@@ -803,7 +782,7 @@ const Overview = () => {
             position="relative"
             overflowX="hidden"
           >
-            {deviceType !== 'solo-node' && (
+            {hasMiner && (
               <GridItem gridArea="hashrate" minW={0}>
                 <HashrateCard
                   loading={loadingMiner}
@@ -817,7 +796,7 @@ const Overview = () => {
               </GridItem>
             )}
 
-            {deviceType !== 'solo-node' && (
+            {!isSoloNode && (
               <GridItem gridArea="chart" minW={0}>
                 {/* Automation summary — sits directly above Miner Metrics, when enabled. */}
                 <AutomationOverviewCard />
@@ -866,7 +845,7 @@ const Overview = () => {
               </GridItem>
             )}
 
-            {deviceType === 'solo-node' && !soloOnline && (
+            {isSoloNode && !soloOnline && (
               <GridItem gridArea="soloState" minW={0}>
                 {/* Fills the row beside the chart; the grid supplies the gap
                     that the standalone band has to carry itself. */}
@@ -874,7 +853,7 @@ const Overview = () => {
               </GridItem>
             )}
 
-            {deviceType === 'solo-node' && (
+            {isSoloNode && (
               <GridItem gridArea="soloChart" minW={0}>
                 <Card bgColor={cardColor} boxShadow={shadow} py="15px" pb="30px" width="100%" maxWidth="100%" overflow="hidden">
                   <Flex m="2" justify="space-between" align="center">
@@ -923,7 +902,7 @@ const Overview = () => {
               </GridItem>
             )}
 
-            {deviceType !== 'solo-node' && (
+            {hasMiner && (
               <GridItem gridArea="temperatures" minW={0}>
                 <Card py="15px" bgColor={cardColor} h="100%" boxShadow={shadow} width="100%" maxWidth="100%" overflow="hidden">
                   <Flex direction="column" my="auto">
@@ -967,7 +946,7 @@ const Overview = () => {
                               }
                             >
                               {servicesStatus?.miner?.status === 'online' &&
-                              Number.isFinite(avgBoardTemp)
+                              avgBoardTemp > 0
                                 ? `${formatTemperature(
                                     avgBoardTemp,
                                     temperatureUnit
@@ -1052,7 +1031,7 @@ const Overview = () => {
               </GridItem>
             )}
 
-            {deviceType !== 'solo-node' && (
+            {hasMiner && (
               <GridItem gridArea="power" minW={0}>
                 <PowerCard
                   loading={loadingMiner}
@@ -1067,7 +1046,7 @@ const Overview = () => {
             )}
 
             <GridItem gridArea="node" minW={0}>
-              {deviceType === 'solo-node' ? (
+              {isSoloNode ? (
                 /* Four standalone widgets instead of one panel with a heading.
                    On a solo node these are the device's headline numbers, and a
                    "Node status" title above them only repeated what each label

@@ -69,7 +69,8 @@ import { useWsConnectionStatus } from '../../lib/useWsConnectionStatus';
 import { soloSelector } from '../../redux/reselect/solo';
 import { servicesSelector } from '../../redux/reselect/services';
 import moment from '../../lib/moment';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import UsbMinersIndicator from './UsbMinersIndicator';
+import { useDeviceConfig } from '../../contexts/DeviceConfigContext';
 
 export default function HeaderLinks({
   secondary,
@@ -83,7 +84,7 @@ export default function HeaderLinks({
   loading,
   handleSystemAction,
 }) {
-  const deviceType = useDeviceType();
+  const { isSoloNode, hasMiner, canStartMiner, startBlockedReason } = useDeviceConfig();
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.600', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -98,6 +99,9 @@ export default function HeaderLinks({
   // Without somewhere to put a blockchain the node cannot start, so the controls
   // that would try are turned off rather than left to fail.
   const intl = useIntl();
+  const startBlockedLabel = intl.formatMessage({
+    id: startBlockedReason === 'stuck' ? 'navbar.usb_miners.none_responding' : 'navbar.usb_miners.none_to_start',
+  });
   const { unavailable: noNodeStorage, state: nodeStorageState } =
     useNodeStorage();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -336,8 +340,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -391,7 +396,7 @@ export default function HeaderLinks({
         </Tooltip>
 
         {/* SOLO MINING */}
-        {(deviceType === 'solo-node' || nodeEnableSoloMining) && (
+        {(isSoloNode || nodeEnableSoloMining) && (
           <Flex
             bg={badgeBg}
             display={secondary ? 'flex' : 'none'}
@@ -399,8 +404,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -460,7 +466,7 @@ export default function HeaderLinks({
         )}
 
         {/* HASHRATE */}
-        {!loading && deviceType !== 'solo-node' && (
+        {!loading && hasMiner && (
           <Flex
             bg={badgeBg}
             display={secondary ? 'flex' : 'none'}
@@ -468,8 +474,9 @@ export default function HeaderLinks({
             ms="auto"
             p="6px"
             align="center"
-            me="8px"
-            px="10px"
+            // Tighter on a phone, where node, solo, miner and USB badges share 390 px.
+            me={{ base: '4px', md: '8px' }}
+            px={{ base: '6px', md: '10px' }}
           >
             <Flex
               align="center"
@@ -494,8 +501,8 @@ export default function HeaderLinks({
                 me="6px"
                 minW="70px"
                 display={{
-                  base: (deviceType === 'solo-node' || nodeEnableSoloMining) ? 'none' : 'block',
-                  md: deviceType === 'solo-node' ? 'none' : 'block',
+                  base: (isSoloNode || nodeEnableSoloMining) ? 'none' : 'block',
+                  md: 'block',
                 }}
               >
                 {`${globalHashrate?.value || 0} ${globalHashrate?.unit || ''}`}
@@ -540,7 +547,7 @@ export default function HeaderLinks({
         )}
 
         {/* TEMPERATURE */}
-        {!loading && deviceType !== 'solo-node' && (
+        {!loading && hasMiner && (
           <Flex
             bg={badgeBg}
             display={secondary ? { base: 'none', md: 'flex' } : 'none'}
@@ -568,12 +575,14 @@ export default function HeaderLinks({
               fontWeight="700"
               me="6px"
             >
-              {minerStatusLabel === 'Online' && avgBoardTemp !== null
+              {minerStatusLabel === 'Online' && avgBoardTemp > 0
                 ? `${formatTemperature(avgBoardTemp, temperatureUnit)}`
                 : '-'}
             </Text>
           </Flex>
         )}
+
+        <UsbMinersIndicator secondary={secondary} />
 
         <Flex p="0px" mx="4px" display={{ base: 'none', md: 'block' }}>
           <FixedPlugin type="small" />
@@ -601,18 +610,29 @@ export default function HeaderLinks({
               bg={updateAvailable && 'orange.500'}
             />
             <MenuList>
-              {deviceType !== 'solo-node' && (
+              {hasMiner && (
                 <>
                   <MenuGroup title="Miner">
-                    <MenuItem
-                      icon={<StartIcon />}
-                      isDisabled={
-                        minerOnline === 'online' || minerOnline === 'pending'
-                      }
-                      onClick={() => handleSystemAction('startMiner')}
+                    {/* Box child, not shouldWrapChildren: its inline span shrank the row */}
+                    <Tooltip
+                      label={startBlockedLabel}
+                      isDisabled={canStartMiner}
+                      hasArrow
                     >
-                      Start
-                    </MenuItem>
+                      <Box w="100%">
+                        <MenuItem
+                          icon={<StartIcon />}
+                          isDisabled={
+                            !canStartMiner ||
+                            minerOnline === 'online' ||
+                            minerOnline === 'pending'
+                          }
+                          onClick={() => handleSystemAction('startMiner')}
+                        >
+                          Start
+                        </MenuItem>
+                      </Box>
+                    </Tooltip>
                     <MenuItem
                       icon={<StopIcon />}
                       isDisabled={minerOnline === 'offline'}
@@ -620,15 +640,26 @@ export default function HeaderLinks({
                     >
                       Stop
                     </MenuItem>
-                    <MenuItem
-                      icon={<RestartIcon />}
-                      isDisabled={
-                        minerOnline === 'offline' || minerOnline === 'pending'
-                      }
-                      onClick={() => handleSystemAction('restartMiner')}
+                    {/* Box child, not shouldWrapChildren: its inline span shrank the row */}
+                    <Tooltip
+                      label={startBlockedLabel}
+                      isDisabled={canStartMiner}
+                      hasArrow
                     >
-                      Restart
-                    </MenuItem>
+                      <Box w="100%">
+                        <MenuItem
+                          icon={<RestartIcon />}
+                          isDisabled={
+                            !canStartMiner ||
+                            minerOnline === 'offline' ||
+                            minerOnline === 'pending'
+                          }
+                          onClick={() => handleSystemAction('restartMiner')}
+                        >
+                          Restart
+                        </MenuItem>
+                      </Box>
+                    </Tooltip>
                   </MenuGroup>
                   <MenuDivider />
                 </>

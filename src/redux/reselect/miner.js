@@ -2,20 +2,73 @@ import { createSelector } from 'reselect';
 import { loadingUntilAnswered } from '../utils/answered';
 import _ from 'lodash';
 import { initialState } from '../../graphql/miner';
-import { displayHashrate, convertHashrateStringToValue } from '../../lib/utils';
+import { displayHashrate, convertHashrateStringToValue, boardKindOf } from '../../lib/utils';
 import moment from '../../lib/moment';
 
 const minerDataSelector = (state) => state.miner.data;
 const minerErrorSelector = (state) => state.miner.error;
 const minerLoadingSelector = (state) => loadingUntilAnswered(state.miner);
 const minerLastShareSelector = (state) => state.miner.lastShare;
+// The board list is optional here (a store without that slice still works): a
+// board with no entry in it is simply taken to be connected.
+const boardListSelector = (state) => state.minerBoards?.data?.result?.boards;
+
+const NO_BOARDS = [];
+const BOOT_STATES = ['booting', 'stuck'];
+
+// Placeholder row for a registry board that has no stat file yet. Numbers are
+// zero, text is empty; `status: false` keeps it out of every sum and average.
+const bootStub = (entry) => ({
+  uuid: entry.id,
+  date: null,
+  status: false,
+  comport: entry.port || null,
+  kind: 'usb',
+  disconnected: false,
+  disconnectedSince: null,
+  bootState: entry.status,
+  // The API decides what `since` means: IAP start while booting, the instant it
+  // became stuck once stuck. Shown as is, never recomputed here.
+  bootSince: entry.since,
+  poolStatus: false,
+  poolUsername: null,
+  poolHost: null,
+  poolPort: null,
+  poolHashrateInGh: 0,
+  avgPoolHashrateInGh: 0,
+  upTime: 0,
+  version: null,
+  lastShareTimeX: 0,
+  lastShareTime: null,
+  wattPerGHs: 0,
+  wattTotal: 0,
+  hashrateInGh: 0,
+  avgHashrateInGh: 0,
+  efficiency: 0,
+  fanSpeed: 0,
+  temperature: 0,
+  errorRate: 0,
+  chipSpeed: 0,
+  chips: 0,
+  sharesAccepted: 0,
+  sharesRejected: 0,
+  sharesSent: 0,
+  diff: 0,
+  voltage: 0,
+});
 
 export const minerSelector = createSelector(
   minerDataSelector,
   minerErrorSelector,
   minerLoadingSelector,
   minerLastShareSelector,
-  (minerData, minerError, minerLoading, lastShareMap) => {
+  boardListSelector,
+  (minerData, minerError, minerLoading, lastShareMap, boardList = NO_BOARDS) => {
+    // Stat file id === board id (MinerStats.uuid === MinerBoard.id). A board the
+    // backend reports as disconnected has a stat file that is stale but still
+    // there: it is listed, tagged, and kept out of every total below.
+    const boardById = new Map(boardList.map((entry) => [entry.id, entry]));
+
     const {
       Miner: {
         online: { error: errorOnline, result = {} },
@@ -39,6 +92,7 @@ export const minerSelector = createSelector(
 
       const boards = minerStats.map((board) => {
         const {
+          uuid,
           date,
           version,
           comport,
@@ -81,7 +135,13 @@ export const minerSelector = createSelector(
         // is being updated, regardless of whether the pool is accepting shares).
         const shareTime = moment(date);
         const ageMinutes = moment.duration(moment().diff(shareTime)).asMinutes();
-        const status = ageMinutes <= maxStatusInterval;
+        const registered = boardById.get(uuid);
+        const disconnected = registered?.status === 'disconnected';
+        // Booting (bootloader, the miner restarts by itself when the board is
+        // ready) and stuck: attached, listed, tagged, and out of every total like
+        // a disconnected one. Its stat file is the one from before the reset.
+        const bootState = BOOT_STATES.includes(registered?.status) ? registered.status : null;
+        const status = ageMinutes <= maxStatusInterval && !disconnected && !bootState;
         const poolStatus = status;
         // "Last share" is the real thing: the moment this board's cumulative share
         // count last moved, tracked in the miner slice. Falls back to the stat-file
@@ -92,9 +152,15 @@ export const minerSelector = createSelector(
         const poolHashrateInGh = avgPoolHashrateInGh;
 
         return {
+          uuid,
           date,
           status,
           comport,
+          kind: boardKindOf({ kind: registered?.kind, comport }),
+          disconnected,
+          disconnectedSince: disconnected ? registered.since : null,
+          bootState,
+          bootSince: bootState ? registered.since : null,
           poolStatus,
           poolUsername,
           poolHost,
@@ -132,6 +198,14 @@ export const minerSelector = createSelector(
 
 
 
+      // A board seen only in its bootloader has no stat file at all: still listed,
+      // so the page does not look as if nothing had been plugged in.
+      const withStat = new Set(minerStats.map((s) => s.uuid));
+      for (const entry of boardList) {
+        if (entry.kind !== 'usb' || !BOOT_STATES.includes(entry.status) || withStat.has(entry.id)) continue;
+        boards.push(bootStub(entry));
+      }
+
       const maxBoardDate = _.maxBy(boards, 'date');
 
       const maxBoardByShareTime = _.maxBy(boards, 'lastShareTimeX');
@@ -156,6 +230,9 @@ export const minerSelector = createSelector(
       );
 
       if (_.every(boards, ['status', false])) minerUptime = 'Inactive';
+
+      // Disconnected boards are listed but are not part of the miner any more.
+      const connectedBoards = _.reject(boards, 'disconnected');
 
       const globalHashrate = displayHashrate(
         _.sumBy(boards, (hb) => {
@@ -220,10 +297,12 @@ export const minerSelector = createSelector(
       // above guards the same expression; the aggregate did not.
       if (!isFinite(avgBoardEfficiency)) avgBoardEfficiency = 0;
 
-      let avgBoardTemp = _.meanBy(boards, (hb) => {
-        if (hb.status) return hb.temperature;
-        return null;
-      });
+      // Averages are taken over the boards that are mining. Averaging all of them
+      // with a zero for each idle one dragged every figure down by the boards
+      // that were not there (an unplugged USB board most of all).
+      const activeList = _.filter(boards, 'status');
+
+      let avgBoardTemp = _.meanBy(activeList, (hb) => hb.temperature);
 
       if (isNaN(avgBoardTemp)) avgBoardTemp = 0;
 
@@ -252,24 +331,15 @@ export const minerSelector = createSelector(
 
       if (isNaN(totalBoardAccepted)) totalBoardAccepted = 0;
 
-      let avgChipSpeed = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.chipSpeed) return hb.chipSpeed;
-        return 0;
-      });
+      let avgChipSpeed = _.meanBy(activeList, (hb) => hb.chipSpeed || 0);
 
       if (isNaN(avgChipSpeed)) avgChipSpeed = 0;
 
-      let avgFanSpeed = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.fanSpeed) return hb.fanSpeed;
-        return 0;
-      });
+      let avgFanSpeed = _.meanBy(activeList, (hb) => hb.fanSpeed || 0);
 
       if (isNaN(avgFanSpeed)) avgFanSpeed = 0;
 
-      let avgVoltage = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.voltage) return hb.voltage;
-        return 0;
-      });
+      let avgVoltage = _.meanBy(activeList, (hb) => hb.voltage || 0);
 
       if (isNaN(avgVoltage)) avgVoltage = 0;
 
@@ -289,14 +359,13 @@ export const minerSelector = createSelector(
         return 0;
       });
 
-      let avgDiff = _.meanBy(boards, (hb) => {
-        if (hb.status && hb.diff) return hb.diff;
-        return 0;
-      });
+      let avgDiff = _.meanBy(activeList, (hb) => hb.diff || 0);
 
       if (isNaN(avgDiff)) avgDiff = 0;
 
       const activeBoards = _.size(_.filter(boards, { status: true }));
+      // An unplugged board still counts in the denominator (Active 0/1), while staying
+      // out of the numerator, the sums and the averages.
       const totalBoards = _.size(boards);
       const activePools = _.size(_.filter(boards, { poolStatus: true }));
 

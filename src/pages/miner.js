@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import CardSkeleton from '../components/UI/CardSkeleton';
 import { useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useSelector, shallowEqual } from 'react-redux';
 import { useIntl } from 'react-intl';
 
@@ -58,7 +59,16 @@ const CHIP_SPEED_FULL_SCALE = { 'apollo-iii': 1050, legacy: 240 };
 
 const Miner = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { minerFamily } = useDeviceConfig();
+  const { effectiveMinerFamily, isSoloNode, hasMiner, boardsLive } = useDeviceConfig();
+  const router = useRouter();
+
+  // A Solo Node with no board has no Miner page (the menu hides it). Whoever lands
+  // here anyway — a bookmark, a board that expired — goes to the overview, but
+  // only once the board list has really said there is none.
+  useEffect(() => {
+    if (isSoloNode && boardsLive && !hasMiner) router.replace('/overview');
+  }, [isSoloNode, boardsLive, hasMiner, router]);
+
   const cardColor = useColorModeValue('white', 'brand.800');
   const iconColor = useColorModeValue('white', 'white');
   const iconColorReversed = useColorModeValue('brand.500', 'white');
@@ -143,7 +153,7 @@ const Miner = () => {
     // Apollo III tunes its own board voltage, so power and oscillator are not
     // settings there and showing them as "AUTO" claims a control that does not
     // exist. What it does have is a target hashrate.
-    const isApolloIii = minerFamily === 'apollo-iii';
+    const isApolloIii = effectiveMinerFamily === 'apollo-iii';
 
   const dataTableBoards = [
     {
@@ -206,6 +216,7 @@ const Miner = () => {
         onClose={onClose}
         placement="right"
         data={boards}
+        hidePools={isSoloNode}
       />
       
       {/* Render the real page while the services push is still in flight: every
@@ -554,7 +565,9 @@ const Miner = () => {
                 >
                   <Flex m="2">
                     <Text fontSize="lg" fontWeight="800">
-                      {intl.formatMessage({ id: 'miner.total_pools_hashboards' })}
+                      {intl.formatMessage({
+                        id: isSoloNode ? 'miner.hashboards' : 'miner.total_pools_hashboards',
+                      })}
                     </Text>
                   </Flex>
                   <Flex align-items="center">
@@ -576,21 +589,27 @@ const Miner = () => {
                   </Stack>
                 ) : (
                   <Box mt="3">
+                    {/* On a Solo Node the card heading already says "Hashboards". */}
                     <PanelGrid
-                      title={intl.formatMessage({ id: 'miner.hashboards' })}
+                      title={isSoloNode ? undefined : intl.formatMessage({ id: 'miner.hashboards' })}
                       active={activeBoards}
                       total={totalBoards}
                       data={dataTableBoards}
                     />
-                    <Center height="20px" mx="5">
-                      <Divider />
-                    </Center>
-                    <PanelGrid
-                      title={intl.formatMessage({ id: 'miner.pools' })}
-                      active={activePools}
-                      total={totalBoards}
-                      data={dataTablePools}
-                    />
+                    {/* A Solo Node mines only into its own node: no pools to show. */}
+                    {!isSoloNode && (
+                      <>
+                        <Center height="20px" mx="5">
+                          <Divider />
+                        </Center>
+                        <PanelGrid
+                          title={intl.formatMessage({ id: 'miner.pools' })}
+                          active={activePools}
+                          total={totalBoards}
+                          data={dataTablePools}
+                        />
+                      </>
+                    )}
                   </Box>
                 )}
               </Card>
@@ -657,7 +676,7 @@ const Miner = () => {
                       value={avgChipSpeed ? avgChipSpeed.toFixed(2) : 'N/A'}
                       rawValue={avgChipSpeed}
                       total={
-                        CHIP_SPEED_FULL_SCALE[minerFamily] ||
+                        CHIP_SPEED_FULL_SCALE[effectiveMinerFamily] ||
                         CHIP_SPEED_FULL_SCALE.legacy
                       }
                       gauge={true}

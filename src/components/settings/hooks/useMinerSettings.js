@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useDeviceConfig } from '../../../contexts/DeviceConfigContext';
 import { useIntl } from 'react-intl';
@@ -17,8 +17,10 @@ const APOLLO_III_DEFAULTS = { minerHashrate: 12, fanTemp: 50, fanPwm: 50 };
 export const useMinerSettings = () => {
   const intl = useIntl();
   const { settings, setSettings, setErrorForm } = useSettings();
-  const { minerFamily, isHybrid } = useDeviceConfig();
-  const isApolloIii = minerFamily === 'apollo-iii';
+  // effectiveMinerFamily: a Solo Node with USB boards is 'legacy' (those boards
+  // always run miner_config), so it gets the legacy presets and no super_eco.
+  const { effectiveMinerFamily, isHybrid } = useDeviceConfig();
+  const isApolloIii = effectiveMinerFamily === 'apollo-iii';
 
   // Built with useMemo, not useRef: the miner family is only known once
   // /api/config answers, so the controls have to be able to change once it does.
@@ -234,6 +236,14 @@ export const useMinerSettings = () => {
   );
   const [fanMode, setFanMode] = useState(fanInitialMode);
   const [fanOverrideMode, setFanOverrideMode] = useState(fanOverrideInitialMode);
+  const isHybridRef = useRef(isHybrid);
+  const iiiBadge = useCallback(
+    (hybrid) =>
+      hybrid
+        ? intl.formatMessage({ id: 'settings.sections.miner.modes.apollo_iii_only' })
+        : undefined,
+    [intl]
+  );
   const [currentMode, setCurrentMode] = useState({ id: 'loading' });
   const [minerPowerLedMode, setMinerPowerLedMode] = useState({
     id: 'powerled',
@@ -267,12 +277,11 @@ export const useMinerSettings = () => {
               mode.voltage = settings.voltage;
             }
           }
-          // "Apollo III only" badge shown only in hybrid (mixed III + USB).
-          if (mode.isIiiOnly) {
-            mode.alertBadge = isHybrid
-              ? intl.formatMessage({ id: 'settings.sections.miner.modes.apollo_iii_only' })
-              : undefined;
-          }
+          // "Apollo III only" badge shown only in hybrid (mixed III + USB). Read
+          // through a ref: a board being plugged or expiring only changes this
+          // note, and must not re-run the whole recompute from the settings
+          // (the effect below keeps the badge current).
+          if (mode.isIiiOnly) mode.alertBadge = iiiBadge(isHybridRef.current);
           return mode;
         })
         .value()
@@ -303,7 +312,17 @@ export const useMinerSettings = () => {
         selected: !settings.powerLedOff,
       };
     });
-  }, [settings, minerInitialModes, fanInitialMode, isApolloIii, isHybrid, intl]);
+  }, [settings, minerInitialModes, fanInitialMode, isApolloIii, iiiBadge]);
+
+  // Hybrid flips only touch the badge on the III-only presets.
+  useEffect(() => {
+    isHybridRef.current = isHybrid;
+    setMinerModes((modes) =>
+      modes.map((mode) =>
+        mode.isIiiOnly ? { ...mode, alertBadge: iiiBadge(isHybrid) } : mode
+      )
+    );
+  }, [isHybrid, iiiBadge]);
 
   const customAwaitsHashrate = useRef(false);
   useEffect(() => {

@@ -302,6 +302,22 @@
     "power": {
       "usage": "Stromverbrauch",
       "watts_per_th": "Watt pro TH/s"
+    },
+    "board": {
+      "kind": {
+        "internal": "Intern",
+        "usb": "USB"
+      },
+      "status": {
+        "disconnected": "Getrennt",
+        "booting": "Startet",
+        "not_responding": "Antwortet nicht"
+      },
+      "disconnected_since": "Getrennt seit {time}",
+      "booting_since": "Startet seit {time}",
+      "stuck_since": "Antwortet nicht seit {time}",
+      "unplugged_toast": "Ein USB-Miner wurde getrennt. Er bleibt noch {minutes} Minuten als getrennt in der Liste.",
+      "stuck_toast": "Der USB-Miner {board} antwortet nicht. Er startet seit mehr als 2 Minuten."
     }
   },
   "solo_mining": {
@@ -544,7 +560,8 @@
         "power_led": {
           "title": "Front-Statusleuchte",
           "description": "Schalten Sie die vordere Status-LED ein/aus. Hinweis: Ihr Miner wird neu gestartet, um dies anzuwenden."
-        }
+        },
+        "usb_legacy_note": "USB-Boards laufen immer im passenden klassischen Modus (Eco, Balanced, Turbo oder Custom), unabhängig von der Einstellung des Apollo III. Super Eco gilt für sie nicht."
       },
       "node": {
         "title": "Bitcoin-Node-Einstellungen",
@@ -1495,6 +1512,20 @@
     "tor": {
       "enable": "Tor konnte nicht aktiviert werden.",
       "disable": "Tor konnte nicht deaktiviert werden."
+    }
+  },
+  "navbar": {
+    "usb_miners": {
+      "label": "USB-Miner",
+      "tooltip": "{count, plural, one {# USB-Miner verbunden} other {# USB-Miner verbunden}}{booting, plural, =0 {} one {, # startet} other {, # starten}}",
+      "disconnected": "{count, plural, one {# USB-Miner getrennt} other {# USB-Miner getrennt}}",
+      "board_disconnected": "{board}: getrennt seit {time}",
+      "none_to_start": "Kein USB-Miner angeschlossen",
+      "none_responding": "Kein USB-Miner antwortet",
+      "booting": "{count, plural, one {# USB-Miner startet} other {# USB-Miner starten}}",
+      "board_booting": "{board}: startet seit {time}",
+      "stuck": "{count, plural, one {# USB-Miner antwortet nicht} other {# USB-Miner antworten nicht}}",
+      "board_stuck": "{board}: antwortet nicht seit {time}"
     }
   }
 }

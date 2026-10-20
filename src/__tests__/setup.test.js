@@ -6,7 +6,6 @@ import Setup from '../pages/setup';
 
 const mockReplace = jest.fn();
 jest.mock('next/router', () => ({ useRouter: () => ({ reload: jest.fn(), replace: mockReplace }) }));
-// The miner restart only runs on a Solo Node when a USB hashboard is plugged in.
 let mockHasUsbMiners = false;
 jest.mock('../contexts/DeviceConfigContext', () => ({
   useDeviceConfig: () => ({ deviceType: 'solo-node', hasUsbMiners: mockHasUsbMiners }),
@@ -125,7 +124,9 @@ describe('Setup wizard — starting mining', () => {
   });
 
   const reachCompleteStep = async (restartResult) => {
-    mockHasUsbMiners = true;
+    // /setup has no board list (nothing subscribes under AuthLayout): the restart
+    // must not depend on one.
+    mockHasUsbMiners = false;
     const restart = jest.fn().mockResolvedValue(restartResult);
     const ok = { data: { Auth: { setup: { error: null } }, Pool: { updateAll: { error: null } }, Node: { start: { error: null } } } };
     useMutation.mockImplementation((doc) => {

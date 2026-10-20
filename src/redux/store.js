@@ -7,6 +7,7 @@ import { resetReceivedOnRehydrate } from './utils/answered';
 
 // Import reducers/slices
 import minerReducer from './slices/minerSlice';
+import minerBoardsReducer from './slices/minerBoardsSlice';
 import nodeReducer from './slices/nodeSlice';
 import mcuReducer from './slices/mcuSlice';
 import analyticsReducer from './slices/analyticsSlice';
@@ -77,6 +78,7 @@ const persistConfig = {
 // Combine reducers
 const rootReducer = {
   miner: minerReducer,
+  minerBoards: minerBoardsReducer,
   node: nodeReducer,
   mcu: mcuReducer,
   analytics: analyticsReducer,

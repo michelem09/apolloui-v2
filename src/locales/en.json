@@ -302,6 +302,22 @@
     "power": {
       "usage": "Power usage",
       "watts_per_th": "Watts per TH/s"
+    },
+    "board": {
+      "kind": {
+        "internal": "Internal",
+        "usb": "USB"
+      },
+      "status": {
+        "disconnected": "Disconnected",
+        "booting": "Booting",
+        "not_responding": "Not responding"
+      },
+      "disconnected_since": "Disconnected since {time}",
+      "booting_since": "Booting since {time}",
+      "stuck_since": "Not responding since {time}",
+      "unplugged_toast": "A USB miner was disconnected. It stays listed as disconnected for {minutes} minutes.",
+      "stuck_toast": "USB miner {board} is not responding. It has been starting for more than 2 minutes."
     }
   },
   "solo_mining": {
@@ -544,7 +560,8 @@
         "power_led": {
           "title": "Front Status Light",
           "description": "Turn off/on the front status led. Note: your miner will be restarted to apply."
-        }
+        },
+        "usb_legacy_note": "USB boards always run the matching legacy mode (Eco, Balanced, Turbo or Custom), whatever the Apollo III is set to. Super Eco does not apply to them."
       },
       "node": {
         "title": "Bitcoin node settings",
@@ -1495,6 +1512,20 @@
     "tor": {
       "enable": "Could not enable Tor.",
       "disable": "Could not disable Tor."
+    }
+  },
+  "navbar": {
+    "usb_miners": {
+      "label": "USB miners",
+      "tooltip": "{count, plural, one {# USB miner connected} other {# USB miners connected}}{booting, plural, =0 {} other {, # starting}}",
+      "disconnected": "{count, plural, one {# USB miner disconnected} other {# USB miners disconnected}}",
+      "board_disconnected": "{board}: disconnected since {time}",
+      "none_to_start": "No USB miner connected",
+      "none_responding": "No USB miner responding",
+      "booting": "{count, plural, one {# USB miner booting} other {# USB miners booting}}",
+      "board_booting": "{board}: booting since {time}",
+      "stuck": "{count, plural, one {# USB miner not responding} other {# USB miners not responding}}",
+      "board_stuck": "{board}: not responding since {time}"
     }
   }
 }

@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../test-utils';
 import NavbarAdmin from './NavbarAdmin';
 import {
   MINER_RESTART_MUTATION,
+  MINER_START_MUTATION,
   MINER_STOP_MUTATION,
 } from '../../graphql/miner';
 import { SOLO_RESTART_MUTATION } from '../../graphql/solo';
@@ -31,6 +32,15 @@ jest.mock('react-redux', () => ({
 jest.mock('../../redux/reselect/services', () => ({ servicesSelector: 'services' }));
 jest.mock('../../redux/reselect/miner', () => ({ minerSelector: 'miner' }));
 jest.mock('../../redux/reselect/settings', () => ({ settingsSelector: 'settings' }));
+// What the device config says about starting: false on a Solo Node with no
+// active USB board.
+let mockCanStart = true;
+jest.mock('../../contexts/DeviceConfigContext', () => ({
+  useDeviceConfig: () => ({
+    canStartMiner: mockCanStart,
+    startBlockedReason: mockCanStart ? null : 'none',
+  }),
+}));
 jest.mock('../sidebar/Sidebar', () => ({ SidebarResponsive: () => null }));
 jest.mock('./NavbarLinksAdmin', () => () => null);
 jest.mock('../UI/StatusTransitionFeedback', () => () => null);
@@ -74,6 +84,44 @@ const settle = () => act(() => new Promise((r) => setTimeout(r, 120)));
 describe('navbar start/stop/restart buttons', () => {
   beforeEach(() => {
     mockStatus = {};
+    mockCanStart = true;
+  });
+
+  it.each([
+    ['online', 'Restart'],
+    ['offline', 'Start'],
+  ])('a %s miner with no USB board to run: %s is disabled and sends nothing', async (status, label) => {
+    mockPage = 'miner';
+    mockStatus = { miner: { status } };
+    mockCanStart = false;
+    const calls = { count: 0 };
+    renderWithProviders(
+      <MockedProvider
+        mocks={[
+          mockFor(MINER_RESTART_MUTATION, 'Miner', 'restart', calls),
+          mockFor(MINER_START_MUTATION, 'Miner', 'start', calls),
+        ]}
+        addTypename={false}
+      >
+        <NavbarAdmin routes={routes} />
+      </MockedProvider>
+    );
+    const button = screen.getByText(label).closest('button');
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    await settle();
+    expect(calls.count).toBe(0);
+  });
+
+  it('with a board to run the same buttons are enabled', () => {
+    mockPage = 'miner';
+    mockStatus = { miner: { status: 'offline' } };
+    renderWithProviders(
+      <MockedProvider mocks={[]} addTypename={false}>
+        <NavbarAdmin routes={routes} />
+      </MockedProvider>
+    );
+    expect(screen.getByText('Start').closest('button')).not.toBeDisabled();
   });
 
   it('miner restart: a second click while the first is in flight sends no second mutation', async () => {

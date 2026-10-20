@@ -8,9 +8,9 @@ import { GrUserWorker } from 'react-icons/gr';
 import { MdSchedule } from 'react-icons/md';
 import { FormattedMessage } from 'react-intl';
 
-// Function to generate routes based on device type
-// This allows routes to be dynamic and not require rebuild
-export const getRoutes = (deviceType) => {
+// Function to generate the menu. `hasMiner` comes live from the device config:
+// always true on an Apollo, and on a Solo Node only while a board is plugged in.
+export const getRoutes = ({ hasMiner = true } = {}) => {
   return [
     {
       name: <FormattedMessage id="routes.overview" />,
@@ -18,8 +18,8 @@ export const getRoutes = (deviceType) => {
       path: '/overview',
       icon: <DashboardIcon width='20px' height='20px' color='inherit' />,
     },
-    // Hide miner route for solo-node devices
-    ...(deviceType !== 'solo-node' ? [{
+    // No miner, no Miner page
+    ...(hasMiner ? [{
       name: <FormattedMessage id="routes.miner" />,
       layout: '/admin',
       path: '/miner',
@@ -38,8 +38,8 @@ export const getRoutes = (deviceType) => {
       icon: <NodeIcon width='20px' height='20px' color='inherit' />,
       path: '/node',
     },
-    // Nothing to schedule on a solo-node: it has no miner.
-    ...(deviceType !== 'solo-node' ? [{
+    // Nothing to schedule without a miner.
+    ...(hasMiner ? [{
       name: <FormattedMessage id="routes.automation" />,
       layout: '/admin',
       path: '/automation',
@@ -61,8 +61,3 @@ export const getRoutes = (deviceType) => {
     },
   ];
 };
-
-// Default export for backward compatibility (uses build-time env var as fallback)
-const routes = getRoutes(process.env.NEXT_PUBLIC_DEVICE_TYPE || 'miner');
-
-export default routes;

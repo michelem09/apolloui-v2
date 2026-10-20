@@ -31,7 +31,7 @@ import ActiveBadge from './ActiveBadge';
 import { useSelector, shallowEqual } from 'react-redux';
 import { settingsSelector } from '../../redux/reselect/settings';
 
-const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
+const MinerDrawer = ({ isOpen, onClose, placement, data, hidePools = false }) => {
   const drawerBgColor = useColorModeValue('gray.200', 'brand.700');
   const cardColor = useColorModeValue('white', 'brand.800');
   const shadow = useColorModeValue(
@@ -43,9 +43,16 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
   const temperatureUnit = settings?.temperatureUnit || 'c'; // Use 'C' as default
 
   const activeBoards = _.size(_.filter(data, { status: true }));
+  // A disconnected board counts in the denominator (Active 0/1) but never in the
+  // numerator.
   const totalBoards = _.size(data);
   const activePools = _.size(_.filter(data, { poolStatus: true }));
-  const dataSorted = _.orderBy(data, ['version'], ['desc']);
+  // Connected boards first; a disconnected, booting or stuck one is listed, tagged, at the end.
+  const dataSorted = _.orderBy(
+    data,
+    [(b) => Boolean(b.disconnected || b.bootState), 'version'],
+    ['asc', 'desc']
+  );
 
   const dataTableBoards = _.chain(dataSorted)
     .map((board) => {
@@ -136,7 +143,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
       <DrawerOverlay />
       <DrawerContent bgColor={drawerBgColor} maxW="100vw" overflowX="hidden">
         <DrawerCloseButton />
-        <DrawerHeader fontSize="3xl">Hashboards and Pools</DrawerHeader>
+        <DrawerHeader fontSize="3xl">{hidePools ? 'Hashboards' : 'Hashboards and Pools'}</DrawerHeader>
 
         <DrawerBody overflowX="hidden" width="100%" maxWidth="100%">
           <Tabs size="md" align={'center'} isLazy variant={'line'}>
@@ -156,6 +163,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     />
                   )}
               </Tab>
+              {!hidePools && (
               <Tab>
                 <Text fontWeight={600} me="2">
                   Pools
@@ -171,6 +179,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     />
                   )}
               </Tab>
+              )}
             </TabList>
 
             <TabPanels>
@@ -187,6 +196,7 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
+                    opacity={dataSorted[index].disconnected || dataSorted[index].bootState ? 0.6 : 1}
                   >
                     <PanelGrid
                       title={`Hashboard #${index}`}
@@ -196,11 +206,17 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                       version={dataSorted[index].version}
                       badgeSecondaryText="Active ASICs"
                       comport={dataSorted[index].comport}
+                      kind={dataSorted[index].kind}
+                      disconnected={dataSorted[index].disconnected}
+                      disconnectedSince={dataSorted[index].disconnectedSince}
+                      bootState={dataSorted[index].bootState}
+                      bootSince={dataSorted[index].bootSince}
                       showName={true}
                     />
                   </Card>
                 ))}
               </TabPanel>
+              {!hidePools && (
               <TabPanel>
                 {dataTablePools.map((board, index) => (
                   <Card
@@ -214,19 +230,30 @@ const MinerDrawer = ({ isOpen, onClose, placement, data }) => {
                     width="100%"
                     maxWidth="100%"
                     overflow="hidden"
+                    opacity={dataSorted[index].disconnected || dataSorted[index].bootState ? 0.6 : 1}
                   >
                     <PanelGrid
-                      title={`${dataSorted[index].poolHost}:${dataSorted[index].poolPort}`}
+                      title={
+                        dataSorted[index].poolHost
+                          ? `${dataSorted[index].poolHost}:${dataSorted[index].poolPort}`
+                          : `Hashboard #${index}`
+                      }
                       data={board}
                       status={dataSorted[index].poolStatus}
                       badgeSecondaryText={dataSorted[index].poolUsername}
                       version={dataSorted[index].version}
                       comport={dataSorted[index].comport}
+                      kind={dataSorted[index].kind}
+                      disconnected={dataSorted[index].disconnected}
+                      disconnectedSince={dataSorted[index].disconnectedSince}
+                      bootState={dataSorted[index].bootState}
+                      bootSince={dataSorted[index].bootSince}
                       showName={true}
                     />
                   </Card>
                 ))}
               </TabPanel>
+              )}
             </TabPanels>
           </Tabs>
         </DrawerBody>

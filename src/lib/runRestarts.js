@@ -78,15 +78,30 @@ export const usbMinerPresent = ({ hasUsbMiners, minerService }) =>
 // address until restarted. With one present the ordinary rule applies (restart it
 // unless it is known stopped); with none the miner is left alone.
 //
-// `skipped` is 'miner' only when a startup field really changed and the restart
-// was dropped because the miner is stopped, the one case worth telling the user.
-export const restartPlanFor = ({ deviceType, minerFieldsChanged, nodeNeeded, minerService, hasUsbMiners }) => {
+// ckpool is never restarted from here (the backend does it, and leaves a stopped
+// one alone), but a stopped one will not have read the new conf: `soloFieldsChanged`
+// (btcsig/startdiff/mindiff, with solo mining on) plus a solo service the monitor
+// knows is stopped (same rule as the miner) is reported as skipped 'solo'. The
+// miner wins when both apply, as on 2.1.4: one message at a time.
+//
+// `skipped` is set only when a startup field really changed and the service is
+// stopped, the one case worth telling the user.
+export const restartPlanFor = ({
+  deviceType,
+  minerFieldsChanged,
+  soloFieldsChanged,
+  nodeNeeded,
+  minerService,
+  soloService,
+  hasUsbMiners,
+}) => {
   const isSoloNode = deviceType === 'solo-node';
   const minerApplies = !isSoloNode || usbMinerPresent({ hasUsbMiners, minerService });
   const minerChanged = minerApplies && !!minerFieldsChanged;
   const minerStopped = minerChanged && serviceKnownStopped(minerService);
   const minerRestart = minerChanged && !minerStopped;
-  const skipped = minerStopped ? 'miner' : null;
+  const soloStopped = !!soloFieldsChanged && serviceKnownStopped(soloService);
+  const skipped = minerStopped ? 'miner' : soloStopped ? 'solo' : null;
   if (minerRestart && nodeNeeded) return { type: 'both', skipped };
   if (minerRestart) return { type: 'miner', skipped };
   if (nodeNeeded) return { type: 'node', skipped };
@@ -96,4 +111,8 @@ export const restartPlanFor = ({ deviceType, minerFieldsChanged, nodeNeeded, min
 // The intl id of the success toast when a restart was skipped; null leaves the
 // plain "Settings saved." literal the page has always sent.
 export const savedMessageIdFor = (skipped) =>
-  skipped === 'miner' ? 'settings.actions.saved_miner_stopped' : null;
+  skipped === 'miner'
+    ? 'settings.actions.saved_miner_stopped'
+    : skipped === 'solo'
+      ? 'settings.actions.saved_solo_stopped'
+      : null;

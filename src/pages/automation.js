@@ -47,6 +47,7 @@ import TariffCard from '../components/automation/TariffCard';
 import MqttInputsCard from '../components/automation/MqttInputsCard';
 import EventsTimeline from '../components/automation/EventsTimeline';
 import { runMutation } from '../lib/runMutation';
+import { useDeviceConfig } from '../contexts/DeviceConfigContext';
 
 const Automation = () => {
   const intl = useIntl();
@@ -60,6 +61,14 @@ const Automation = () => {
   // configure-once cards). The active tab lives in the URL so it survives a
   // refresh and is linkable.
   const router = useRouter();
+
+  // Automation is not offered on a Solo Node (the menu hides it, see routes.js):
+  // a bookmark or a typed URL goes to the overview instead of an empty page.
+  const { isSoloNode } = useDeviceConfig();
+  useEffect(() => {
+    if (isSoloNode) router.replace('/overview');
+  }, [isSoloNode, router]);
+
   const activeTab = router.query.tab === 'setup' ? 1 : 0;
   const setActiveTab = (index) =>
     router.replace(
@@ -222,6 +231,8 @@ const Automation = () => {
     (rule.conditions || []).some((c) => c.signal?.startsWith('sun.'))
   );
   const showLocationAlert = locationMissing && usesSunSignal;
+
+  if (isSoloNode) return null;
 
   if (loading && !data) {
     return (

@@ -140,7 +140,43 @@ describe('restartPlanFor', () => {
   });
 });
 
+describe('restartPlanFor: a stopped solo pool', () => {
+  const base = { deviceType: 'miner', minerFieldsChanged: false, soloFieldsChanged: true, nodeNeeded: false };
+  const offline = { status: 'offline' };
+
+  it('says so, and restarts nothing (the backend leaves a stopped ckpool alone)', () => {
+    expect(restartPlanFor({ ...base, soloService: offline })).toEqual({ type: null, skipped: 'solo' });
+  });
+  it.each([['online'], ['pending'], ['error'], [undefined]])('stays silent when solo is %s', (status) => {
+    expect(restartPlanFor({ ...base, soloService: status ? { status } : undefined }).skipped).toBeNull();
+  });
+  it('a pending stop (requested offline) counts as stopped', () => {
+    expect(restartPlanFor({ ...base, soloService: { status: 'pending', requestedStatus: 'offline' } }).skipped).toBe('solo');
+  });
+  it('is silent when no ckpool conf field changed, even with solo stopped', () => {
+    expect(restartPlanFor({ ...base, soloFieldsChanged: false, soloService: offline }).skipped).toBeNull();
+  });
+  it('works on a Solo Node too, and does not touch the miner restart', () => {
+    expect(
+      restartPlanFor({ ...base, deviceType: 'solo-node', hasUsbMiners: true, minerFieldsChanged: true, minerService: { status: 'online' }, soloService: offline })
+    ).toEqual({ type: 'miner', skipped: 'solo' });
+  });
+  it('the stopped miner is the one reported when both are stopped', () => {
+    expect(
+      restartPlanFor({ ...base, minerFieldsChanged: true, minerService: offline, soloService: offline })
+    ).toEqual({ type: null, skipped: 'miner' });
+  });
+  it('a stopped miner with an unchanged-conf, running solo does not report solo', () => {
+    expect(
+      restartPlanFor({ ...base, soloFieldsChanged: false, minerFieldsChanged: true, minerService: offline, soloService: offline }).skipped
+    ).toBe('miner');
+  });
+});
+
 describe('savedMessageIdFor', () => {
+  it('names the stopped-solo toast', () => {
+    expect(savedMessageIdFor('solo')).toBe('settings.actions.saved_solo_stopped');
+  });
   it('names the stopped-miner toast, otherwise leaves the plain one', () => {
     expect(savedMessageIdFor('miner')).toBe('settings.actions.saved_miner_stopped');
     expect(savedMessageIdFor(null)).toBeNull();

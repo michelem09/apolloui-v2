@@ -10,7 +10,9 @@ import { FormattedMessage } from 'react-intl';
 
 // Function to generate the menu. `hasMiner` comes live from the device config:
 // always true on an Apollo, and on a Solo Node only while a board is plugged in.
-export const getRoutes = ({ hasMiner = true } = {}) => {
+// Automation is hidden on a Solo Node whatever the boards: it schedules the miner
+// of an Apollo, and the USB boards of a Solo Node are not its business.
+export const getRoutes = ({ hasMiner = true, isSoloNode = false } = {}) => {
   return [
     {
       name: <FormattedMessage id="routes.overview" />,
@@ -38,8 +40,8 @@ export const getRoutes = ({ hasMiner = true } = {}) => {
       icon: <NodeIcon width='20px' height='20px' color='inherit' />,
       path: '/node',
     },
-    // Nothing to schedule without a miner.
-    ...(hasMiner ? [{
+    // Nothing to schedule without a miner, and never on a Solo Node.
+    ...(hasMiner && !isSoloNode ? [{
       name: <FormattedMessage id="routes.automation" />,
       layout: '/admin',
       path: '/automation',

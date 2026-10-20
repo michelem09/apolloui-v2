@@ -31,4 +31,10 @@ describe('getRoutes — miner menu', () => {
   it('having no miner removes exactly the miner-only routes (Miner and Automation)', () => {
     expect(paths({ hasMiner: false }).length).toBe(paths({ hasMiner: true }).length - 2);
   });
+
+  it('a Solo Node never shows Automation, even with a board plugged in', () => {
+    expect(paths({ hasMiner: true, isSoloNode: true })).not.toContain('/automation');
+    expect(paths({ hasMiner: true, isSoloNode: true })).toContain('/miner');
+    expect(paths({ hasMiner: true, isSoloNode: false })).toContain('/automation');
+  });
 });

@@ -178,7 +178,7 @@ const Layout = ({ children }) => {
   ]);
 
   // Generate routes dynamically from what the box has
-  const dynamicRoutes = getRoutes({ hasMiner });
+  const dynamicRoutes = getRoutes({ hasMiner, isSoloNode });
   let routes = dynamicRoutes;
 
   // ---------------------------------------------------------------------------

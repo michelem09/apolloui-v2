@@ -103,6 +103,9 @@ const RESTORABLE_SETTINGS_FIELDS = [
   'nodeSoftware',
 ];
 
+// Settings that end up in ckpool's conf (see settings.js ckpoolConfigChanged).
+const SOLO_CONF_FIELDS = ['btcsig', 'startdiff', 'mindiff'];
+
 const SettingsTab = () => {
   const intl = useIntl();
   const deviceType = useDeviceType();
@@ -126,9 +129,12 @@ const SettingsTab = () => {
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
   // Whether the miner is stopped decides if a save restarts it (restartPlanFor).
-  // Node and ckpool are restarted by the backend, which knows if they are running.
+  // Node and ckpool are restarted by the backend, which knows if they are running;
+  // the solo service is read only to tell the user a stopped ckpool has not seen
+  // the new conf yet.
   const { data: servicesStatusData } = useSelector(servicesSelector, shallowEqual);
   const minerService = servicesStatusData?.miner;
+  const soloService = servicesStatusData?.solo;
   // Saved pools, and the pending "keep this one" the action bar offers. A pool
   // is worth offering to keep only when it is not already in the list — picking
   // a preset or a saved profile has nothing new to remember.
@@ -149,7 +155,7 @@ const SettingsTab = () => {
     backup: poolFieldsChanged(currentSettings?.backupPool, settings?.backupPool),
   };
   const [restartNeeded, setRestartNeeded] = useState(null);
-  // 'miner' | 'solo' when a startup field changed but that service is stopped.
+  // 'miner' | 'solo' when a field changed that a stopped service will only read at its next start.
   const [restartSkipped, setRestartSkipped] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
   const [isModalRestoreOpen, setIsModalRestoreOpen] = useState(false);
@@ -414,6 +420,14 @@ const SettingsTab = () => {
       _.pick(currentSettings, restartMinerFields)
     );
 
+    // The ckpool conf fields (settings._applyServiceLifecycle restarts a running
+    // ckpool for them, and leaves a stopped one alone). Only with solo mining
+    // already on: switching it on or off starts or stops ckpool itself.
+    const soloFieldsChanged =
+      !!currentSettings?.nodeEnableSoloMining &&
+      !!settings?.nodeEnableSoloMining &&
+      !_.isEqual(_.pick(settings, SOLO_CONF_FIELDS), _.pick(currentSettings, SOLO_CONF_FIELDS));
+
     const restartNodeNeeded = !_.isEqual(
       _.pick(settings, restartNodeFields),
       _.pick(currentSettings, restartNodeFields)
@@ -422,8 +436,10 @@ const SettingsTab = () => {
     const plan = restartPlanFor({
       deviceType,
       minerFieldsChanged,
+      soloFieldsChanged,
       nodeNeeded: restartNodeNeeded,
       minerService,
+      soloService,
       hasUsbMiners,
     });
 
@@ -431,7 +447,7 @@ const SettingsTab = () => {
     if (isEqual && !mqttChanged) setIsChanged(false);
     setRestartNeeded(plan.type);
     setRestartSkipped(plan.skipped);
-  }, [settings, currentSettings, deviceType, mqttChanged, minerService, hasUsbMiners]);
+  }, [settings, currentSettings, deviceType, mqttChanged, minerService, soloService, hasUsbMiners]);
 
   // Handle backup download
   const handleBackup = async () => {

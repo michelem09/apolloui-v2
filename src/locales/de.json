@@ -1119,7 +1119,7 @@
   "navbar": {
     "usb_miners": {
       "label": "USB-Miner",
-      "tooltip": "{count, plural, one {# USB-Miner verbunden} other {# USB-Miner verbunden}}",
+      "tooltip": "{count, plural, one {# USB-Miner verbunden} other {# USB-Miner verbunden}}{booting, plural, =0 {} one {, # startet} other {, # starten}}",
       "disconnected": "{count, plural, one {# USB-Miner getrennt} other {# USB-Miner getrennt}}",
       "board_disconnected": "{board}: getrennt seit {time}",
       "none_to_start": "Kein USB-Miner angeschlossen",

@@ -1,6 +1,7 @@
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders, screen } from '../../test-utils';
 import UsbMinersIndicator from './UsbMinersIndicator';
 import minerBoardsReducer, { updateMinerBoards } from '../../redux/slices/minerBoardsSlice';
@@ -151,5 +152,53 @@ describe('UsbMinersIndicator', () => {
     expect(s2.getState().feedback.message).toMatch(/…456789 is not responding/);
     push(s2, [board('a', 'usb', 'stuck', { serial: '123456789' })]);
     expect(s2.getState().feedback.seq).toBe(1);
+  });
+
+  describe('tooltip', () => {
+    const open = async () => {
+      await userEvent.hover(screen.getByTestId('usb-miners-indicator'));
+      return screen.findByRole('tooltip');
+    };
+
+    it('a lone booting board is "1 connected, 1 starting", not 0 connected', async () => {
+      const store = makeStore();
+      mount(store);
+      push(store, [board('b', 'usb', 'booting')]);
+      const tip = await open();
+      expect(tip).toHaveTextContent('1 USB miner connected, 1 starting');
+      expect(tip).not.toHaveTextContent(/^0 USB/);
+    });
+
+    it('counts attached boards (active + booting + stuck), not the unplugged ones', async () => {
+      const store = makeStore();
+      mount(store);
+      push(store, [
+        board('a', 'usb', 'active'),
+        board('b', 'usb', 'booting'),
+        board('c', 'usb', 'stuck'),
+        board('d', 'usb', 'disconnected'),
+      ]);
+      expect(await open()).toHaveTextContent('3 USB miners connected, 1 starting');
+    });
+
+    it('no booting board: no "starting" clause', async () => {
+      const store = makeStore();
+      mount(store);
+      push(store, [board('a', 'usb', 'active')]);
+      const tip = await open();
+      expect(tip).toHaveTextContent('1 USB miner connected');
+      expect(tip).not.toHaveTextContent('starting');
+    });
+
+    it('a stuck board shows the time it became stuck, as given by the API', async () => {
+      const store = makeStore();
+      mount(store);
+      push(store, [board('c', 'usb', 'stuck', { since: '2026-10-19T10:02:00.000Z' })]);
+      const tip = await open();
+      const expected = new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(
+        new Date('2026-10-19T10:02:00.000Z')
+      );
+      expect(tip).toHaveTextContent(`not responding since ${expected}`);
+    });
   });
 });

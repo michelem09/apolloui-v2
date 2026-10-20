@@ -85,7 +85,11 @@ const UsbMinersIndicator = ({ secondary = true }) => {
   const label = (
     <Box>
       <Text>
-        {intl.formatMessage({ id: 'navbar.usb_miners.tooltip' }, { count: usbActiveCount })}
+        {intl.formatMessage(
+          { id: 'navbar.usb_miners.tooltip' },
+          // Connected = attached and not unplugged; the badge itself counts the active ones.
+          { count: usb.length - disconnected.length, booting: booting.length }
+        )}
       </Text>
       {[
         [stuck, 'stuck'],

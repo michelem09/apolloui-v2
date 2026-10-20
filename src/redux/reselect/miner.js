@@ -26,6 +26,8 @@ const bootStub = (entry) => ({
   disconnected: false,
   disconnectedSince: null,
   bootState: entry.status,
+  // The API decides what `since` means: IAP start while booting, the instant it
+  // became stuck once stuck. Shown as is, never recomputed here.
   bootSince: entry.since,
   poolStatus: false,
   poolUsername: null,

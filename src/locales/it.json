@@ -442,6 +442,7 @@
       "save_pool": "Aggiungi il pool alla lista",
       "save_pool_name": "Nome per questo pool",
       "save_pool_done": "Pool \"{name}\" aggiunto alla tua lista",
+      "saved_miner_stopped": "Impostazioni salvate. Il miner è fermo: verranno applicate quando lo avvii.",
       "save_pool_hint": "I pool salvati compaiono nella lista qui sopra e in quella del pool di backup."
     },
     "tabs": {

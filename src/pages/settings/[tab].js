@@ -58,7 +58,9 @@ import {
 } from '../../lib/utils';
 import { mcuSelector } from '../../redux/reselect/mcu';
 import { CHANGE_PASSWORD_MUTATION } from '../../graphql/auth';
-import { useDeviceType } from '../../contexts/DeviceConfigContext';
+import { useDeviceConfig, useDeviceType } from '../../contexts/DeviceConfigContext';
+import { servicesSelector } from '../../redux/reselect/services';
+import { minerRestartFieldsFor, restartPlanFor, savedMessageIdFor } from '../../lib/runRestarts';
 import usePoolProfiles from '../../hooks/usePoolProfiles';
 import useSettingsDraft from '../../hooks/useSettingsDraft';
 import { poolFieldsChanged, suggestPoolName } from '../../lib/poolOptions';
@@ -103,6 +105,7 @@ const RESTORABLE_SETTINGS_FIELDS = [
 const SettingsTab = () => {
   const intl = useIntl();
   const deviceType = useDeviceType();
+  const { hasUsbMiners } = useDeviceConfig();
   const router = useRouter();
   const dispatch = useDispatch();
   const {
@@ -121,6 +124,10 @@ const SettingsTab = () => {
   const [reloadSettled, setReloadSettled] = useState(0);
   const [restoreData, setRestoreData] = useState();
   const [isChanged, setIsChanged] = useState(false);
+  // Whether the miner is stopped decides if a save restarts it (restartPlanFor).
+  // Node and ckpool are restarted by the backend, which knows if they are running.
+  const { data: servicesStatusData } = useSelector(servicesSelector, shallowEqual);
+  const minerService = servicesStatusData?.miner;
   // Saved pools, and the pending "keep this one" the action bar offers. A pool
   // is worth offering to keep only when it is not already in the list — picking
   // a preset or a saved profile has nothing new to remember.
@@ -141,6 +148,8 @@ const SettingsTab = () => {
     backup: poolFieldsChanged(currentSettings?.backupPool, settings?.backupPool),
   };
   const [restartNeeded, setRestartNeeded] = useState(null);
+  // 'miner' | 'solo' when a startup field changed but that service is stopped.
+  const [restartSkipped, setRestartSkipped] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
   const [isModalRestoreOpen, setIsModalRestoreOpen] = useState(false);
   // The format dialog and its progress now live at layout level (FormatTaskContext),
@@ -401,20 +410,7 @@ const SettingsTab = () => {
     // configuration once, at startup, so a field changed here without a restart
     // is written to miner_config and then ignored by the running process.
     // Apollo III has its own tuning fields alongside the Apollo I/II ones.
-    const restartMinerFields = [
-      'minerMode',
-      'frequency',
-      'voltage',
-      'pool',
-      'backupPool',
-      'fan_low',
-      'fan_high',
-      'minerHashrate',
-      'fanTemp',
-      'fanPwm',
-      'powerLedOff',
-      'nodeEnableSoloMining',
-    ];
+    const restartMinerFields = minerRestartFieldsFor(deviceType);
     const restartNodeFields = [
       'nodeEnableTor',
       'nodeUserConf',
@@ -425,32 +421,32 @@ const SettingsTab = () => {
     ];
     const isEqual = _.isEqual(settings, currentSettings);
     
-    // For solo-node, check solo fields instead of miner fields
-    const restartMinerNeeded = deviceType === 'solo-node' 
-      ? false 
-      : !_.isEqual(
-          _.pick(settings, restartMinerFields),
-          _.pick(currentSettings, restartMinerFields)
-        );
-    
+    // Whether a changed field is acted on by a restart depends on the device
+    // (a Solo Node only has a USB miner, if one is there) and on the miner being
+    // up: see restartPlanFor.
+    const minerFieldsChanged = !_.isEqual(
+      _.pick(settings, restartMinerFields),
+      _.pick(currentSettings, restartMinerFields)
+    );
+
     const restartNodeNeeded = !_.isEqual(
       _.pick(settings, restartNodeFields),
       _.pick(currentSettings, restartNodeFields)
     );
-    
-    const restartType =
-      restartMinerNeeded && restartNodeNeeded
-        ? 'both'
-        : restartMinerNeeded
-        ? 'miner'
-        : restartNodeNeeded
-        ? 'node'
-        : null;
-    
+
+    const plan = restartPlanFor({
+      deviceType,
+      minerFieldsChanged,
+      nodeNeeded: restartNodeNeeded,
+      minerService,
+      hasUsbMiners,
+    });
+
     if ((!isEqual || mqttChanged) && !settings.initial) setIsChanged(true);
     if (isEqual && !mqttChanged) setIsChanged(false);
-    setRestartNeeded(restartType);
-  }, [settings, currentSettings, deviceType, mqttChanged]);
+    setRestartNeeded(plan.type);
+    setRestartSkipped(plan.skipped);
+  }, [settings, currentSettings, deviceType, mqttChanged, minerService, hasUsbMiners]);
 
   // Handle backup download
   const handleBackup = async () => {
@@ -865,7 +861,13 @@ const SettingsTab = () => {
         dispatch,
       });
       if (restartedOk && !locationError && !timezoneFeedback.some((m) => m.type === 'error')) {
-        dispatch(sendFeedback({ message: 'Settings saved.', type: 'success' }));
+        const savedId = savedMessageIdFor(restartSkipped);
+        dispatch(
+          sendFeedback({
+            message: savedId ? intl.formatMessage({ id: savedId }) : 'Settings saved.',
+            type: 'success',
+          })
+        );
       }
 
       // Last, and errors after successes: feedback holds one message at a time,
